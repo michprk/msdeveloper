@@ -1,11 +1,11 @@
-// Accueil : objectif du jour, chiffres clés, activité, à faire, conseil.
-import { S, update, calls, signedValue, stageCount, startOfDay, startOfWeek, startOfMonth, DAY, can, trialActive } from '../store.js';
+// Aujourd'hui : l'objectif d'appels et la prochaine action d'abord, puis la semaine.
+// Uniquement les données de l'utilisateur ; des états vides qui expliquent quoi faire.
+import { S, update, calls, signedValue, startOfDay, startOfWeek, startOfMonth, DAY, can } from '../store.js';
 import { ic, esc, eur, num, dateLong, when, ring, bar, stageChip, avatar, ago, register, toast, confirmSheet } from '../ui.js';
 import { logoMark } from '../icons.js';
 import { SERVICES, getSector, buildScript } from '../data/scripts.js';
-import { TIPS } from '../data/guides.js';
 import { stackedBars } from '../charts.js';
-import { trialStrip, sectorTile } from './common.js';
+import { trialStrip } from './common.js';
 import { clearDemo } from '../data/demo.js';
 import { cluster } from './flowers.js';
 
@@ -24,46 +24,44 @@ function activityData() {
   return out;
 }
 
+export function nextToCall(s) {
+  const t1 = startOfDay() + DAY;
+  const rank = (p) => (p.stage === 'rappeler' ? (p.next?.due && p.next.due < t1 ? 0 : 2) : 1);
+  const queue = s.prospects.filter((p) => p.stage === 'rappeler' || p.stage === 'a_appeler')
+    .sort((a, b) => rank(a) - rank(b) || (a.next?.due || 9e15) - (b.next?.due || 9e15) || a.createdAt - b.createdAt);
+  return { queue, next: queue[0] };
+}
+
 export function home() {
   const s = S(), p = s.profile, g = s.goals;
   const t0 = startOfDay(), w0 = startOfWeek(), m0 = startOfMonth();
   const today = calls(t0).length;
-  const rdvWeek = calls(w0).filter((a) => a.outcome === 'rdv').length;
+  const week = calls(w0);
+  const weekRdv = week.filter((a) => a.outcome === 'rdv').length;
   const signedMonth = signedValue(m0);
-  const newMonth = s.prospects.filter((x) => x.createdAt >= m0).length;
-  const devis = s.prospects.filter((x) => x.stage === 'devis');
-  const devisSum = devis.reduce((n, x) => n + (Number(x.valeur) || 0), 0);
   const left = Math.max(0, g.appelsJour - today);
   const hasDemo = s.prospects.some((x) => x.demo);
-  const crm = can('crm');
-
-  // À faire : en retard + aujourd'hui
-  const end = t0 + DAY;
-  const todo = s.tasks.filter((t) => !t.done && t.due && t.due < end).sort((a, b) => a.due - b.due).slice(0, 4);
-
-  // Prochain appel → script conseillé
-  const next = s.prospects.filter((x) => x.stage === 'rappeler' || x.stage === 'a_appeler')
-    .sort((a, b) => (a.stage === 'rappeler' ? 0 : 1) - (b.stage === 'rappeler' ? 0 : 1) || (a.next?.due || 9e15) - (b.next?.due || 9e15))[0];
-  const nextSec = getSector(next?.secteur || 'fleuriste') || getSector('fleuriste');
-  const nextSvc = next?.service || p.service || 'site';
-  const sc = buildScript(nextSvc, 'appel', nextSec.id);
-  const tip = TIPS[Math.floor(t0 / DAY) % TIPS.length];
-
-  // Entonnoir sur 30 jours
-  const c30 = calls(t0 - 29 * DAY);
-  const talked = c30.filter((a) => a.outcome !== 'nr').length;
-  const pos30 = c30.filter((a) => a.outcome === 'interesse' || a.outcome === 'rdv').length;
-  const rdv30 = c30.filter((a) => a.outcome === 'rdv').length;
-  const signed = s.prospects.filter((x) => x.stage === 'signe').length;
-  const funnel = [['Appels', c30.length], ['Conversations', talked], ['Réponses positives', pos30], ['Rendez-vous', rdv30], ['Clients signés', signed]];
-  const fmax = Math.max(1, c30.length);
+  const { queue, next } = nextToCall(s);
+  const nextSec = next ? getSector(next.secteur) || getSector('toute') : null;
+  const sc = next ? buildScript(next.service || p.service || 'site', 'appel', nextSec.id) : null;
+  const todo = s.tasks.filter((t) => !t.done && t.due && t.due < t0 + DAY).sort((a, b) => a.due - b.due).slice(0, 5);
   const recent = [...s.prospects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
+  const any7 = activityData().some((d) => d.values[0] + d.values[1] > 0);
+
+  // Premiers pas : disparaît une fois tout fait
+  const steps = [
+    ['Compléter votre profil', 'Votre prénom et votre société remplissent les scripts.', !!(p.prenom && p.societe), '#/reglages'],
+    ['Ajouter vos premiers prospects', 'Un par un, ou en collant une liste depuis un tableur.', s.prospects.length > 0, '#/crm?new=1'],
+    ['Lire le script de votre secteur', 'Le bon discours, adapté au métier de vos prospects.', s.recent.length > 0, '#/scripts'],
+    ['Faire votre première session d\'appels', 'Le script s\'affiche, le résultat s\'enregistre en un geste.', s.activities.some((a) => a.type === 'appel'), '#/appel'],
+  ];
+  const doneSteps = steps.filter((x) => x[2]).length;
 
   const html = `
   <div class="home">
     <div class="m-top">
       <a class="m-brand" href="#/" aria-label="M&amp;S Developer">${logoMark('sm')}<span><b>M&amp;S</b> Developer</span></a>
-      <a class="m-avatar" href="#/reglages" aria-label="Réglages">${avatar(p.prenom || 'M S')}</a>
+      <a class="m-avatar" href="#/reglages" aria-label="Compte et réglages">${avatar(p.prenom || 'M S')}</a>
     </div>
     <header class="ph ph-home">
       <p class="ph-k">${dateLong()}</p>
@@ -71,87 +69,69 @@ export function home() {
       ${cluster('home-cl')}
     </header>
     ${trialStrip()}
-    ${!trialActive() && s.sub.plan === 'free' && !s.sub.trialStart && !s.sub.demo ? `<section class="card cta-trial rise">
-      <div><h2>Essayez tout pendant 7 jours</h2><p>CRM, mode appel, tous les scripts et les outils. Sans carte bancaire.</p></div>
-      <button class="btn btn-primary" data-act="start-trial">Commencer l'essai</button></section>` : ''}
-    ${hasDemo ? `<div class="note-demo rise">${ic('note')}<span>Vous découvrez l'application avec des entreprises d'exemple.</span><button class="link" data-act="clear-demo">Effacer les exemples</button></div>` : ''}
+    ${hasDemo ? `<div class="note-demo rise">${ic('note')}<span><b>Données de démonstration.</b> Ces entreprises sont fictives.</span><button class="link" data-act="clear-demo">Effacer</button></div>` : ''}
+    ${doneSteps < steps.length && !s.prefs.hideStart ? `<section class="card start rise">
+      <header class="card-h"><div><h2>Pour bien démarrer</h2><p>${doneSteps} sur ${steps.length} · environ 10 minutes · <button class="link" data-act="hide-start">Masquer</button></p></div><span class="start-n">${Math.round((doneSteps / steps.length) * 100)} %</span></header>
+      ${bar(doneSteps, steps.length, 'olive')}
+      <ol class="start-l">${steps.map(([t, d, ok, href]) => `<li class="${ok ? 'is-done' : ''}"><a href="${href}"><span class="tick ${ok ? 'is-done' : ''}"></span><span><b>${t}</b><em>${d}</em></span>${ok ? '' : ic('chevR', 'chev')}</a></li>`).join('')}</ol>
+    </section>` : ''}
 
-    <div class="home-grid">
-      <section class="card hero rise" style="--i:1">
-        <div class="hero-top">
-          <div class="hero-ring">${ring(today, g.appelsJour, { size: 116, stroke: 10, cls: 'on-navy' })}<div class="hero-ring-v"><b>${num(today)}</b><span>/ ${num(g.appelsJour)}</span></div></div>
-          <div class="hero-txt">
-            <p class="hero-k">Objectif du jour</p>
-            <h2>${left ? `Encore ${num(left)} appel${left > 1 ? 's' : ''}` : 'Objectif atteint'}</h2>
-            <p>${left ? 'Une session de 45 minutes suffit souvent. Votre liste est prête.' : 'Belle journée. Pensez aux confirmations par SMS.'}</p>
+    <div class="dash">
+      <section class="card today rise" style="--i:1" aria-label="Aujourd'hui">
+        <div class="today-top">
+          <div class="hero-ring">${ring(today, g.appelsJour, { size: 128, stroke: 11, cls: 'on-navy' })}<div class="hero-ring-v"><b>${num(today)}</b><span>sur ${num(g.appelsJour)} appels</span></div></div>
+          <div class="today-txt">
+            <p class="hero-k">Aujourd'hui</p>
+            <h2>${today === 0 ? 'Prêt pour la première session ?' : left ? `Encore ${num(left)} appel${left > 1 ? 's' : ''}` : 'Objectif atteint'}</h2>
+            <p>${queue.length ? `${num(queue.length)} prospect${queue.length > 1 ? 's' : ''} à appeler${queue.filter((x) => x.stage === 'rappeler').length ? `, dont ${queue.filter((x) => x.stage === 'rappeler').length} à rappeler` : ''}.` : 'Aucun prospect à appeler pour l\'instant.'}</p>
           </div>
         </div>
-        <a class="btn btn-sky btn-block" href="#/appel">${ic('headset')}<span>Lancer une session d'appels</span></a>
-        <div class="hero-goals">
-          <div><p><span>Rendez-vous cette semaine</span><b>${rdvWeek} / ${g.rdvSemaine}</b></p>${bar(rdvWeek, g.rdvSemaine, 'on-navy')}</div>
-          <div><p><span>Signé ce mois</span><b>${eur(signedMonth)} / ${eur(g.caMois)}</b></p>${bar(signedMonth, g.caMois, 'on-navy olive')}</div>
+        ${next ? `<a class="today-next" href="#/fiche/${next.id}"><span class="today-next-k">Prochain appel</span><b>${esc(next.entreprise)}</b><span>${esc(nextSec.name)}${next.ville ? ' · ' + esc(next.ville) : ''}${next.next?.label ? ' · ' + esc(next.next.label) : ''}</span></a>` : ''}
+        <div class="today-a">
+          ${queue.length && can('callMode') ? `<a class="btn btn-sky btn-lg" href="#/appel">${ic('phone')}<span>Appeler maintenant</span></a>`
+            : queue.length ? `<a class="btn btn-sky btn-lg" href="#/script/${sc.id}">${ic('script')}<span>Lire le script</span></a>`
+            : `<a class="btn btn-sky btn-lg" href="#/crm?new=1">${ic('plus')}<span>Ajouter des prospects</span></a>`}
+          ${sc ? `<a class="today-sc" href="#/script/${sc.id}?p=${next.id}">${ic('script')}<span>Script prêt : ${esc(sc.title.toLowerCase())}, ${esc(nextSec.name.toLowerCase())}</span></a>` : `<a class="today-sc" href="#/outils/import">${ic('upload')}<span>Ou importer une liste d'entreprises</span></a>`}
         </div>
       </section>
 
-      <section class="kpis rise" style="--i:2" aria-label="Chiffres clés">
-        <a class="kpi" href="#/crm"><span class="kpi-ic t-blue">${ic('users')}</span><p class="kpi-l">Prospects</p><p class="kpi-v">${num(s.prospects.length)}</p><p class="kpi-d">+${num(newMonth)} ce mois</p></a>
-        <a class="kpi" href="#/crm?f=rdv"><span class="kpi-ic t-navy">${ic('calendar')}</span><p class="kpi-l">RDV fixés</p><p class="kpi-v">${num(stageCount('rdv'))}</p><p class="kpi-d">${rdvWeek} cette semaine</p></a>
-        <a class="kpi" href="#/crm?f=devis"><span class="kpi-ic t-sand">${ic('invoice')}</span><p class="kpi-l">Devis en cours</p><p class="kpi-v">${num(devis.length)}</p><p class="kpi-d">${eur(devisSum)} en jeu</p></a>
-        <a class="kpi" href="#/crm?f=signe"><span class="kpi-ic t-olive">${ic('euro')}</span><p class="kpi-l">Signé ce mois</p><p class="kpi-v">${eur(signedMonth)}</p><p class="kpi-d">objectif ${eur(g.caMois)}</p></a>
-      </section>
-
-      <section class="card chart-card rise" style="--i:3">
-        <header class="card-h"><div><h2>Activité</h2><p>Appels des 7 derniers jours</p></div><button class="chip-btn" data-act="toggle-table" aria-pressed="false">Tableau</button></header>
-        <ul class="legend"><li><i class="sw s-pos"></i>Réponses positives</li><li><i class="sw s-oth"></i>Autres appels</li></ul>
-        <div class="chart" id="chart-activity" data-label="Appels par jour sur 7 jours"></div>
-        <table class="ch-table" hidden><thead><tr><th>Jour</th><th>Positives</th><th>Autres</th><th>Total</th></tr></thead><tbody>
-          ${activityData().map((d) => `<tr><td>${d.full}</td><td>${d.values[0]}</td><td>${d.values[1]}</td><td>${d.values[0] + d.values[1]}</td></tr>`).join('')}
-        </tbody></table>
-      </section>
-
-      <section class="card todo rise" style="--i:4">
+      <section class="card todo rise" style="--i:2">
         <header class="card-h"><div><h2>À faire aujourd'hui</h2><p>${todo.length ? `${todo.length} tâche${todo.length > 1 ? 's' : ''}` : 'Rien d\'urgent'}</p></div><a class="link" href="#/agenda">Agenda</a></header>
         ${todo.length ? `<ul class="tasks">${todo.map((t) => {
           const late = t.due < t0;
           const pr = t.prospectId && s.prospects.find((x) => x.id === t.prospectId);
-          return `<li class="task"><button class="tick" data-act="task-toggle" data-id="${t.id}" aria-label="Marquer comme fait"></button>
+          return `<li class="task"><button class="tick" data-act="task-toggle" data-id="${t.id}" aria-label="Marquer « ${esc(t.title)} » comme fait"></button>
             <div class="task-b"><p class="task-t">${esc(t.title)}</p><p class="task-m ${late ? 'is-late' : ''}">${late ? 'En retard · ' : ''}${when(t.due)}${pr ? ` · <a href="#/fiche/${pr.id}">${esc(pr.entreprise)}</a>` : ''}</p></div></li>`;
-        }).join('')}</ul>` : `<p class="muted pad">Votre liste est vide pour aujourd'hui. Ajoutez une relance depuis une fiche ou l'agenda.</p>`}
+        }).join('')}</ul>` : `<div class="mini-empty">${ic('calendar')}<p>Les rappels et rendez-vous que vous fixez pendant vos appels apparaîtront ici, avec une notification avant chaque échéance.</p></div>`}
       </section>
 
-      <section class="card next rise" style="--i:5">
-        <header class="card-h"><div><h2>Script conseillé</h2><p>${next ? `Pour votre prochain appel : ${esc(next.entreprise)}` : 'Pour démarrer'}</p></div></header>
-        <a class="script-row" href="#/script/${sc.id}${next && crm ? `?p=${next.id}` : ''}">
-          <span class="sec-ic">${ic(nextSec.icon)}</span>
-          <span class="script-row-b"><b>${esc(sc.title)}</b><span>${esc(nextSec.name)} · ${SERVICES[nextSvc].short}</span></span>${ic('chevR', 'chev')}
-        </a>
-        <div class="tip"><p class="tip-k">Conseil du jour</p><p>${esc(tip)}</p></div>
+      <section class="week rise" style="--i:3" aria-label="Votre semaine">
+        <a class="kpi big" href="#/outils/stats"><p class="kpi-l">Appels cette semaine</p><p class="kpi-v">${num(week.length)}</p>${bar(week.length, g.appelsJour * 5)}<p class="kpi-d">objectif ${num(g.appelsJour * 5)}</p></a>
+        <a class="kpi big" href="#/crm?v=list&f=rdv"><p class="kpi-l">Rendez-vous fixés</p><p class="kpi-v">${num(weekRdv)}</p>${bar(weekRdv, g.rdvSemaine, 'navy')}<p class="kpi-d">cette semaine · objectif ${num(g.rdvSemaine)}</p></a>
+        <a class="kpi big" href="#/crm?v=list&f=signe"><p class="kpi-l">Signé ce mois</p><p class="kpi-v">${eur(signedMonth)}</p>${bar(signedMonth, g.caMois, 'olive')}<p class="kpi-d">objectif ${eur(g.caMois)}</p></a>
       </section>
 
-      <section class="card funnel rise" style="--i:6">
-        <header class="card-h"><div><h2>Votre entonnoir</h2><p>30 derniers jours</p></div>${can('stats') ? '<a class="link" href="#/outils/stats">Statistiques</a>' : ''}</header>
-        <ul class="fun">${funnel.map(([l, v], i) => `<li><span class="fun-l">${l}</span><span class="fun-b"><i style="width:${Math.max(v ? 1.5 : 0, (v / fmax) * 100)}%"></i></span><b class="fun-v">${num(v)}</b>${i ? `<span class="fun-p">${funnel[i - 1][1] ? Math.round((v / funnel[i - 1][1]) * 100) : 0} %</span>` : '<span class="fun-p"></span>'}</li>`).join('')}</ul>
+      <section class="card chart-card rise" style="--i:4">
+        <header class="card-h"><div><h2>Activité</h2><p>Appels des 7 derniers jours</p></div>${any7 ? '<button class="chip-btn" data-act="toggle-table" aria-pressed="false">Tableau</button>' : ''}</header>
+        ${any7 ? `<ul class="legend"><li><i class="sw s-pos"></i>Réponses positives</li><li><i class="sw s-oth"></i>Autres appels</li></ul>
+        <div class="chart" id="chart-activity" data-label="Appels par jour sur 7 jours"></div>
+        <table class="ch-table tbl" hidden><thead><tr><th>Jour</th><th>Positives</th><th>Autres</th><th>Total</th></tr></thead><tbody>
+          ${activityData().map((d) => `<tr><td data-l="Jour">${d.full}</td><td data-l="Positives">${d.values[0]}</td><td data-l="Autres">${d.values[1]}</td><td data-l="Total">${d.values[0] + d.values[1]}</td></tr>`).join('')}
+        </tbody></table>` : `<div class="mini-empty">${ic('chart')}<p>Chaque appel enregistré dans le mode appel s'affiche ici, jour par jour, avec les réponses positives en olive.</p></div>`}
       </section>
 
-      <section class="card recent rise" style="--i:7">
-        <header class="card-h"><div><h2>Derniers prospects</h2><p>Mis à jour récemment</p></div><a class="link" href="#/crm?v=list">Tout voir</a></header>
+      <section class="card recent rise" style="--i:5">
+        <header class="card-h"><div><h2>Prospects récents</h2><p>${s.prospects.length ? `${num(s.prospects.length)} au total` : 'Aucun pour l\'instant'}</p></div>${s.prospects.length ? '<a class="link" href="#/crm?v=list">Tout voir</a>' : ''}</header>
         ${recent.length ? `<ul class="rows">${recent.map((x) => {
           const sec = getSector(x.secteur);
           return `<li><a class="row" href="#/fiche/${x.id}">${avatar(x.entreprise)}<span class="row-b"><b>${esc(x.entreprise)}</b><span>${esc(sec?.name || '')}${x.ville ? ' · ' + esc(x.ville) : ''} · ${ago(x.updatedAt)}</span></span>${stageChip(x.stage)}</a></li>`;
-        }).join('')}</ul>` : `<p class="muted pad">Aucun prospect pour l'instant.</p><a class="btn btn-ghost btn-block" href="#/crm?new=1">${ic('plus')}<span>Ajouter un prospect</span></a>`}
+        }).join('')}</ul>` : `<div class="mini-empty">${ic('users')}<p>Vos fiches prospects apparaîtront ici. Commencez par en ajouter une, ou collez une liste.</p></div><div class="act-row"><a class="btn btn-ghost" href="#/crm?new=1">${ic('plus')}<span>Ajouter</span></a><a class="btn btn-ghost" href="#/outils/import">${ic('upload')}<span>Importer</span></a></div>`}
       </section>
     </div>
-
-    <section class="quick rise" style="--i:8">
-      <h2 class="sec-title">${(p.secteurs || []).length ? 'Vos secteurs' : 'Scripts par secteur'}</h2>
-      <div class="sec-grid sec-grid-sm">
-        ${[...((p.secteurs || []).length ? p.secteurs.slice(0, 5) : ['fleuriste', 'restaurant', 'coiffeur', 'garage', 'boulangerie']), 'toute'].map(getSector).filter(Boolean).map((sec) => sectorTile(sec, `#/scripts/${sec.id}`).replace('class="sec-tile"', `class="sec-tile g-${sec.group}"`)).join('')}
-      </div>
-    </section>
   </div>`;
 
   return {
-    title: 'Accueil', tab: 'accueil', html,
+    title: 'Aujourd\'hui', tab: 'accueil', html,
     after(root) {
       const host = root.querySelector('#chart-activity');
       if (host) return stackedBars(host, { data: activityData(), series: [{ name: 'Réponses positives', cls: 's-pos' }, { name: 'Autres appels', cls: 's-oth' }], highlight: 6, fmt: (v) => num(Math.round(v)) });
@@ -169,10 +149,12 @@ register({
     card.querySelector('.chart').hidden = on;
     card.querySelector('.legend').hidden = on;
   },
+  'hide-start': () => { update((s) => { s.prefs.hideStart = true; }); toast('« Pour bien démarrer » n\'apparaîtra plus.', { title: 'Liste masquée', action: 'Annuler', onAction: () => update((s) => { s.prefs.hideStart = false; }) }); },
   'clear-demo': async () => {
-    const ok = await confirmSheet({ title: 'Effacer les exemples ?', text: 'Les entreprises, appels et tâches d\'exemple seront supprimés. Ce que vous avez ajouté vous-même est conservé.', ok: 'Effacer', danger: true });
+    const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: 'Les entreprises, appels et tâches fictifs seront supprimés. Ce que vous avez ajouté vous-même est conservé.', ok: 'Effacer', danger: true });
     if (!ok) return;
     update((s) => clearDemo(s));
-    toast('Exemples effacés');
+    toast('Données de démonstration effacées');
   },
 });
+export { toast };

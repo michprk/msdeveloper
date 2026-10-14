@@ -18,7 +18,9 @@ export const FEATURES = {
   quote: 'premium', myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium',
 };
 
-export const STAGES = [
+// Étapes de base (utilisées par le mode appel). L'utilisateur peut les renommer
+// et ajouter ses propres étapes (CRM personnalisé) : voir computeStages().
+const BASE_STAGES = [
   { id: 'a_appeler', label: 'À appeler', tone: 'grey' },
   { id: 'rappeler', label: 'À rappeler', tone: 'sky' },
   { id: 'interesse', label: 'Intéressé', tone: 'blue' },
@@ -27,7 +29,20 @@ export const STAGES = [
   { id: 'signe', label: 'Signé', tone: 'olive' },
   { id: 'perdu', label: 'Perdu', tone: 'rose' },
 ];
-export const STAGE = Object.fromEntries(STAGES.map((s) => [s.id, s]));
+export const TONES = ['grey', 'sky', 'blue', 'navy', 'sand', 'olive', 'rose'];
+export let STAGES = BASE_STAGES;
+export let STAGE = Object.fromEntries(STAGES.map((s) => [s.id, s]));
+function computeStages(s) {
+  const crm = s.crm || {};
+  const list = BASE_STAGES.map((b) => ({ ...b, label: crm.labels?.[b.id] || b.label, base: true }));
+  for (const x of crm.extra || []) {
+    const i = list.findIndex((y) => y.id === x.after);
+    list.splice(i >= 0 ? i + 1 : list.length - 2, 0, { id: x.id, label: x.label, tone: x.tone || 'sky', custom: true, after: x.after });
+  }
+  STAGES = list;
+  STAGE = Object.fromEntries(list.map((st) => [st.id, st]));
+}
+export const stageOf = (id) => STAGE[id] || { id, label: 'Étape supprimée', tone: 'grey' };
 
 export const OUTCOMES = [
   { id: 'nr', label: 'Pas de réponse', short: 'Absent', stage: null, tone: 'grey' },
@@ -50,8 +65,12 @@ const defaults = () => ({
     promesse: 'Prix fixe, délais tenus, et un seul interlocuteur du début à la fin.',
   },
   goals: { appelsJour: 40, rdvSemaine: 5, caMois: 1000 },
-  prefs: { theme: 'light', motion: 'full', notifs: true, replayIntro: false },
+  prefs: { theme: 'light', motion: 'full', notifs: true, replayIntro: false, textSize: 'm' },
   sub: { plan: 'free', trialStart: null, demo: null },
+  // CRM personnalisé : noms d'étapes, étapes ajoutées, champs, équipe
+  crm: { labels: {}, extra: [], fields: [], team: [] },
+  academy: { read: {}, last: null },
+  lock: null, baseline: null,
   prospects: [], activities: [], tasks: [], projects: [],
   favorites: [], recent: [], myScripts: [], mySectors: [], training: {},
   catalogue: [
@@ -78,16 +97,25 @@ function merge(base, saved) {
   return out;
 }
 
+// Dates toujours en millisecondes (protège contre un fichier importé mal formé)
+function sanitize(s) {
+  const n = (v) => (typeof v === 'string' ? Date.parse(v) || null : v);
+  s.tasks.forEach((t) => { t.due = n(t.due); t.doneAt = n(t.doneAt); });
+  s.activities.forEach((a) => { a.at = n(a.at) || Date.now(); });
+  s.prospects.forEach((p) => { p.createdAt = n(p.createdAt) || Date.now(); p.updatedAt = n(p.updatedAt) || p.createdAt; if (p.next) p.next.due = n(p.next.due); });
+  return s;
+}
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return merge(defaults(), JSON.parse(raw));
+    if (raw) return sanitize(merge(defaults(), JSON.parse(raw)));
   } catch (e) { /* stockage indisponible : on repart d'un état vide */ }
   return defaults();
 }
 
 let state = load();
 setCustomSectors(state.mySectors);
+computeStages(state);
 const listeners = new Set();
 let timer;
 
@@ -102,14 +130,61 @@ export function persist() {
 export function update(fn, { silent = false } = {}) {
   fn(state);
   setCustomSectors(state.mySectors);
+  computeStages(state);
   persist();
   if (!silent) listeners.forEach((l) => l());
 }
 export function replaceState(next) {
-  state = merge(defaults(), next);
+  state = sanitize(merge(defaults(), next));
   setCustomSectors(state.mySectors);
+  computeStages(state);
   persist();
   listeners.forEach((l) => l());
+}
+
+// Import par fusion (fichier .json « msdeveloper-import » ou sauvegarde complète) :
+// ajoute étapes, champs, équipe et fiches sans rien écraser. Renvoie un compte rendu.
+export function mergeImport(data) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.prospects)) throw new Error('format');
+  // Dates acceptées en millisecondes ou en clair (« 2026-10-14T17:00 »)
+  const ts = (v) => (typeof v === 'string' ? Date.parse(v) || null : v ?? null);
+  data = {
+    ...data,
+    prospects: data.prospects.map((p) => ({ ...p, createdAt: ts(p.createdAt), updatedAt: ts(p.updatedAt), signedAt: ts(p.signedAt) || undefined, lastContact: ts(p.lastContact) })),
+    activities: (data.activities || []).map((a) => ({ ...a, at: ts(a.at) || Date.now() })),
+    tasks: (data.tasks || []).map((t) => ({ ...t, due: ts(t.due), doneAt: ts(t.doneAt), createdAt: ts(t.createdAt) || Date.now() })),
+  };
+  const idMap = {};
+  const report = { added: 0, skipped: 0, activities: 0, tasks: 0 };
+  update((s) => {
+    const crm = data.crm || {};
+    for (const x of crm.extra || []) if (!s.crm.extra.some((y) => y.id === x.id)) s.crm.extra.push({ id: String(x.id), label: String(x.label), tone: x.tone, after: x.after });
+    for (const f of crm.fields || []) if (!s.crm.fields.some((y) => y.id === f.id)) s.crm.fields.push({ id: String(f.id), label: String(f.label), type: f.type || 'text', options: f.options || [] });
+    for (const m of crm.team || []) if (!s.crm.team.some((y) => y.id === m.id)) s.crm.team.push({ id: String(m.id), name: String(m.name) });
+    Object.assign(s.crm.labels, crm.labels || {});
+    const names = new Set(s.prospects.map((p) => (p.entreprise || '').trim().toLowerCase()));
+    for (const p of data.prospects) {
+      const key = (p.entreprise || '').trim().toLowerCase();
+      if (!key || names.has(key)) { report.skipped++; continue; }
+      const id = uid(); idMap[p.id] = id; names.add(key);
+      s.prospects.push({ ...p, id, demo: false, createdAt: p.createdAt || Date.now(), updatedAt: p.updatedAt || Date.now() });
+      report.added++;
+    }
+    for (const a of data.activities || []) if (idMap[a.prospectId]) { s.activities.push({ ...a, id: uid(), prospectId: idMap[a.prospectId] }); report.activities++; }
+    for (const t of data.tasks || []) if (!t.prospectId || idMap[t.prospectId]) { s.tasks.push({ ...t, id: uid(), prospectId: t.prospectId ? idMap[t.prospectId] : null }); report.tasks++; }
+    s.activities.sort((a, b) => b.at - a.at);
+    if (data.goals) Object.assign(s.goals, data.goals);
+    if (data.baseline) s.baseline = data.baseline;
+  });
+  // Prochaine action de chaque fiche importée
+  update((s) => {
+    for (const id of Object.values(idMap)) {
+      const p = s.prospects.find((x) => x.id === id);
+      const open = s.tasks.filter((t) => t.prospectId === id && !t.done && t.due).sort((a, b) => a.due - b.due)[0];
+      if (p) p.next = open ? { taskId: open.id, label: open.title, due: open.due } : null;
+    }
+  });
+  return report;
 }
 export const resetState = () => replaceState(defaults());
 

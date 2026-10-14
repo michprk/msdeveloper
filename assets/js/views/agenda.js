@@ -36,6 +36,8 @@ export function agenda(params, q) {
   const selLabel = selDay === t0 ? 'Aujourd\'hui' : selDay === t0 + DAY ? 'Demain' : dateDay(selDay);
   const html = `
     ${pageHead('Agenda', { kicker: `${open.length} tâche${open.length > 1 ? 's' : ''} ouverte${open.length > 1 ? 's' : ''}`, actions: `<button class="btn btn-primary" data-act="task-new">${ic('plus')}<span>Tâche</span></button>` })}
+    ${open.length && 'Notification' in window && Notification.permission === 'default' && s.prefs.notifs !== false ? `<section class="card notif-cta rise"><span class="feat-ic f-blue">${ic('bell')}</span><div><b>Recevoir un rappel avant chaque tâche ?</b><p>Une notification 10 minutes avant, avec le script prêt.</p></div><button class="btn btn-primary btn-sm" data-act="notif-ask-sheet">Activer</button></section>` : ''}
+    ${!s.tasks.length ? `<div class="empty card"><span class="empty-ic">${ic('calendar')}</span><p class="empty-t">Votre agenda est vide</p><p class="empty-p">Quand un prospect dit « rappelez-moi » ou accepte un rendez-vous, le mode appel crée la tâche ici, avec la date et le prospect. Vous pouvez aussi en ajouter une à la main.</p><div class="end-a"><button class="btn btn-primary" data-act="task-new">${ic('plus')}<span>Ajouter une tâche</span></button><a class="btn btn-ghost" href="#/appel">${ic('phone')}<span>Lancer des appels</span></a></div></div>` : ''}
     <div class="days" role="tablist" aria-label="Jours">${days.map((d) => {
       const dt = new Date(d), n = countOn(d);
       return `<button class="day ${d === selDay ? 'is-on' : ''} ${d === t0 ? 'is-today' : ''}" role="tab" aria-selected="${d === selDay}" data-act="day" data-d="${d}">

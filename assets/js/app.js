@@ -1,17 +1,18 @@
 // M&S Developer — démarrage, coquille, routeur, événements délégués.
 import { S, onChange, access, trialActive, trialLeft, PLANS } from './store.js';
 import { ic, logoMark } from './icons.js';
-import { actions, forms, esc, toast, planBadge, avatar } from './ui.js';
+import { actions, forms, esc, toast, planBadge, avatar, validateForm, fieldError, setFieldError, refreshNeeds } from './ui.js';
 import { home } from './views/home.js';
 import { library, sectorPage, reader } from './views/scripts.js';
 import { callView, setCallRerender, resetCall } from './views/call.js';
-import { crmView, fiche } from './views/crm.js';
+import { crmView, fiche, crmSettings } from './views/crm.js';
 import { agenda, projects } from './views/agenda.js';
 import { hub, devis, messages, audit, importView, quoteLive } from './views/tools.js';
 import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
 import { academy, guide, plans, settings, more } from './views/pages.js';
 import { onboarding, startOnboarding, isReplay } from './views/onboarding.js';
 import { startReminders } from './notify.js';
+import { bootLock } from './lock.js';
 import { accessLabel } from './views/common.js';
 
 const ROUTES = [
@@ -21,6 +22,7 @@ const ROUTES = [
   [/^script\/([\w.-]+)$/, reader],
   [/^appel$/, callView],
   [/^crm$/, crmView],
+  [/^crm\/personnaliser$/, crmSettings],
   [/^fiche\/([\w-]+)$/, fiche],
   [/^agenda$/, agenda],
   [/^projets$/, projects],
@@ -37,44 +39,49 @@ const ROUTES = [
   [/^academie$/, academy],
   [/^academie\/([\w-]+)$/, guide],
   [/^abonnement$/, plans],
-  [/^reglages$/, settings],
+  [/^(reglages|compte)$/, settings],
   [/^plus$/, more],
   [/^bienvenue$/, onboarding],
 ];
 
+// Navigation : l'essentiel visible (prospecter), le reste regroupé.
 const TABS = [
-  ['accueil', 'Accueil', 'home', '#/'],
+  ['accueil', 'Aujourd\'hui', 'home', '#/'],
+  ['crm', 'Prospects', 'users', '#/crm'],
+  ['appel', 'Appeler', 'phone', '#/appel'],
   ['scripts', 'Scripts', 'script', '#/scripts'],
-  ['crm', 'CRM', 'crm', '#/crm'],
-  ['agenda', 'Agenda', 'calendar', '#/agenda'],
   ['plus', 'Plus', 'grid', '#/plus'],
 ];
 const SIDE = [
-  ['accueil', 'Accueil', 'home', '#/'],
-  ['scripts', 'Scripts', 'script', '#/scripts'],
-  ['appel', 'Session d\'appels', 'headset', '#/appel'],
-  ['crm', 'CRM', 'crm', '#/crm'],
-  ['agenda', 'Agenda', 'calendar', '#/agenda'],
-  ['projets', 'Projets', 'folder', '#/projets'],
-  ['outils', 'Outils', 'briefcase', '#/outils'],
-  ['academie', 'Académie', 'book', '#/academie'],
+  ['Prospecter', [['accueil', 'Aujourd\'hui', 'home', '#/'], ['crm', 'Prospects', 'users', '#/crm'], ['scripts', 'Scripts', 'script', '#/scripts'], ['agenda', 'Agenda', 'calendar', '#/agenda']]],
+  ['Après la signature', [['projets', 'Clients signés', 'folder', '#/projets'], ['devis', 'Devis', 'invoice', '#/outils/devis']]],
+  ['Progresser', [['academie', 'Académie', 'book', '#/academie'], ['stats', 'Statistiques', 'chart', '#/outils/stats'], ['outils', 'Tous les outils', 'briefcase', '#/outils']]],
 ];
+function navFor(path) {
+  if (!path || path === 'accueil') return 'accueil';
+  if (path.startsWith('crm') || path.startsWith('fiche')) return 'crm';
+  if (path.startsWith('script')) return 'scripts';
+  if (path === 'outils/devis') return 'devis';
+  if (path === 'outils/stats') return 'stats';
+  if (path.startsWith('outils')) return 'outils';
+  if (path.startsWith('academie')) return 'academie';
+  if (['reglages', 'compte', 'abonnement'].includes(path)) return 'compte';
+  return path.split('/')[0];
+}
 
 const root = document.getElementById('app');
 root.innerHTML = `
   <a class="skip" href="#view">Aller au contenu</a>
+  <div class="offline-bar" role="status">${ic('globe')}<span>Hors connexion — tout continue de fonctionner, vos données sont sur cet appareil.</span></div>
   <div class="shell">
     <aside class="side" aria-label="Navigation principale">
       <a class="side-brand" href="#/">${logoMark()}<span><b>M&amp;S</b> Developer</span></a>
-      <nav class="side-nav">${SIDE.map(([id, l, i, h]) => `<a class="side-i" data-nav="${id}" href="${h}">${ic(i)}<span>${l}</span></a>`).join('')}</nav>
-      <div class="side-sub">
-        <a class="side-i" data-nav="abonnement" href="#/abonnement">${ic('diamond')}<span>Abonnement</span></a>
-        <a class="side-i" data-nav="reglages" href="#/reglages">${ic('sliders')}<span>Réglages</span></a>
-      </div>
+      <a class="side-cta" data-nav="appel" href="#/appel">${ic('phone')}<span>Lancer une session d'appels</span></a>
+      ${SIDE.map(([g, items]) => `<p class="side-g">${g}</p><nav class="side-nav" aria-label="${g}">${items.map(([id, l, i, h]) => `<a class="side-i" data-nav="${id}" href="${h}">${ic(i)}<span>${l}</span></a>`).join('')}</nav>`).join('')}
       <div class="side-foot"></div>
     </aside>
     <main class="main" id="view" tabindex="-1"></main>
-    <nav class="tabbar" aria-label="Navigation">${TABS.map(([id, l, i, h]) => `<a class="tab" data-nav="${id}" href="${h}">${ic(i)}<span>${l}</span></a>`).join('')}</nav>
+    <nav class="tabbar" aria-label="Navigation">${TABS.map(([id, l, i, h]) => `<a class="tab ${id === 'appel' ? 'tab-call' : ''}" data-nav="${id}" href="${h}"><span class="tab-ic">${ic(i)}</span><span>${l}</span></a>`).join('')}</nav>
   </div>`;
 const view = document.getElementById('view');
 
@@ -91,7 +98,7 @@ function sideFoot() {
   const trial = s.sub.plan === 'free' && !s.sub.demo && trialActive();
   return `${trial ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}Essai gratuit</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
     : a === 'free' ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}Passez à Pro</span><b>CRM, mode appel, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
-    <a class="side-me" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || 'Votre profil')}</b><span>${esc(accessLabel())}</span></span></a>`;
+    <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>`;
 }
 
 function render({ keepScroll = false } = {}) {
@@ -106,17 +113,19 @@ function render({ keepScroll = false } = {}) {
   const changed = location.hash !== lastHash;
   const y = window.scrollY;
   document.body.dataset.mode = v.full ? 'full' : '';
-  document.title = v.title === 'Accueil' ? 'M&S Developer' : `${v.title} · M&S Developer`;
+  document.title = v.title === 'Aujourd\'hui' ? 'M&S Developer' : `${v.title} · M&S Developer`;
   view.innerHTML = v.html;
   view.classList.toggle('view-in', changed);
   if (changed) { void view.offsetWidth; view.classList.add('view-anim'); setTimeout(() => view.classList.remove('view-anim'), 600); }
-  const navId = v.tab === 'plus' ? (['outils', 'academie', 'projets', 'abonnement', 'reglages'].find((x) => path.startsWith(x)) || 'plus') : path === 'appel' ? 'appel' : v.tab;
+  const navId = navFor(path);
+  const tabId = ['accueil', 'crm', 'appel', 'scripts'].includes(navId) ? navId : 'plus';
   document.querySelectorAll('[data-nav]').forEach((a) => {
-    const on = a.dataset.nav === navId || (a.classList.contains('tab') && a.dataset.nav === v.tab);
+    const on = a.classList.contains('tab') ? a.dataset.nav === tabId : a.dataset.nav === navId;
     a.classList.toggle('is-on', on);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
   document.querySelector('.side-foot').innerHTML = sideFoot();
+  document.querySelectorAll('.side-foot [data-nav]').forEach((a) => a.classList.toggle('is-on', a.dataset.nav === navId));
   if (v.after) cleanup = v.after(view) || null;
   if (changed && !keepScroll) { window.scrollTo(0, 0); if (lastHash !== null) view.focus({ preventScroll: true }); }
   else window.scrollTo(0, y);
@@ -140,7 +149,13 @@ document.addEventListener('submit', (e) => {
   const f = e.target.closest('form[data-form]');
   if (!f) return;
   e.preventDefault();
+  if (f.hasAttribute('data-validate') && !validateForm(f)) return;
   forms[f.dataset.form]?.(Object.fromEntries(new FormData(f)), f, e);
+});
+// Validation au fil de la saisie : message sous le champ quitté, bouton activé quand c'est possible
+document.addEventListener('focusout', (e) => {
+  const el = e.target;
+  if (el.matches?.('form[data-validate] input, form[data-validate] textarea') && el.value) setFieldError(el, fieldError(el));
 });
 document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-act-change]');
@@ -151,6 +166,8 @@ document.addEventListener('change', (e) => {
 document.addEventListener('input', (e) => {
   const el = e.target.closest('[data-act-input]');
   if (el) actions[el.dataset.actInput]?.(el, e);
+  const vf = e.target.closest('form[data-validate]');
+  if (vf) { refreshNeeds(vf); if (e.target.getAttribute('aria-invalid')) setFieldError(e.target, fieldError(e.target)); }
   const live = e.target.closest('form[data-live]');
   if (live && live.dataset.form === 'quote-meta') quoteLive(live);
   const flt = e.target.closest('[data-filter]');
@@ -175,6 +192,7 @@ function applyPrefs() {
   const dark = p.theme === 'dark' || (p.theme === 'auto' && mqDark.matches);
   document.documentElement.dataset.theme = dark ? 'dark' : 'light';
   document.documentElement.dataset.motion = p.motion === 'reduce' ? 'reduce' : 'full';
+  document.documentElement.dataset.text = p.textSize || 'm';
   try { localStorage.setItem('msdev:theme', p.theme); } catch (e) { /* rien */ }
   document.querySelectorAll('meta[name=theme-color]').forEach((m) => m.setAttribute('content', dark ? '#0A1325' : '#F5F1E9'));
 }
@@ -210,6 +228,14 @@ if (replay) { startOnboarding(true); history.replaceState(null, '', location.pat
 const splash = document.getElementById('splash');
 render();
 startReminders();
+bootLock();
+
+// ---------- Connexion réseau ----------
+// Tout fonctionne hors ligne ; on le dit simplement quand la connexion tombe.
+const net = () => document.body.classList.toggle('is-offline', !navigator.onLine);
+net();
+window.addEventListener('offline', () => { net(); toast('Tout continue de fonctionner : vos données sont enregistrées sur cet appareil.', { title: 'Hors connexion', ms: 4000 }); });
+window.addEventListener('online', () => { net(); toast('Connexion rétablie.', { ms: 1500 }); });
 if (splash) {
   // Première ouverture : l'écran de bienvenue joue lui-même l'animation du logo.
   if (!S().onboarded || replay) splash.remove();

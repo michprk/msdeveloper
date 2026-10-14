@@ -61,7 +61,7 @@ export function devis(params, q) {
             <input class="inp qty" aria-label="Quantité" type="number" min="0" step="1" value="${l.qty}" data-act-input="quote-line" data-k="qty" data-i="${i}">
             <input class="inp price" aria-label="Prix unitaire" type="number" min="0" step="1" value="${l.price}" data-act-input="quote-line" data-k="price" data-i="${i}">
             <button class="icon-btn sm" data-act="quote-del" data-i="${i}" aria-label="Retirer">${ic('x')}</button></li>`).join('')}</ul>` : '<p class="muted pad">Aucune prestation pour l\'instant.</p>'}
-          <a class="link" href="#/reglages#catalogue">Modifier le catalogue</a>
+          <a class="link" href="#/reglages?s=catalogue">Modifier le catalogue</a>
         </section>
         <form class="card form rise" data-form="quote-meta" data-live>
           <div class="form-2">${field('Remise (%)', input('remise', quote.remise, 'type="number" min="0" max="100"'))}${field('TVA', select('tva', [[21, '21 %'], [6, '6 %'], [0, '0 % — franchise de taxe']], quote.tva))}</div>
@@ -227,7 +227,7 @@ export function importView() {
       <label class="file-btn">${ic('upload')}<span>Ou choisir un fichier CSV</span><input type="file" accept=".csv,.txt,text/csv,text/plain" data-act-change="import-file"></label>
       <div class="form-2">${field('Secteur par défaut', select('secteur', allSectors().map((x) => [x.id, x.name]), 'toute'))}${field('Service à proposer', select('service', SERVICE_IDS.map((id) => [id, SERVICES[id].label]), s.profile.service))}</div>
       <p class="import-prev muted-s" aria-live="polite"></p>
-      <button class="btn btn-primary btn-block" type="submit">${ic('upload')}<span>Importer</span></button>
+      <button class="btn btn-primary btn-block" type="submit" disabled>${ic('upload')}<span>Importer</span></button>
     </form>`;
   return { title: 'Importer', tab: 'plus', html };
 }
@@ -286,7 +286,9 @@ register({
   },
   'import-preview': (el) => {
     const n = parseList(el.value).length;
-    el.closest('form').querySelector('.import-prev').textContent = n ? `${n} entreprise${n > 1 ? 's' : ''} détectée${n > 1 ? 's' : ''}.` : '';
+    const form = el.closest('form');
+    form.querySelector('.import-prev').textContent = n ? `${n} entreprise${n > 1 ? 's' : ''} détectée${n > 1 ? 's' : ''}, prête${n > 1 ? 's' : ''} à importer.` : el.value.trim() ? 'Aucune ligne reconnue : une entreprise par ligne, le nom en premier.' : '';
+    form.querySelector('[type=submit]').disabled = !n;
   },
 }, {
   'quote-meta': (data) => { Object.assign(quote, data); refreshTotals(); },

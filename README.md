@@ -1,54 +1,69 @@
 # M&S Developer
 
-Application de prospection pour les indépendants et les agences qui vendent de la **création de site web**, de l'**automatisation** et du **référencement** : scripts, CRM, mode appel, agenda, outils et méthode. Conçue par M&S Design (Bruxelles).
+**L'app de prospection des créateurs de sites web.** Le bon script pour chaque commerçant, vos prospects et vos relances au même endroit : vous décrochez des rendez-vous chaque semaine.
 
 - **En ligne :** https://michprk.github.io/msdeveloper/ (non indexée)
-- **S'installe comme une application** sur iPhone (Safari → Partager → Sur l'écran d'accueil), Android (Installer l'application), Mac (Safari → Fichier → Ajouter au Dock, ou Chrome) et PC (Chrome / Edge → Installer).
-- **Fonctionne hors ligne** (service worker) ; les données restent sur l'appareil (localStorage), avec sauvegarde / restauration en fichier.
-- **Accueil façon Apple** à la première ouverture (fonctions, notifications, profil, secteurs, essai). Rejouable pour une présentation : Réglages → Présentation, ou le lien `?accueil`. Les clients ne le voient qu'une fois.
-- **Rappels** : notification avant chaque tâche datée et résumé du matin (quand l'app est ouverte ; sur iPhone, une fois installée sur l'écran d'accueil).
+- **Conçue par** M&S Design, Bruxelles.
 
-## Contenu
+## Positionnement
 
-| Rubrique | Ce qu'on y trouve |
+**Pour qui (version 1).** Les créateurs de sites indépendants et les petites agences (1 à 5 personnes) qui prospectent les commerces et indépendants de leur ville, surtout par téléphone et en visite. L'automatisation et le référencement restent proposés, comme services complémentaires qu'ils vendent.
+
+**Pourquoi une seule app plutôt que plusieurs outils.** Avec des scripts dans un document, un CRM d'un côté et un agenda de l'autre, il faut tout recopier après chaque appel. Ici, le script s'affiche rempli avec la fiche du prospect, et le résultat de l'appel met à jour la fiche et crée la relance en un seul geste.
+
+**Trois bénéfices**
+1. **Savoir quoi dire à chaque commerçant** : un script prêt pour 23 métiers, rempli avec le nom du prospect.
+2. **Ne plus perdre un seul prospect** : le résultat de l'appel s'enregistre en un geste, la relance se crée toute seule.
+3. **Voir ce qui marche** : appels, rendez-vous et signatures de la semaine, face à vos objectifs.
+
+Ce qui n'est pas dans la version 1 : comptes en ligne, synchronisation entre appareils, paiement. C'est indiqué dans l'application.
+
+## Navigation
+
+| Téléphone (barre du bas) | Ordinateur (barre latérale) |
 |---|---|
-| Scripts | 704 scripts : 23 secteurs × 3 services × 10 formats (appel à froid, répondeur, visite, e-mail, SMS, Instagram, relances, rendez-vous, objections, prix & signature) + 14 situations délicates (barrage, remise, impayé, client mécontent…). Chaque script a 4 onglets : le script (avec « pourquoi ça marche », variantes et erreurs à éviter), la préparation (checklist, déroulé minuté, questions SPIN, qualification), la fiche secteur (décideur, priorités, mots à employer, saisonnalité, offre conseillée) et 16 objections. |
-| Mode appel | Le script étape par étape, les objections à portée de doigt, le résultat de l'appel enregistré en un geste (+ rappel ou rendez-vous daté). |
-| CRM | Pipeline en 7 étapes (glisser-déposer à la souris, appui long sur mobile), liste filtrable, fiche client complète avec historique, notes, tâches. |
-| Agenda & projets | Tâches, rappels, rendez-vous ; chaque client signé devient un projet avec délai et étapes. |
-| Outils | Devis imprimable en PDF, messages prêts à envoyer, audit express sur 10, import de listes, entraînement aux objections, statistiques, scripts et secteurs personnalisés. |
-| Académie | 14 guides pratiques (rendez-vous, voix, objections, prix, relances, horaires par secteur, cadre légal…). |
+| Aujourd'hui · Prospects · **Appeler** · Scripts · Plus | Bouton « Lancer une session d'appels », puis Prospecter (Aujourd'hui, Prospects, Scripts, Agenda), Après la signature (Clients signés, Devis), Progresser (Académie, Statistiques, Tous les outils), Compte en bas |
+
+## Ce qui fonctionne (testé le 14/10/2026)
+
+| Module | Parcours vérifié |
+|---|---|
+| Aujourd'hui | Objectif du jour, prochain appel, tâches du jour, semaine (appels, rendez-vous, signé), activité — uniquement les données de l'utilisateur. Liste « Pour bien démarrer » et états vides explicatifs pour un nouveau compte. |
+| Prospects (CRM) | Créer (validation avec messages clairs), modifier, chercher, filtrer, déplacer dans le pipeline, supprimer (avec confirmation). |
+| CRM personnalisé | Renommer les étapes, ajouter ses étapes (ex. Maquette prête, En production, En ligne), champs personnalisés (texte, nombre, date, lien, liste), équipe et responsable par fiche, étiquettes, import de ses propres données par fichier. |
+| Scripts | 704 scripts : 23 secteurs × 3 services × 10 formats + 14 situations délicates. Onglets Script, Préparer, Secteur, Objections. |
+| Mode appel | Le script étape par étape, objections, résultat en un geste, rappel ou rendez-vous daté. |
+| Académie | 14 guides, parcours selon le niveau, progression enregistrée (lu / non lu, reprendre là où on s'est arrêté). |
+| Abonnement | Statut réel (essai, date de fin, version gratuite), accès ouverts et verrouillés, formules. Paiement en ligne : pas encore ouvert, dit clairement. |
+| Compte | Profil, offre, objectifs, affichage (thème, taille du texte, animations), notifications, code de verrouillage, présentation (accueil rejoué, données de démonstration), sauvegarde, import, restauration, export CSV, suppression de toutes les données. |
+
+Hors ligne, installable sur iPhone (Safari → Partager → Sur l'écran d'accueil), Android, Mac et PC. Mise à jour automatique à l'ouverture.
 
 ## Formules
 
 | Formule | Prix | Contenu |
 |---|---|---|
-| Découverte | gratuit | Scripts d'appel à froid (tous secteurs), 3 guides |
-| Pro | 17,99 €/mois | CRM, tous les scripts, mode appel, agenda, projets, audit, messages, import, Académie |
-| Premium | 31,99 €/mois | Pro + devis PDF, scripts sur mesure et secteurs perso, entraînement, statistiques, export CSV |
+| Gratuit | 0 € | Scripts d'appel à froid (tous secteurs) |
+| Pro | 17,99 €/mois | Prospects et CRM personnalisé, tous les scripts, mode appel, agenda, clients signés, Académie, audit, messages, import |
+| Premium | 31,99 €/mois | Pro + devis PDF, scripts et secteurs personnels, entraînement, statistiques, export CSV |
 
-Essai gratuit de 7 jours avec toutes les fonctions. **Le paiement n'est pas encore branché** : les boutons « Choisir » expliquent que le paiement ouvrira au lancement. Un « mode démonstration » (Réglages) permet d'afficher l'app en Pro ou Premium pour la présenter.
-
-La répartition des fonctions par formule se règle à un seul endroit : `FEATURES` dans `assets/js/store.js`.
+Essai gratuit de 7 jours avec toutes les fonctions. La répartition se règle dans `FEATURES` (`assets/js/store.js`).
 
 ## Technique
 
-HTML/CSS/JS sans dépendance ni étape de compilation (modules ES). Polices auto-hébergées (Fraunces, Instrument Sans — licences OFL dans `licenses/`). Routage par ancre (`#/crm`, `#/script/site.appel.fleuriste`…).
+HTML/CSS/JS sans dépendance ni compilation (modules ES). Polices auto-hébergées (licences OFL dans `licenses/`). Routage par ancre (`#/crm`, `#/script/site.appel.fleuriste`…).
 
 ```
 index.html            coquille + écran d'ouverture
-manifest.webmanifest  installation (icônes, raccourcis)
 sw.js                 hors ligne — changer VERSION à chaque mise en ligne
-assets/js/app.js      routeur, navigation, événements
-assets/js/store.js    données, abonnement, statistiques
-assets/js/data/       secteurs, moteur de scripts, guides, exemples
+assets/js/app.js      routeur, navigation, événements, validation
+assets/js/store.js    données, étapes personnalisées, import par fusion, abonnement
+assets/js/lock.js     code de verrouillage
+assets/js/notify.js   rappels
+assets/js/data/       secteurs, fiches secteur, moteur de scripts, situations, guides, démonstration
 assets/js/views/      écrans
 ```
 
-Ajouter un secteur : une entrée dans `assets/js/data/sectors.js` (les 30 scripts du secteur sont générés automatiquement). Développement local : `_msdeveloper-src/serve.ps1` (port 8107).
+Système d'interface : rayons `--r-xs` 8, `--r-sm` 12, `--r-md` 16, `--r` 20, `--r-lg` 24 ; titres de page 31/38 px, titres de carte 16 px ; formulaires validés au fil de la saisie (`data-validate`, `data-needs`) ; indicateur de chargement (`busy()`) pour les opérations lentes.
 
-## Avant la commercialisation
-
-- Brancher le paiement (Stripe, abonnements mensuels) et un compte utilisateur avec synchronisation entre appareils.
-- Mentions légales, CGV de l'abonnement et politique de confidentialité de l'éditeur (société à constituer).
-- Pour l'App Store / Google Play : empaqueter l'application (Capacitor). Apple et Google ont leurs propres règles et commissions pour les abonnements vendus dans une application : à vérifier au moment de la publication.
+Sécurité et préparation des comptes en ligne : voir [SECURITE.md](SECURITE.md).

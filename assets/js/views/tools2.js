@@ -86,6 +86,17 @@ export function stats() {
       <div class="kpi"><p class="kpi-l">Rendez-vous</p><p class="kpi-v">${num(rdv)}</p><p class="kpi-d">1 tous les ${rdv ? num(Math.round(n / rdv)) : '—'} appels</p></div>
       <div class="kpi"><p class="kpi-l">Signé</p><p class="kpi-v">${eur(ca)}</p><p class="kpi-d">${signedP.length} client${signedP.length > 1 ? 's' : ''}</p></div>
     </section>
+    ${s.baseline ? `<p class="strip is-soft rise">${ic('flag')}<span>Avant l'application${s.baseline.note ? '' : ''} : <b>${num(s.baseline.calls || 0)}</b> appels, <b>${num(s.baseline.interested || 0)}</b> intéressés, <b>${num(s.baseline.rdv || 0)}</b> rendez-vous, <b>${num(s.baseline.signed || 0)}</b> signé. Ces chiffres ne sont pas comptés ci-dessous.</span></p>` : ''}
+    <section class="card rise">
+      <header class="card-h"><div><h2>Votre entonnoir</h2><p>Où les prospects s'arrêtent, sur ${period} jours</p></div></header>
+      ${(() => {
+        const signedN = s.prospects.filter((p) => p.stage === 'signe' && (p.signedAt || p.updatedAt) >= from).length;
+        const fun = [['Appels', n], ['Conversations', talked], ['Réponses positives', pos], ['Rendez-vous', rdv], ['Clients signés', signedN]];
+        const fmax = Math.max(1, n);
+        return n ? `<ul class="fun">${fun.map(([l, v], i) => `<li><span class="fun-l">${l}</span><span class="fun-b"><i style="width:${Math.max(v ? 1.5 : 0, (v / fmax) * 100)}%"></i></span><b class="fun-v">${num(v)}</b><span class="fun-p">${i ? `${fun[i - 1][1] ? Math.round((v / fun[i - 1][1]) * 100) : 0} %` : ''}</span></li>`).join('')}</ul>`
+          : `<div class="mini-empty">${ic('chart')}<p>Vos taux apparaîtront après vos premiers appels enregistrés dans le mode appel.</p></div>`;
+      })()}
+    </section>
     <div class="tool-2">
       <section class="card rise">
         <header class="card-h"><div><h2>Résultats des appels</h2><p>${num(n)} appels sur ${period} jours</p></div></header>
@@ -100,7 +111,7 @@ export function stats() {
     </div>
     <section class="card rise">
       <header class="card-h"><div><h2>Par secteur</h2><p>Appels liés à une fiche</p></div></header>
-      ${secRows.length ? `<table class="tbl"><thead><tr><th>Secteur</th><th>Appels</th><th>Positifs</th><th>Taux</th></tr></thead><tbody>${secRows.map(([k, v]) => `<tr><td>${esc(getSector(k)?.name || k)}</td><td>${v.n}</td><td>${v.pos}</td><td>${pct(v.pos, v.n)} %</td></tr>`).join('')}</tbody></table>` : '<p class="muted pad">Les appels passés depuis le mode appel apparaîtront ici, secteur par secteur.</p>'}
+      ${secRows.length ? `<table class="tbl tbl-cards"><thead><tr><th>Secteur</th><th>Appels</th><th>Positifs</th><th>Taux</th></tr></thead><tbody>${secRows.map(([k, v]) => `<tr><td data-l="Secteur">${esc(getSector(k)?.name || k)}</td><td data-l="Appels">${v.n}</td><td data-l="Positifs">${v.pos}</td><td data-l="Taux">${pct(v.pos, v.n)} %</td></tr>`).join('')}</tbody></table>` : '<p class="muted pad">Les appels passés depuis le mode appel apparaîtront ici, secteur par secteur.</p>'}
     </section>
     <p class="muted-s center">Objectifs modifiables dans les <a href="#/reglages">réglages</a>. Ce mois : ${eur(signedValue(startOfMonth()))} signés sur ${eur(s.goals.caMois)}.</p>`;
   return {

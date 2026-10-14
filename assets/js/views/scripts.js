@@ -37,6 +37,7 @@ export function library(params, q) {
     <div class="ph-flower" aria-hidden="true">${flower(2, 'xs drift')}</div>
     ${pageHead('Scripts', { kicker: `${scriptCount()} scripts prêts à l'emploi` })}
     ${svcSeg(svc, '#/scripts')}
+    ${!mine.length ? `<section class="card notif-cta rise"><span class="feat-ic f-olive">${ic('target')}</span><div><b>Quels métiers prospectez-vous ?</b><p>Choisissez vos secteurs : leurs scripts s'afficheront en premier.</p></div><button class="btn btn-primary btn-sm" data-act="sectors-edit">Choisir</button></section>` : ''}
     <div class="search rise"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Fleuriste, garage, avocat…" data-filter=".sec-grid-all .sec-tile" aria-label="Chercher un secteur"></div>
     ${mine.length ? `<h2 class="sec-title">Vos secteurs</h2><div class="sec-grid sec-grid-mine">${mine.map((sec) => tileFor(sec, svc)).join('')}</div>` : ''}
     <a class="card wide-tile rise" href="#/scripts/toute?s=${svc}">

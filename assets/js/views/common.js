@@ -3,6 +3,16 @@ import { S, can, need, PLANS, access, trialActive, trialLeft, TRIAL_DAYS, update
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet } from '../ui.js';
 import { flower } from './flowers.js';
 
+// Positionnement : une phrase, un public, trois bénéfices. Repris partout.
+export const PROMISE = 'L\'app de prospection des créateurs de sites web.';
+export const PITCH = 'Le bon script pour chaque commerçant, vos prospects et vos relances au même endroit : vous décrochez des rendez-vous chaque semaine.';
+export const AUDIENCE = 'Pour les créateurs de sites indépendants et les petites agences qui prospectent les commerces de leur ville.';
+export const BENEFITS = [
+  ['script', 'blue', 'Savoir quoi dire à chaque commerçant', 'Un script prêt pour 23 métiers, rempli avec le nom du prospect.'],
+  ['phone', 'olive', 'Ne plus perdre un seul prospect', 'Le résultat de l\'appel s\'enregistre en un geste, la relance se crée toute seule.'],
+  ['chart', 'navy', 'Voir ce qui marche', 'Appels, rendez-vous et signatures de la semaine, face à vos objectifs.'],
+];
+
 export function pageHead(title, { kicker = '', actions = '', back = '' } = {}) {
   return `<header class="ph">
     ${back ? `<a class="ph-back" href="${back}" data-back>${ic('chevL')}<span>Retour</span></a>` : ''}

@@ -1,11 +1,11 @@
 // Service worker : l'application fonctionne hors ligne.
 // Changer VERSION à chaque mise en ligne pour proposer la mise à jour.
-const VERSION = 'msdev-1.1.1';
+const VERSION = 'msdev-1.2.0';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
   'assets/fonts/fraunces-normal-300-700-latin.woff2', 'assets/fonts/instrument-sans-400-700-latin.woff2',
-  'assets/js/theme.js', 'assets/js/app.js', 'assets/js/notify.js', 'assets/js/store.js', 'assets/js/ui.js', 'assets/js/icons.js', 'assets/js/charts.js',
+  'assets/js/theme.js', 'assets/js/app.js', 'assets/js/notify.js', 'assets/js/lock.js', 'assets/js/store.js', 'assets/js/ui.js', 'assets/js/icons.js', 'assets/js/charts.js',
   'assets/js/data/sectors.js', 'assets/js/data/scripts.js', 'assets/js/data/guides.js', 'assets/js/data/demo.js', 'assets/js/data/sector-plus.js', 'assets/js/data/script-plus.js', 'assets/js/data/situations.js',
   'assets/js/views/common.js', 'assets/js/views/home.js', 'assets/js/views/scripts.js', 'assets/js/views/call.js',
   'assets/js/views/crm.js', 'assets/js/views/agenda.js', 'assets/js/views/tools.js', 'assets/js/views/tools2.js', 'assets/js/views/pages.js', 'assets/js/views/onboarding.js', 'assets/js/views/flowers.js',

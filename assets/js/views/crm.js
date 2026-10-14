@@ -1,33 +1,43 @@
-// CRM : pipeline, liste, fiche prospect, formulaires.
-import { S, can, STAGES, STAGE, SOURCES, OUTCOMES, OUTCOME, getProspect, addProspect, updateProspect, deleteProspect, logActivity, recordCall, addTask, toggleTask, update } from '../store.js';
-import { ic, esc, eur, num, register, sheet, sheetHead, closeSheet, toast, confirmSheet, avatar, stageChip, outcomeChip, when, ago, field, input, select, toLocalInput, fromLocalInput, dateShort } from '../ui.js';
+// CRM : pipeline, liste, fiche prospect, formulaires, personnalisation.
+import { S, can, STAGES, STAGE, stageOf, TONES, SOURCES, OUTCOMES, OUTCOME, getProspect, addProspect, updateProspect, deleteProspect, logActivity, recordCall, addTask, toggleTask, update, uid } from '../store.js';
+import { ic, esc, eur, num, register, sheet, sheetHead, closeSheet, toast, confirmSheet, avatar, stageChip, outcomeChip, when, ago, field, input, select, toLocalInput, fromLocalInput, dateShort, initials } from '../ui.js';
 import { SERVICES, SERVICE_IDS, CHANNELS, allSectors, getSector } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
 import { QUALIF } from '../data/script-plus.js';
 
 const secName = (id) => getSector(id)?.name || 'Toute entreprise';
-const searchKey = (p) => esc(`${p.entreprise} ${p.contact} ${p.ville} ${secName(p.secteur)} ${p.tel}`.toLowerCase());
+const ownerName = (id) => S().crm.team.find((m) => m.id === id)?.name || '';
+const searchKey = (p) => esc(`${p.entreprise} ${p.contact} ${p.ville} ${secName(p.secteur)} ${p.tel} ${(p.tags || []).join(' ')} ${ownerName(p.owner)} ${Object.values(p.cf || {}).join(' ')}`.toLowerCase());
+const tagChips = (p, n = 9) => (p.tags || []).slice(0, n).map((t) => `<span class="tag-chip">${esc(t)}</span>`).join('');
 
 // ---------- Pipeline / liste ----------
 export function crmView(params, q) {
-  if (!can('crm')) return { title: 'CRM', tab: 'crm', html: `${pageHead('CRM', { kicker: 'Pipeline et fiches clients' })}${paywall('crm')}${preview()}` };
+  if (!can('crm')) return { title: 'Prospects', tab: 'crm', html: `${pageHead('Prospects', { kicker: 'Pipeline et fiches clients' })}${paywall('crm')}${preview()}` };
   const s = S();
   const view = q.v === 'list' ? 'list' : 'board';
   const open = s.prospects.filter((p) => !['signe', 'perdu'].includes(p.stage));
   const openSum = open.reduce((n, p) => n + (Number(p.valeur) || 0), 0);
   const f = STAGE[q.f] ? q.f : '';
+  const none = !s.prospects.length;
   const html = `
-    ${pageHead('CRM', { kicker: `${num(s.prospects.length)} prospect${s.prospects.length > 1 ? 's' : ''} · ${eur(openSum)} en cours`, actions: `<a class="icon-btn" href="#/outils/import" aria-label="Importer une liste">${ic('upload')}</a><button class="btn btn-primary" data-act="prospect-new">${ic('plus')}<span>Prospect</span></button>` })}
+    ${pageHead('Prospects', { kicker: none ? 'Votre pipeline commercial' : `${num(s.prospects.length)} fiche${s.prospects.length > 1 ? 's' : ''} · ${eur(openSum)} en cours`, actions: `<a class="icon-btn" href="#/crm/personnaliser" aria-label="Personnaliser le CRM" title="Personnaliser">${ic('sliders')}</a><a class="icon-btn" href="#/outils/import" aria-label="Importer une liste" title="Importer">${ic('upload')}</a><button class="btn btn-primary" data-act="prospect-new">${ic('plus')}<span>Prospect</span></button>` })}
+    ${none ? `<div class="empty card">
+        <span class="empty-ic">${ic('users')}</span>
+        <p class="empty-t">Votre pipeline est vide</p>
+        <p class="empty-p">Ajoutez les entreprises à appeler : une par une, ou en collant une liste depuis un tableur. Chaque fiche avance ensuite d'étape en étape, d'« À appeler » à « Signé ».</p>
+        <div class="end-a"><button class="btn btn-primary" data-act="prospect-new">${ic('plus')}<span>Ajouter un prospect</span></button><a class="btn btn-ghost" href="#/outils/import">${ic('upload')}<span>Importer une liste</span></a></div>
+      </div>` : `
     <div class="crm-bar">
-      <div class="search"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Chercher une entreprise, une ville…" data-filter=".kcard, .rows .row" aria-label="Chercher un prospect"></div>
+      <div class="search"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Entreprise, ville, étiquette…" data-filter=".kcard, .rows .row" aria-label="Chercher un prospect"></div>
       <nav class="seg seg-sm" aria-label="Affichage"><a class="seg-i ${view === 'board' ? 'is-on' : ''}" href="#/crm">${ic('crm')}<span>Pipeline</span></a><a class="seg-i ${view === 'list' ? 'is-on' : ''}" href="#/crm?v=list">${ic('list')}<span>Liste</span></a></nav>
     </div>
-    ${view === 'board' ? board(s) : list(s, f)}`;
+    <p class="muted center filter-empty" hidden>Aucune fiche ne correspond à cette recherche.</p>
+    ${view === 'board' ? board(s) : list(s, f, q)}`}`;
   return {
-    title: 'CRM', tab: 'crm', html,
+    title: 'Prospects', tab: 'crm', html,
     after(root) {
       if (q.new) setTimeout(() => prospectSheet(), 60);
-      if (view === 'board') return enableBoard(root);
+      if (view === 'board' && !none) return enableBoard(root);
     },
   };
 }
@@ -37,8 +47,9 @@ function preview() {
 }
 
 const card = (p) => `<a class="kcard" href="#/fiche/${p.id}" draggable="false" data-id="${p.id}" data-name="${searchKey(p)}">
-  <p class="kcard-t">${esc(p.entreprise)}</p>
+  <p class="kcard-t">${esc(p.entreprise)}${p.owner && ownerName(p.owner) ? `<span class="owner" title="${esc(ownerName(p.owner))}">${esc(initials(ownerName(p.owner)))}</span>` : ''}</p>
   <p class="kcard-s">${ic(getSector(p.secteur)?.icon || 'building')}${esc(secName(p.secteur))}${p.ville ? ` · ${esc(p.ville)}` : ''}</p>
+  ${p.tags?.length ? `<p class="kcard-tags">${tagChips(p, 3)}</p>` : ''}
   <div class="kcard-f">${p.valeur ? `<b>${eur(p.valeur)}</b>` : `<span class="muted-s">${SERVICES[p.service]?.short || ''}</span>`}${p.next?.due ? `<span class="kcard-n ${p.next.due < Date.now() ? 'is-late' : ''}">${ic('clock')}${when(p.next.due)}</span>` : p.contact ? `<span class="muted-s">${esc(p.contact)}</span>` : ''}</div>
 </a>`;
 
@@ -46,24 +57,32 @@ function board(s) {
   return `<div class="board" role="list">${STAGES.map((st) => {
     const items = s.prospects.filter((p) => p.stage === st.id).sort((a, b) => (a.next?.due || 9e15) - (b.next?.due || 9e15) || b.updatedAt - a.updatedAt);
     const sum = items.reduce((n, p) => n + (Number(p.valeur) || 0), 0);
-    return `<section class="kcol" data-stage="${st.id}" role="listitem" aria-label="${st.label}">
-      <header class="kcol-h"><i class="dot t-${st.tone}"></i><span>${st.label}</span><b>${items.length}</b>${sum ? `<span class="kcol-sum">${eur(sum)}</span>` : ''}</header>
+    return `<section class="kcol" data-stage="${st.id}" role="listitem" aria-label="${esc(st.label)}">
+      <header class="kcol-h"><i class="dot t-${st.tone}"></i><span>${esc(st.label)}</span><b>${items.length}</b>${sum ? `<span class="kcol-sum">${eur(sum)}</span>` : ''}</header>
       <div class="kcol-b">${items.map(card).join('') || '<p class="kcol-empty">Glissez une fiche ici</p>'}</div>
     </section>`;
   }).join('')}</div>
   <p class="hint">${matchMedia('(pointer:fine)').matches ? 'Glissez les fiches d\'une colonne à l\'autre.' : 'Appui long sur une fiche pour la déplacer.'}</p>`;
 }
 
-function list(s, f) {
-  const items = s.prospects.filter((p) => !f || p.stage === f).sort((a, b) => b.updatedAt - a.updatedAt);
+function list(s, f, q) {
+  const team = s.crm.team;
+  const tags = [...new Set(s.prospects.flatMap((p) => p.tags || []))].sort();
+  const o = q.o || '', t = q.t || '';
+  const items = s.prospects.filter((p) => (!f || p.stage === f) && (!o || p.owner === o) && (!t || (p.tags || []).includes(t))).sort((a, b) => b.updatedAt - a.updatedAt);
+  const href = (patch) => { const p = new URLSearchParams({ v: 'list', ...(f ? { f } : {}), ...(o ? { o } : {}), ...(t ? { t } : {}), ...patch }); for (const [k, v] of [...p]) if (!v) p.delete(k); return `#/crm?${p}`; };
   return `<nav class="chips-row" aria-label="Filtrer par étape">
-      <a class="chip-btn ${!f ? 'is-on' : ''}" href="#/crm?v=list">Tous <b>${s.prospects.length}</b></a>
-      ${STAGES.map((st) => `<a class="chip-btn ${f === st.id ? 'is-on' : ''}" href="#/crm?v=list&f=${st.id}"><i class="dot t-${st.tone}"></i>${st.label} <b>${s.prospects.filter((p) => p.stage === st.id).length}</b></a>`).join('')}
+      <a class="chip-btn ${!f ? 'is-on' : ''}" href="${href({ f: '' })}">Toutes <b>${s.prospects.length}</b></a>
+      ${STAGES.map((st) => `<a class="chip-btn ${f === st.id ? 'is-on' : ''}" href="${href({ f: st.id })}"><i class="dot t-${st.tone}"></i>${esc(st.label)} <b>${s.prospects.filter((p) => p.stage === st.id).length}</b></a>`).join('')}
     </nav>
+    ${team.length || tags.length ? `<nav class="chips-row chips-row-2" aria-label="Filtrer par responsable ou étiquette">
+      ${team.map((m) => `<a class="chip-btn ${o === m.id ? 'is-on' : ''}" href="${href({ o: o === m.id ? '' : m.id })}">${ic('user')}${esc(m.name)}</a>`).join('')}
+      ${tags.map((x) => `<a class="chip-btn ${t === x ? 'is-on' : ''}" href="${href({ t: t === x ? '' : x })}">#${esc(x)}</a>`).join('')}
+    </nav>` : ''}
     ${items.length ? `<ul class="rows card">${items.map((p) => `<li><a class="row" href="#/fiche/${p.id}" data-name="${searchKey(p)}">${avatar(p.entreprise)}
-      <span class="row-b"><b>${esc(p.entreprise)}</b><span>${esc(secName(p.secteur))}${p.ville ? ' · ' + esc(p.ville) : ''}${p.next?.due ? ` · ${when(p.next.due)}` : ''}</span></span>
+      <span class="row-b"><b>${esc(p.entreprise)}</b><span>${esc(secName(p.secteur))}${p.ville ? ' · ' + esc(p.ville) : ''}${p.owner && ownerName(p.owner) ? ' · ' + esc(ownerName(p.owner)) : ''}${p.next?.due ? ` · ${when(p.next.due)}` : ''}</span></span>
       <span class="row-e">${stageChip(p.stage)}${p.valeur ? `<b class="muted-s">${eur(p.valeur)}</b>` : ''}</span></a></li>`).join('')}</ul>`
-    : `<div class="empty"><span class="empty-ic">${ic('users')}</span><p class="empty-t">Aucun prospect ici</p><p class="empty-p">Ajoutez votre premier prospect, ou collez une liste d'entreprises.</p><div class="end-a"><button class="btn btn-primary" data-act="prospect-new">${ic('plus')}<span>Ajouter</span></button><a class="btn btn-ghost" href="#/outils/import">${ic('upload')}<span>Importer</span></a></div></div>`}`;
+    : `<div class="empty"><span class="empty-ic">${ic('filter')}</span><p class="empty-t">Aucune fiche avec ces filtres</p><p class="empty-p">Changez d'étape ou retirez un filtre.</p><a class="btn btn-ghost" href="#/crm?v=list">Tout afficher</a></div>`}`;
 }
 
 // Glisser-déposer à la souris ; appui long au toucher → menu « Déplacer vers ».
@@ -119,7 +138,7 @@ function enableBoard(root) {
       over?.classList.remove('is-over');
       const stage = over?.dataset.stage;
       const p = getProspect(id);
-      if (stage && p && stage !== p.stage) { updateProspect(id, { stage }); toast(`${esc(p.entreprise)} → ${STAGE[stage].label}`); }
+      if (stage && p && stage !== p.stage) { updateProspect(id, { stage }); toast(`${esc(p.entreprise)} → ${stageOf(stage).label}`); }
       setTimeout(() => { suppress = false; }, 50);
     };
     window.addEventListener('pointermove', move, { passive: false });
@@ -145,7 +164,7 @@ const ACT_LABEL = { appel: 'Appel', note: 'Note', email: 'E-mail envoyé', sms: 
 function timeline(acts) {
   if (!acts.length) return '<p class="muted pad">Aucun échange pour l\'instant.</p>';
   return `<ol class="tl">${acts.map((a) => `<li class="tl-i"><span class="tl-ic">${ic(ACT_ICON[a.type] || 'note')}</span><div class="tl-b">
-    <p class="tl-t">${a.type === 'etape' ? `Étape : ${STAGE[a.from]?.label || '—'} → <b>${STAGE[a.to]?.label || ''}</b>` : `<b>${ACT_LABEL[a.type] || 'Activité'}</b>${a.outcome ? ' ' + outcomeChip(a.outcome) : ''}`}</p>
+    <p class="tl-t">${a.type === 'etape' ? `Étape : ${stageOf(a.from).label || '—'} → <b>${stageOf(a.to).label || ''}</b>` : `<b>${ACT_LABEL[a.type] || 'Activité'}</b>${a.outcome ? ' ' + outcomeChip(a.outcome) : ''}`}</p>
     ${a.note ? `<p class="tl-n">${esc(a.note)}</p>` : ''}<p class="tl-d">${ago(a.at)} · ${dateShort(a.at)}</p></div>
     ${a.type !== 'etape' ? `<button class="icon-btn sm" data-act="act-del" data-id="${a.id}" aria-label="Supprimer">${ic('trash')}</button>` : ''}</li>`).join('')}</ol>`;
 }
@@ -200,9 +219,10 @@ export function fiche([id]) {
         <section class="card rise">
           <header class="card-h"><div><h2>Informations</h2></div></header>
           <dl class="dl">
-            ${[['Contact', p.contact], ['Téléphone', p.tel], ['E-mail', p.email], ['Adresse', [p.adresse, p.ville].filter(Boolean).join(', ')], ['Site', p.site], ['Instagram', p.instagram], ['Service', SERVICES[svc]?.label], ['Valeur estimée', p.valeur ? eur(p.valeur) : ''], ['Source', p.source], ['Créée', dateShort(p.createdAt)]]
-              .map(([k, v]) => `<div><dt>${k}</dt><dd>${v ? esc(v) : '<span class="muted">—</span>'}</dd></div>`).join('')}
+            ${[['Contact', p.contact], ['Téléphone', p.tel], ['E-mail', p.email], ['Adresse', [p.adresse, p.ville].filter(Boolean).join(', ')], ['Site', p.site], ['Instagram', p.instagram], ['Service', SERVICES[svc]?.label], ['Valeur estimée', p.valeur ? eur(p.valeur) : ''], ['Source', p.source], ...(s.crm.team.length ? [['Responsable', ownerName(p.owner)]] : []), ...s.crm.fields.map((f) => [f.label, p.cf?.[f.id] || '', f.type]), ['Créée', dateShort(p.createdAt)]]
+              .map(([k, v, t]) => `<div><dt>${esc(k)}</dt><dd>${!v ? '<span class="muted">—</span>' : t === 'url' ? `<a class="link" href="${esc(/^https?:/.test(v) ? v : 'https://' + v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\//, '').slice(0, 40))}</a>` : t === 'date' ? esc(dateShort(new Date(v).getTime())) : esc(v)}</dd></div>`).join('')}
           </dl>
+          ${p.tags?.length ? `<p class="fiche-tags">${tagChips(p)}</p>` : ''}
         </section>
         <section class="card rise">
           <header class="card-h"><div><h2>Qualification</h2><p>${QUALIF.filter((x) => p.qualif?.[x.k]).length} / 4 · avant de faire un devis</p></div></header>
@@ -228,17 +248,19 @@ export function prospectSheet(p = null) {
   const v = p || { stage: 'a_appeler', service: s.profile.service || 'site', secteur: 'toute', source: 'Appel', ville: '' };
   const sectors = allSectors().map((x) => [x.id, x.name]);
   sheet(`${sheetHead(p ? 'Modifier la fiche' : 'Nouveau prospect')}
-    <form class="sheet-body form" data-form="prospect" data-id="${p?.id || ''}">
+    <form class="sheet-body form" data-form="prospect" data-id="${p?.id || ''}" data-validate novalidate>
       ${field('Entreprise', input('entreprise', v.entreprise, 'required autofocus autocomplete="organization" placeholder="Nom de l\'entreprise"'))}
       <div class="form-2">${field('Secteur', select('secteur', sectors, v.secteur))}${field('Service à proposer', select('service', SERVICE_IDS.map((id) => [id, SERVICES[id].label]), v.service))}</div>
-      <div class="form-2">${field('Contact', input('contact', v.contact, 'placeholder="Prénom, nom"'))}${field('Téléphone', input('tel', v.tel, 'type="tel" inputmode="tel" placeholder="+32 …"'))}</div>
+      <div class="form-2">${field('Contact', input('contact', v.contact, 'placeholder="Prénom, nom"'))}${field('Téléphone', input('tel', v.tel, 'type="tel" inputmode="tel" data-rule="tel" placeholder="+32 …"'))}</div>
       <div class="form-2">${field('E-mail', input('email', v.email, 'type="email" inputmode="email"'))}${field('Commune', input('ville', v.ville, 'placeholder="Ixelles"'))}</div>
       ${field('Adresse', input('adresse', v.adresse))}
       <div class="form-2">${field('Site web', input('site', v.site, 'inputmode="url" placeholder="exemple.be"'))}${field('Instagram', input('instagram', v.instagram, 'placeholder="@compte"'))}</div>
       <div class="form-2">${field('Étape', select('stage', STAGES.map((x) => [x.id, x.label]), v.stage))}${field('Valeur estimée (€)', input('valeur', v.valeur || '', 'type="number" min="0" step="10" inputmode="decimal"'))}</div>
-      ${field('Source', select('source', SOURCES.map((x) => [x, x]), v.source))}
+      <div class="form-2">${field('Source', select('source', SOURCES.map((x) => [x, x]), v.source))}${s.crm.team.length ? field('Responsable', select('owner', [['', 'Personne'], ...s.crm.team.map((m) => [m.id, m.name])], v.owner || '')) : ''}</div>
+      ${field('Étiquettes', input('tags', (v.tags || []).join(', '), 'placeholder="vip, Flagey, salon 2026"'), 'Séparées par des virgules. Elles servent à filtrer la liste.')}
+      ${s.crm.fields.map((f) => field(esc(f.label), f.type === 'select' ? select(`cf.${f.id}`, [['', '—'], ...(f.options || []).map((o) => [o, o])], v.cf?.[f.id] || '') : input(`cf.${f.id}`, v.cf?.[f.id] || '', f.type === 'number' ? 'type="number" inputmode="decimal"' : f.type === 'date' ? 'type="date"' : f.type === 'url' ? 'inputmode="url" data-rule="url"' : ''))).join('')}
       ${p ? '' : field('Notes', `<textarea class="inp" name="notes" rows="3">${esc(v.notes || '')}</textarea>`)}
-      <button class="btn btn-primary btn-block" type="submit">${p ? 'Enregistrer' : 'Ajouter le prospect'}</button>
+      <button class="btn btn-primary btn-block" type="submit" data-needs="entreprise" ${v.entreprise ? '' : 'disabled'}>${p ? 'Enregistrer' : 'Ajouter le prospect'}</button>
     </form>`, { cls: 'sheet-tall' });
 }
 
@@ -277,12 +299,13 @@ register({
   },
   'set-stage': (b) => {
     const p = getProspect(b.dataset.id);
-    if (p.stage !== b.dataset.stage) { updateProspect(p.id, { stage: b.dataset.stage }); toast(`${esc(p.entreprise)} → ${STAGE[b.dataset.stage].label}`); }
+    if (p.stage !== b.dataset.stage) { updateProspect(p.id, { stage: b.dataset.stage }); toast(`${esc(p.entreprise)} → ${stageOf(b.dataset.stage).label}`); }
     closeSheet();
   },
   'task-new': (b) => taskSheet({ pid: b.dataset.pid || '' }),
   'task-toggle': (b) => { b.classList.toggle('is-done'); setTimeout(() => toggleTask(b.dataset.id), 260); },
-  'task-del': (b) => {
+  'task-del': async (b) => {
+    if (!await confirmSheet({ title: 'Supprimer cette tâche ?', text: 'Elle disparaîtra de l\'agenda et de la fiche.', ok: 'Supprimer', danger: true })) return;
     update((s) => { s.tasks = s.tasks.filter((t) => t.id !== b.dataset.id); s.prospects.forEach((p) => { if (p.next?.taskId === b.dataset.id) p.next = null; }); });
     closeSheet(); toast('Tâche supprimée');
   },
@@ -300,7 +323,12 @@ register({
 }, {
   prospect: (data, f) => {
     data.valeur = Number(data.valeur) || 0;
-    if (!data.entreprise?.trim()) return;
+    data.entreprise = (data.entreprise || '').trim();
+    if (!data.entreprise) return;
+    data.tags = (data.tags || '').split(',').map((x) => x.trim().replace(/^#/, '')).filter(Boolean).slice(0, 12);
+    const cf = {};
+    for (const k of Object.keys(data)) if (k.startsWith('cf.')) { if (data[k] !== '') cf[k.slice(3)] = data[k]; delete data[k]; }
+    data.cf = cf;
     if (f.dataset.id) { updateProspect(f.dataset.id, data); closeSheet(); toast('Fiche enregistrée'); return; }
     const p = addProspect(data);
     closeSheet(); toast(`${esc(p.entreprise)} ajouté`, { action: 'Ouvrir', onAction: () => { location.hash = `#/fiche/${p.id}`; } });
@@ -325,3 +353,124 @@ function activitySheetAfterCall(pid) {
   sheet(`${sheetHead('Comment s\'est passé l\'appel ?', esc(p.entreprise))}<div class="sheet-body"><div class="out-grid">${OUTCOMES.map((o) => `<button class="out out-${o.tone}" data-act="quick-out" data-id="${pid}" data-o="${o.id}">${o.label}</button>`).join('')}</div></div>`, { cls: 'sheet-sm' });
 }
 register({ 'quick-out': (b) => { recordCall(b.dataset.id, b.dataset.o); closeSheet(); toast(`Appel enregistré : ${OUTCOME[b.dataset.o].label.toLowerCase()}`); } });
+
+// ---------- CRM personnalisé : étapes, champs, équipe ----------
+const FIELD_TYPES = [['text', 'Texte'], ['number', 'Nombre'], ['date', 'Date'], ['url', 'Lien'], ['select', 'Liste de choix']];
+const STAGE_IDEAS = ['Maquette prête', 'En production', 'En ligne'];
+const FIELD_IDEAS = [['Lien de la maquette', 'url'], ['N° de TVA', 'text'], ['Mensualité (€)', 'number'], ['Date de mise en ligne', 'date']];
+
+export function crmSettings() {
+  if (!can('crm')) return { title: 'Personnaliser', tab: 'crm', html: `${pageHead('Personnaliser le CRM', { back: '#/crm' })}${paywall('crm')}` };
+  const s = S();
+  const count = (id) => s.prospects.filter((p) => p.stage === id).length;
+  const html = `${pageHead('Personnaliser le CRM', { back: '#/crm', kicker: 'Vos étapes, vos champs, votre équipe' })}
+    <section class="card rise">
+      <header class="card-h"><div><h2>Étapes du pipeline</h2><p>Renommez-les, ajoutez les vôtres</p></div></header>
+      <ul class="cfg">${STAGES.map((st) => `<li>
+        <i class="dot t-${st.tone}"></i>
+        <input class="inp" value="${esc(st.label)}" maxlength="28" aria-label="Nom de l'étape" data-act-change="stage-label" data-id="${st.id}">
+        <span class="muted-s cfg-n">${count(st.id)} fiche${count(st.id) > 1 ? 's' : ''}</span>
+        ${st.custom ? `<button class="icon-btn sm" data-act="stage-del" data-id="${st.id}" aria-label="Supprimer l'étape ${esc(st.label)}">${ic('trash')}</button>` : `<span class="cfg-lock" title="Étape liée au mode appel">${ic('lock')}</span>`}
+      </li>`).join('')}</ul>
+      <form class="cfg-add" data-form="stage-add" data-validate novalidate>
+        <input class="inp" name="label" required maxlength="28" placeholder="Nouvelle étape, ex. Maquette prête" aria-label="Nom de la nouvelle étape">
+        ${select('after', STAGES.filter((x) => x.id !== 'perdu').map((x) => [x.id, `après « ${x.label} »`]), 'rdv', 'aria-label="Position"')}
+        ${select('tone', TONES.map((t) => [t, { grey: 'Gris', sky: 'Bleu clair', blue: 'Bleu', navy: 'Bleu nuit', sand: 'Sable', olive: 'Olive', rose: 'Rose' }[t]]), 'sky', 'aria-label="Couleur"')}
+        <button class="btn btn-primary" type="submit" data-needs="label" disabled>${ic('plus')}<span>Ajouter</span></button>
+      </form>
+      <div class="chips-wrap">${STAGE_IDEAS.filter((x) => !STAGES.some((st) => st.label === x)).map((x) => `<button class="chip-btn" data-act="stage-idea" data-label="${esc(x)}">${ic('plus')}${esc(x)}</button>`).join('')}</div>
+      <p class="field-h">Les étapes avec un cadenas sont utilisées par le mode appel : vous pouvez les renommer, pas les supprimer.</p>
+    </section>
+    <section class="card rise">
+      <header class="card-h"><div><h2>Champs personnalisés</h2><p>Ils apparaissent dans chaque fiche et dans le formulaire</p></div></header>
+      ${s.crm.fields.length ? `<ul class="cfg">${s.crm.fields.map((f) => `<li><span class="cfg-ic">${ic(f.type === 'url' ? 'globe' : f.type === 'date' ? 'calendar' : f.type === 'number' ? 'euro' : f.type === 'select' ? 'list' : 'note')}</span><span class="cfg-l"><b>${esc(f.label)}</b><em>${FIELD_TYPES.find((t) => t[0] === f.type)?.[1] || 'Texte'}${f.options?.length ? ' : ' + esc(f.options.join(', ')) : ''}</em></span><button class="icon-btn sm" data-act="field-del" data-id="${f.id}" aria-label="Supprimer le champ ${esc(f.label)}">${ic('trash')}</button></li>`).join('')}</ul>`
+        : '<p class="muted pad">Aucun champ pour l\'instant : ajoutez ce que vous notez toujours sur un prospect.</p>'}
+      <form class="cfg-add" data-form="field-add" data-validate novalidate>
+        <input class="inp" name="label" required maxlength="32" placeholder="Nom du champ, ex. Budget" aria-label="Nom du champ">
+        ${select('type', FIELD_TYPES, 'text', 'aria-label="Type de champ"')}
+        <input class="inp" name="options" placeholder="Choix séparés par des virgules (liste)" aria-label="Choix possibles">
+        <button class="btn btn-primary" type="submit" data-needs="label" disabled>${ic('plus')}<span>Ajouter</span></button>
+      </form>
+      <div class="chips-wrap">${FIELD_IDEAS.filter(([l]) => !s.crm.fields.some((f) => f.label === l)).map(([l, t]) => `<button class="chip-btn" data-act="field-idea" data-label="${esc(l)}" data-type="${t}">${ic('plus')}${esc(l)}</button>`).join('')}</div>
+    </section>
+    <section class="card rise">
+      <header class="card-h"><div><h2>Équipe</h2><p>Attribuez chaque fiche à une personne</p></div></header>
+      ${s.crm.team.length ? `<ul class="cfg">${s.crm.team.map((m) => `<li>${avatar(m.name)}<span class="cfg-l"><b>${esc(m.name)}</b><em>${s.prospects.filter((p) => p.owner === m.id).length} fiche(s)</em></span><button class="icon-btn sm" data-act="team-del" data-id="${m.id}" aria-label="Retirer ${esc(m.name)}">${ic('trash')}</button></li>`).join('')}</ul>`
+        : '<p class="muted pad">Vous travaillez à plusieurs ? Ajoutez vos associés : chaque fiche pourra avoir un responsable, et la liste se filtrer par personne.</p>'}
+      <form class="cfg-add" data-form="team-add" data-validate novalidate>
+        <input class="inp" name="name" required maxlength="30" placeholder="Prénom" aria-label="Prénom du membre">
+        <button class="btn btn-primary" type="submit" data-needs="name" disabled>${ic('plus')}<span>Ajouter</span></button>
+      </form>
+      <p class="field-h">Pour l'instant, chaque appareil garde ses propres données : le partage en temps réel entre associés arrivera avec les comptes en ligne.</p>
+    </section>
+    <section class="card rise">
+      <header class="card-h"><div><h2>Vos données existantes</h2><p>Un fichier préparé, une sauvegarde, un tableur</p></div></header>
+      <div class="btn-list">
+        <label class="btn btn-ghost">${ic('upload')}<span>Importer un fichier de données (.json)</span><input type="file" accept="application/json,.json" hidden data-act-change="import-merge"></label>
+        <a class="btn btn-ghost" href="#/outils/import">${ic('list')}<span>Coller une liste (tableur, CSV)</span></a>
+      </div>
+      <p class="field-h">L'import ajoute les fiches, étapes, champs et l'équipe du fichier sans rien effacer. Les entreprises déjà présentes sont ignorées.</p>
+    </section>`;
+  return { title: 'Personnaliser le CRM', tab: 'crm', html };
+}
+
+register({
+  'stage-label': (el) => {
+    const label = el.value.trim();
+    if (!label) { toast('Le nom de l\'étape ne peut pas être vide.', { title: 'Nom manquant' }); el.value = stageOf(el.dataset.id).label; return; }
+    update((s) => {
+      const x = s.crm.extra.find((e) => e.id === el.dataset.id);
+      if (x) x.label = label; else s.crm.labels[el.dataset.id] = label;
+    });
+    toast(`Étape renommée : ${esc(label)}`, { ms: 1400 });
+  },
+  'stage-idea': (b) => addStage(b.dataset.label, 'rdv', 'sky'),
+  'stage-del': async (b) => {
+    const st = stageOf(b.dataset.id);
+    const n = S().prospects.filter((p) => p.stage === st.id).length;
+    const prev = STAGES[Math.max(0, STAGES.findIndex((x) => x.id === st.id) - 1)];
+    if (!await confirmSheet({ title: `Supprimer « ${esc(st.label)} » ?`, text: n ? `${n} fiche${n > 1 ? 's' : ''} passeront dans « ${esc(prev.label)} ».` : 'Aucune fiche n\'est dans cette étape.', ok: 'Supprimer', danger: true })) return;
+    update((s) => { s.crm.extra = s.crm.extra.filter((x) => x.id !== st.id); s.prospects.forEach((p) => { if (p.stage === st.id) p.stage = prev.id; }); });
+    toast('Étape supprimée');
+  },
+  'field-idea': (b) => addField(b.dataset.label, b.dataset.type, ''),
+  'field-del': async (b) => {
+    const f = S().crm.fields.find((x) => x.id === b.dataset.id);
+    if (!await confirmSheet({ title: `Supprimer le champ « ${esc(f.label)} » ?`, text: 'Les valeurs saisies dans les fiches seront effacées.', ok: 'Supprimer', danger: true })) return;
+    update((s) => { s.crm.fields = s.crm.fields.filter((x) => x.id !== f.id); s.prospects.forEach((p) => { if (p.cf) delete p.cf[f.id]; }); });
+    toast('Champ supprimé');
+  },
+  'team-del': async (b) => {
+    const m = S().crm.team.find((x) => x.id === b.dataset.id);
+    if (!await confirmSheet({ title: `Retirer ${esc(m.name)} de l'équipe ?`, text: 'Ses fiches resteront, sans responsable.', ok: 'Retirer', danger: true })) return;
+    update((s) => { s.crm.team = s.crm.team.filter((x) => x.id !== m.id); s.prospects.forEach((p) => { if (p.owner === m.id) p.owner = ''; }); });
+  },
+}, {
+  'stage-add': (d) => addStage(d.label, d.after, d.tone),
+  'field-add': (d) => addField(d.label, d.type, d.options),
+  'team-add': (d) => {
+    const name = (d.name || '').trim();
+    if (!name) return;
+    if (S().crm.team.some((m) => m.name.toLowerCase() === name.toLowerCase())) { toast(`${esc(name)} fait déjà partie de l'équipe.`); return; }
+    update((s) => { s.crm.team.push({ id: 'm-' + uid(), name }); });
+    toast(`${esc(name)} ajouté à l'équipe`);
+  },
+});
+
+function addStage(label, after, tone) {
+  label = (label || '').trim();
+  if (!label) return;
+  if (STAGES.some((st) => st.label.toLowerCase() === label.toLowerCase())) { toast(`L'étape « ${esc(label)} » existe déjà.`, { title: 'Déjà présente' }); return; }
+  if (S().crm.extra.length >= 5) { toast('Cinq étapes personnalisées au maximum, pour garder un pipeline lisible.', { title: 'Limite atteinte' }); return; }
+  update((s) => { s.crm.extra.push({ id: 'st-' + uid(), label, after: after || 'rdv', tone: TONES.includes(tone) ? tone : 'sky' }); });
+  toast(`Étape « ${esc(label)} » ajoutée`);
+}
+function addField(label, type, options) {
+  label = (label || '').trim();
+  if (!label) return;
+  if (S().crm.fields.some((f) => f.label.toLowerCase() === label.toLowerCase())) { toast(`Le champ « ${esc(label)} » existe déjà.`, { title: 'Déjà présent' }); return; }
+  const opts = type === 'select' ? String(options || '').split(',').map((x) => x.trim()).filter(Boolean) : [];
+  if (type === 'select' && !opts.length) { toast('Indiquez au moins un choix, séparé par des virgules.', { title: 'Liste vide' }); return; }
+  update((s) => { s.crm.fields.push({ id: 'f-' + uid(), label, type: type || 'text', options: opts }); });
+  toast(`Champ « ${esc(label)} » ajouté`);
+}

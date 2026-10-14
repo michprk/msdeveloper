@@ -1,6 +1,6 @@
 // Outils d'interface : échappement, formats, feuilles (dialogues), toasts, actions.
 import { ic, logoMark } from './icons.js';
-import { S, STAGE, OUTCOME, access, trialActive, PLANS } from './store.js';
+import { S, stageOf, OUTCOME, access, trialActive, PLANS } from './store.js';
 export { ic };
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -19,12 +19,13 @@ const dfDay = new Intl.DateTimeFormat('fr-BE', { weekday: 'short', day: 'numeric
 const tf = new Intl.DateTimeFormat('fr-BE', { hour: '2-digit', minute: '2-digit' });
 export const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 export const dateLong = (t = Date.now()) => cap(dfLong.format(t));
-export const dateShort = (t) => dfShort.format(t);
+export const dateShort = (t) => (Number.isFinite(t) ? dfShort.format(t) : '');
 export const dateDay = (t) => cap(dfDay.format(t));
 export const time = (t) => { const d = new Date(t); return `${d.getHours()} h${d.getMinutes() ? ' ' + String(d.getMinutes()).padStart(2, '0') : ''}`; };
 export const hasTime = (t) => { const d = new Date(t); return d.getHours() || d.getMinutes(); };
 
 export function when(t) {
+  if (!Number.isFinite(t)) return '';
   const d0 = new Date(); d0.setHours(0, 0, 0, 0);
   const diff = Math.floor((t - d0.getTime()) / 864e5);
   const hh = hasTime(t) ? ` · ${time(t)}` : '';
@@ -48,7 +49,7 @@ export const toLocalInput = (t) => { const d = new Date(t - new Date(t).getTimez
 export const fromLocalInput = (v) => (v ? new Date(v).getTime() : null);
 
 // ---------- Petits composants ----------
-export const stageChip = (id) => { const s = STAGE[id] || STAGE.a_appeler; return `<span class="chip t-${s.tone}"><i class="dot"></i>${s.label}</span>`; };
+export const stageChip = (id) => { const s = stageOf(id); return `<span class="chip t-${s.tone}"><i class="dot"></i>${s.label}</span>`; };
 export const outcomeChip = (id) => { const o = OUTCOME[id]; return o ? `<span class="chip t-${o.tone}">${o.label}</span>` : ''; };
 export const avatar = (name, cls = '') => `<span class="avatar ${cls}" aria-hidden="true">${esc(initials(name))}</span>`;
 export function planBadge() {
@@ -84,16 +85,18 @@ export function sheet(html, { cls = '', onClose } = {}) {
   requestAnimationFrame(() => d.classList.add('open'));
   d.addEventListener('click', (e) => { if (e.target === d) closeSheet(d); });
   d.addEventListener('cancel', (e) => { e.preventDefault(); closeSheet(d); });
-  d.addEventListener('close', () => { d.remove(); onClose?.(); });
+  let ended = false;
+  d._finish = () => { if (ended) return; ended = true; d.remove(); onClose?.(); };
+  d.addEventListener('close', d._finish);
   const f = d.querySelector('[autofocus]');
   if (f && matchMedia('(pointer:fine)').matches) f.focus();
   return d;
 }
 export function closeSheet(d = document.querySelector('dialog.sheet[open]'), now = false) {
   if (!d) return;
-  if (now) { d.close(); return; }
+  if (now) { if (d.open) d.close(); d._finish?.(); return; }
   d.classList.remove('open');
-  setTimeout(() => d.open && d.close(), 220);
+  setTimeout(() => { if (d.open) d.close(); d._finish?.(); }, 220);
 }
 export const sheetHead = (title, sub = '') => `<header class="sheet-h"><div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div><button class="icon-btn" data-act="close-sheet" aria-label="Fermer">${ic('x')}</button></header>`;
 
@@ -145,6 +148,54 @@ export function download(name, content, type = 'application/json') {
   a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
+
+// ---------- Validation des formulaires ----------
+// Règles : required, type="email", data-rule="tel" | "url". Messages en clair, sous le champ.
+const RULES = {
+  tel: (v) => (!v || v.replace(/\D/g, '').length >= 8 ? '' : 'Numéro incomplet : il faut au moins 8 chiffres.'),
+  url: (v) => (!v || /^(https?:\/\/)?[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(v) ? '' : 'Adresse web invalide, par exemple : exemple.be'),
+};
+export function fieldError(el) {
+  const v = (el.value || '').trim();
+  if (el.required && !v) return 'Ce champ est obligatoire.';
+  if (el.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return 'Adresse e-mail invalide, par exemple : nom@domaine.be';
+  const r = RULES[el.dataset.rule];
+  return r ? r(v) : '';
+}
+export function setFieldError(el, msg) {
+  const wrap = el.closest('.field') || el.parentElement;
+  let e = wrap.querySelector('.field-err');
+  if (!msg) { e?.remove(); el.removeAttribute('aria-invalid'); return; }
+  if (!e) { e = document.createElement('span'); e.className = 'field-err'; e.setAttribute('role', 'alert'); wrap.append(e); }
+  e.textContent = msg;
+  el.setAttribute('aria-invalid', 'true');
+}
+export function validateForm(form) {
+  let first = null;
+  form.querySelectorAll('input:not([type=hidden]):not([type=file]), select, textarea').forEach((el) => {
+    const msg = fieldError(el);
+    setFieldError(el, msg);
+    if (msg && !first) first = el;
+  });
+  first?.focus();
+  return !first;
+}
+// Boutons qui exigent un champ rempli : data-needs="nom_du_champ"
+export function refreshNeeds(form) {
+  const outside = form.id ? [...document.querySelectorAll(`[form="${form.id}"][data-needs]`)] : [];
+  [...form.querySelectorAll('[data-needs]'), ...outside].forEach((b) => { b.disabled = !(form.elements[b.dataset.needs]?.value || '').trim(); });
+}
+
+// ---------- Chargement ----------
+export async function busy(btn, label, fn) {
+  if (!btn) return fn();
+  const html = btn.innerHTML;
+  btn.classList.add('is-loading'); btn.setAttribute('aria-busy', 'true');
+  if (btn.tagName === 'BUTTON') btn.disabled = true;
+  btn.innerHTML = `<span class="spin" aria-hidden="true"></span><span>${label}</span>`;
+  try { return await fn(); } finally { btn.classList.remove('is-loading'); btn.removeAttribute('aria-busy'); if (btn.tagName === 'BUTTON') btn.disabled = false; btn.innerHTML = html; }
+}
+export const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Champs de formulaire
 export const field = (label, input, hint = '') => `<label class="field"><span class="field-l">${label}</span>${input}${hint ? `<span class="field-h">${hint}</span>` : ''}</label>`;
