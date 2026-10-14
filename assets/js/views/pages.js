@@ -4,16 +4,27 @@ import { ic, esc, eur, register, toast, confirmSheet, download, field, input, se
 import { logoMark } from '../icons.js';
 import { GUIDES } from '../data/guides.js';
 import { SECTORS } from '../data/sectors.js';
-import { SERVICES, SERVICE_IDS, scriptCount, typo, CHANNELS } from '../data/scripts.js';
+import { SERVICES, SERVICE_IDS, scriptCount, typo, CHANNELS, getSector, allSectors } from '../data/scripts.js';
 import { demoData, clearDemo } from '../data/demo.js';
 import { pageHead, paywall, subscribeSheet, accessLabel } from './common.js';
+import { startOnboarding } from './onboarding.js';
+import { flower } from './flowers.js';
+import { askNotifications, notifSupport, testNotification } from '../notify.js';
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 
 // ---------- Académie ----------
 export function academy() {
   const html = `${pageHead('Académie', { kicker: `${GUIDES.length} guides pratiques` })}
     <p class="lead">La méthode, sans jargon : décrocher des rendez-vous, convaincre, relancer, signer.</p>
+    ${(() => {
+      const lv = S().profile.niveau || 'debut';
+      const path = { debut: ['prendre-rdv', 'etre-attrayant', 'preparer-appel', 'objections'], regulier: ['session', 'horaires', 'relances', 'prix'], expert: ['entonnoir', 'offre', 'avis-google', 'premier-rdv'] }[lv] || [];
+      const label = { debut: 'Pour bien démarrer', regulier: 'Pour passer à la vitesse supérieure', expert: 'Pour affiner votre méthode' }[lv];
+      return `<section class="card parcours rise"><header class="card-h"><div><h2>Votre parcours</h2><p>${label} · à lire dans l'ordre</p></div><a class="link" href="#/reglages">Niveau</a></header>
+        <ol class="pc">${path.map((id) => GUIDES.find((g) => g.id === id)).filter(Boolean).map((g) => `<li><a href="#/academie/${g.id}"><b>${esc(typo(g.title))}</b><span>${g.cat} · ${g.min} min${!g.free && !can('academy') ? ' · Pro' : ''}</span></a></li>`).join('')}</ol></section>`;
+    })()}
+    <h2 class="sec-title">Tous les guides</h2>
     <div class="guide-grid">${GUIDES.map((g, i) => {
       const locked = !g.free && !can('academy');
       return `<a class="card guide rise" style="--i:${i}" href="#/academie/${g.id}"><span class="guide-k">${g.cat} · ${g.min} min</span><b>${esc(typo(g.title))}</b><span class="guide-p">${esc(typo(g.intro))}</span>${locked ? `<span class="guide-l">${ic('lock')}Pro</span>` : ''}</a>`;
@@ -56,7 +67,7 @@ export function plans() {
   const card = (id) => {
     const p = PLANS[id];
     const isCur = s.sub.demo ? cur === id : s.sub.plan === id && !(id === 'free' && trialActive());
-    return `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''}">
+    return `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''}">${id === 'premium' ? flower(2, 'plan-fl') : ''}
       <header><h2>${p.name}</h2><p class="plan-p">${p.price ? `<b>${price(p.price)} €</b><span>par mois</span>` : '<b>Gratuit</b>'}</p></header>
       ${id !== 'free' ? `<p class="plan-plus">${id === 'pro' ? 'Tout Découverte, plus :' : 'Tout Pro, plus :'}</p>` : ''}
       <ul class="plan-f">${PLAN_FEATS[id].map((f) => `<li>${ic('check')}<span>${f}</span></li>`).join('')}</ul>
@@ -94,7 +105,8 @@ export function settings() {
     </form>
     <form class="card form rise" data-form="offer" data-autosave>
       <header class="card-h"><div><h2>Votre offre</h2><p>Les prix « à partir de » cités dans les scripts</p></div></header>
-      ${field('Service principal', select('service', SERVICE_IDS.map((x) => [x, SERVICES[x].label]), p.service))}
+      <div class="form-2">${field('Service principal', select('service', SERVICE_IDS.map((x) => [x, SERVICES[x].label]), p.service))}${field('Votre expérience', select('niveau', [['debut', 'Je débute'], ['regulier', 'J\x27ai déjà prospecté'], ['expert', 'C\x27est mon quotidien']], p.niveau || 'debut'))}</div>
+      <div class="field"><span class="field-l">Vos secteurs</span><div class="chips-wrap my-secs">${(p.secteurs || []).map((id) => getSector(id)).filter(Boolean).map((x) => `<span class="chip t-olive">${ic(x.icon)}${esc(x.name)}</span>`).join('') || '<span class="muted-s">Aucun secteur choisi</span>'}<button type="button" class="chip-btn" data-act="sectors-edit">${ic('edit')}Modifier</button></div></div>
       <div class="form-3">${SERVICE_IDS.map((x) => field(SERVICES[x].short, input(`prix_${x}`, p.prix[x]))).join('')}</div>
       ${field('Votre promesse', `<textarea class="inp" name="promesse" rows="2">${esc(p.promesse)}</textarea>`, 'Une phrase qui rassure : prix fixe, délai garanti, interlocuteur unique…')}
     </form>
@@ -118,8 +130,19 @@ export function settings() {
       <button class="btn btn-ghost" data-act="install">${ic('install')}<span>Installer M&amp;S Developer</span></button>
     </section>
     <section class="card rise">
-      <header class="card-h"><div><h2>Abonnement</h2><p>${esc(accessLabel())}</p></div><a class="link" href="#/abonnement">Formules</a></header>
-      <label class="field"><span class="field-l">Mode démonstration</span>${select('demo', [['', 'Désactivé'], ['pro', 'Afficher comme Pro'], ['premium', 'Afficher comme Premium']], s.sub.demo || '', 'data-act-change="demo-mode"')}<span class="field-h">Pour présenter l'application à un client sans abonnement actif.</span></label>
+      <header class="card-h"><div><h2>Notifications</h2><p>${'Notification' in window ? (Notification.permission === 'granted' ? 'Autorisées sur cet appareil' : Notification.permission === 'denied' ? 'Bloquées dans les réglages du navigateur' : 'Pas encore autorisées') : esc(notifSupport().hint)}</p></div></header>
+      <div class="ios-list">
+        <label class="ios-row"><span>Rappels avant chaque tâche</span><input type="checkbox" class="switch" ${s.prefs.notifs !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="notifs"></label>
+      </div>
+      <div class="act-row">${'Notification' in window && Notification.permission !== 'granted' ? `<button class="btn btn-ghost" data-act="notif-ask">${ic('bell')}<span>Autoriser les notifications</span></button>` : ''}<button class="btn btn-ghost" data-act="notif-test">${ic('bell')}<span>Tester</span></button></div>
+    </section>
+    <section class="card rise">
+      <header class="card-h"><div><h2>Présentation</h2><p>Pour montrer l'application à un futur client</p></div><a class="link" href="#/abonnement">Formules</a></header>
+      <div class="ios-list">
+        <label class="ios-row"><span><b>Rejouer l'accueil à chaque ouverture</b><em>Vos clients, eux, ne le voient qu'une fois.</em></span><input type="checkbox" class="switch" ${s.prefs.replayIntro ? 'checked' : ''} data-act-change="pref-switch" data-k="replayIntro"></label>
+      </div>
+      <button class="btn btn-ghost" data-act="replay-intro">${ic('play')}<span>Revoir l'accueil maintenant</span></button>
+      <label class="field"><span class="field-l">Mode démonstration</span>${select('demo', [['', 'Désactivé'], ['pro', 'Afficher comme Pro'], ['premium', 'Afficher comme Premium']], s.sub.demo || '', 'data-act-change="demo-mode"')}<span class="field-h">Affiche toutes les fonctions sans abonnement actif. Formule actuelle : ${esc(accessLabel())}.</span></label>
     </section>
     <section class="card rise">
       <header class="card-h"><div><h2>Vos données</h2><p>Enregistrées sur cet appareil uniquement</p></div></header>
@@ -153,71 +176,18 @@ export function more() {
   return { title: 'Plus', tab: 'plus', html };
 }
 
-// ---------- Première ouverture ----------
-const ob = { step: 0, prenom: '', societe: '', ville: 'Bruxelles', service: 'site', appels: 40, demo: true };
-const SLIDES = [
-  { k: 'Scripts', t: 'Le bon script, pour chaque client', p: `${scriptCount()} scripts écrits pour 23 secteurs — fleuriste, restaurant, garage, avocat… — et pour ce que vous vendez : site web, automatisation ou référencement.`, art: 'script' },
-  { k: 'Mode appel', t: 'Pendant l\'appel, vous savez quoi dire', p: 'Le script défile étape par étape, les objections sont à portée de doigt, et le résultat s\'enregistre dans votre CRM en un geste.', art: 'call' },
-  { k: 'CRM', t: 'Tous vos prospects dans la poche', p: 'Pipeline, fiches, relances datées, devis et statistiques : vous savez toujours qui rappeler, et quand.', art: 'crm' },
-];
-const art = (k) => {
-  if (k === 'script') return `<div class="art art-script"><span class="a-l a-v"></span><span class="a-l a-p"></span><span class="a-l a-v w2"></span><span class="a-l a-tip"></span></div>`;
-  if (k === 'call') return `<div class="art art-call"><span class="a-ring"></span><span class="a-pills"><i></i><i class="on"></i><i></i></span><span class="a-outs"><i></i><i></i><i class="on"></i></span></div>`;
-  return `<div class="art art-crm">${[3, 2, 4].map((n, c) => `<span class="a-col">${'<i></i>'.repeat(n)}</span>`).join('')}</div>`;
-};
-
-export function onboarding() {
-  const st = ob.step;
-  let body = '';
-  if (st === 0) {
-    body = `<div class="ob-hero">${logoMark('xl draw')}<h1 class="ob-name"><span>M&amp;S</span> Developer</h1><p class="ob-tag">Les scripts, le CRM et la méthode pour décrocher des clients — dans votre poche.</p></div>
-      <div class="ob-foot"><button class="btn btn-primary btn-block btn-lg" data-act="ob-next">Commencer</button><p class="ob-small">Par M&amp;S Design, studio web à Bruxelles</p></div>`;
-  } else if (st <= SLIDES.length) {
-    const sl = SLIDES[st - 1];
-    body = `<div class="ob-slide" key="${st}">${art(sl.art)}<p class="ob-k">${sl.k}</p><h1>${sl.t}</h1><p>${sl.p}</p></div>
-      <div class="ob-foot"><div class="ob-dots">${SLIDES.map((x, i) => `<i class="${i === st - 1 ? 'on' : ''}"></i>`).join('')}</div>
-      <button class="btn btn-primary btn-block btn-lg" data-act="ob-next">Continuer</button><button class="link center" data-act="ob-skip">Passer</button></div>`;
-  } else if (st === SLIDES.length + 1) {
-    body = `<form class="ob-form" data-form="ob-profile">
-      <h1>Faisons connaissance</h1><p class="ob-p">Ces informations remplissent vos scripts automatiquement. Modifiables à tout moment.</p>
-      <div class="form-2">${field('Votre prénom', input('prenom', ob.prenom, 'autocomplete="given-name" required'))}${field('Votre société', input('societe', ob.societe, 'autocomplete="organization" placeholder="M&S Design"'))}</div>
-      ${field('Votre ville', input('ville', ob.ville))}
-      <fieldset class="field"><legend class="field-l">Ce que vous vendez surtout</legend><div class="pick">${SERVICE_IDS.map((x) => `<label class="pick-i"><input type="radio" name="service" value="${x}" ${ob.service === x ? 'checked' : ''}><span>${ic(SERVICES[x].icon)}${SERVICES[x].label}</span></label>`).join('')}</div></fieldset>
-      <fieldset class="field"><legend class="field-l">Objectif d'appels par jour</legend><div class="pick pick-row">${[20, 40, 60].map((n) => `<label class="pick-i"><input type="radio" name="appels" value="${n}" ${ob.appels === n ? 'checked' : ''}><span>${n}</span></label>`).join('')}</div></fieldset>
-      <div class="ob-foot"><button class="btn btn-primary btn-block btn-lg" type="submit">Continuer</button></div>
-    </form>`;
-  } else {
-    body = `<div class="ob-plan">
-      <h1>${ob.prenom ? `${esc(cap(ob.prenom))}, essayez tout` : 'Essayez tout'} pendant ${TRIAL_DAYS} jours</h1>
-      <p class="ob-p">CRM, mode appel, les ${scriptCount()} scripts et tous les outils. Sans carte bancaire.</p>
-      <ul class="ob-prices"><li><b>Pro</b><span>${price(PLANS.pro.price)} € / mois</span></li><li><b>Premium</b><span>${price(PLANS.premium.price)} € / mois</span></li></ul>
-      <label class="check"><input type="checkbox" ${ob.demo ? 'checked' : ''} data-act-change="ob-demo"><span>Ajouter des entreprises d'exemple pour découvrir l'application</span></label>
-      <div class="ob-foot"><button class="btn btn-primary btn-block btn-lg" data-act="ob-finish" data-trial="1">Commencer l'essai gratuit</button><button class="btn btn-ghost btn-block" data-act="ob-finish" data-trial="0">Continuer en version Découverte</button></div>
-    </div>`;
-  }
-  const html = `<div class="ob">${st > 0 ? `<button class="ob-back icon-btn" data-act="ob-back" aria-label="Retour">${ic('chevL')}</button>` : ''}<div class="ob-in" data-step="${st}">${body}</div></div>`;
-  return { title: 'Bienvenue', full: true, html };
-}
-
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 register({
-  'ob-next': () => { ob.step++; rr(); },
-  'ob-back': () => { ob.step = Math.max(0, ob.step - 1); rr(); },
-  'ob-skip': () => { ob.step = SLIDES.length + 1; rr(); },
-  'ob-demo': (el) => { ob.demo = el.checked; },
-  'ob-finish': (b) => {
-    const trial = b.dataset.trial === '1';
-    update((s) => {
-      s.profile.prenom = ob.prenom.trim(); s.profile.societe = ob.societe.trim(); s.profile.ville = ob.ville.trim() || 'Bruxelles';
-      s.profile.service = ob.service; s.goals.appelsJour = Number(ob.appels) || 40;
-      if (trial && !s.sub.trialStart) s.sub.trialStart = Date.now();
-      if (ob.demo && !s.prospects.some((x) => x.demo)) { const d = demoData(); s.prospects.push(...d.prospects); s.activities.push(...d.activities); s.tasks.push(...d.tasks); s.projects.push(...d.projects); }
-      s.onboarded = true;
-    });
-    location.hash = '#/';
-    if (trial) setTimeout(() => toast(`Essai gratuit activé : ${TRIAL_DAYS} jours, toutes les fonctions.`), 400);
-  },
   subscribe: (b) => subscribeSheet(b.dataset.plan),
+  'pref-switch': (el) => { update((s) => { s.prefs[el.dataset.k] = el.checked; }, { silent: true }); toast(el.checked ? 'Activé' : 'Désactivé', { ms: 1200 }); },
+  'replay-intro': () => { startOnboarding(true); location.hash = '#/bienvenue'; },
+  'sectors-edit': () => sectorsSheet(),
+  'sector-toggle': (b) => {
+    update((s) => { const l = s.profile.secteurs || []; s.profile.secteurs = l.includes(b.dataset.id) ? l.filter((x) => x !== b.dataset.id) : [...l, b.dataset.id]; });
+    sectorsSheet(true);
+  },
+  'notif-ask': async () => { const r = await askNotifications(); toast(r === 'granted' ? 'Une notification arrivera avant chaque rappel.' : r === 'unsupported' ? notifSupport().hint : 'Autorisation refusée — modifiable dans les réglages du navigateur.', { title: 'Notifications' }); rr(); },
+  'notif-test': () => testNotification(),
   pref: (b) => { update((s) => { s.prefs[b.dataset.k] = b.dataset.v; }); },
   'demo-mode': (el) => { update((s) => { s.sub.demo = el.value || null; }); toast(el.value ? `Affichage ${PLANS[el.value].name} activé` : 'Mode démonstration désactivé'); },
   'cat-add': () => update((s) => { s.catalogue.push({ id: uid(), label: 'Nouvelle prestation', price: 0 }); }),
@@ -246,14 +216,13 @@ register({
   'load-demo': () => { update((s) => { const d = demoData(); s.prospects.push(...d.prospects); s.activities.push(...d.activities); s.tasks.push(...d.tasks); s.projects.push(...d.projects); }); toast('Exemples ajoutés'); },
   wipe: async () => {
     if (!await confirmSheet({ title: 'Tout effacer ?', text: 'Fiches, historique, tâches, scripts personnels et réglages seront supprimés de cet appareil. Faites une sauvegarde avant si besoin.', ok: 'Tout effacer', danger: true })) return;
-    resetState(); location.hash = '#/bienvenue'; Object.assign(ob, { step: 0 });
+    resetState(); startOnboarding(); location.hash = '#/bienvenue';
   },
   install: () => installFlow(),
 }, {
-  'ob-profile': (d) => { ob.prenom = d.prenom || ''; ob.societe = d.societe || ''; ob.ville = d.ville || ''; ob.service = d.service || 'site'; ob.appels = Number(d.appels) || 40; ob.step++; rr(); },
   profile: (d) => { update((s) => { Object.assign(s.profile, d); }, { silent: true }); toast('Profil enregistré', { ms: 1200 }); },
   offer: (d) => {
-    update((s) => { s.profile.service = d.service; s.profile.promesse = d.promesse; SERVICE_IDS.forEach((x) => { s.profile.prix[x] = d[`prix_${x}`]; }); }, { silent: true });
+    update((s) => { s.profile.service = d.service; s.profile.promesse = d.promesse; s.profile.niveau = d.niveau || s.profile.niveau; SERVICE_IDS.forEach((x) => { s.profile.prix[x] = d[`prix_${x}`]; }); }, { silent: true });
     toast('Offre enregistrée', { ms: 1200 });
   },
   goals: (d) => { update((s) => { s.goals = { appelsJour: Number(d.appelsJour) || 40, rdvSemaine: Number(d.rdvSemaine) || 0, caMois: Number(d.caMois) || 0 }; }, { silent: true }); toast('Objectifs enregistrés', { ms: 1200 }); },
@@ -274,3 +243,11 @@ export function installFlow() {
   sheet(`${sheetHead('Installer M&amp;S Developer', ios ? 'iPhone et iPad' : mac ? 'Mac' : 'Android, PC et Mac')}<div class="sheet-body"><ol class="install-steps">${steps.map((x) => `<li>${x}</li>`).join('')}</ol></div>`, { cls: 'sheet-sm' });
 }
 export { CHANNELS, eur, closeSheet };
+
+function sectorsSheet(refresh = false) {
+  const mine = S().profile.secteurs || [];
+  const body = `<div class="pick-grid">${allSectors().filter((x) => x.id !== 'toute').map((x) => { const on = mine.includes(x.id); return `<button class="pk ${on ? 'is-on' : ''}" data-act="sector-toggle" data-id="${x.id}" aria-pressed="${on}"><span class="pk-ic">${ic(x.icon)}</span><span class="pk-n">${esc(x.name)}</span><span class="pk-ck">${on ? ic('check') : ''}</span></button>`; }).join('')}</div>`;
+  const open = document.querySelector('dialog.sheet[open] .sheet-secs');
+  if (refresh && open) { open.innerHTML = body; return; }
+  sheet(`${sheetHead('Vos secteurs', 'Ils apparaissent en premier dans les scripts')}<div class="sheet-body sheet-secs">${body}</div>`, { cls: 'sheet-tall' });
+}

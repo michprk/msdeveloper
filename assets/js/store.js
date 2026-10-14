@@ -46,11 +46,11 @@ const defaults = () => ({
   v: 1, onboarded: false, createdAt: Date.now(),
   profile: {
     prenom: '', societe: '', ville: 'Bruxelles', tel: '', email: '', adresse: '', tva: '', iban: '',
-    service: 'site', prix: { site: '500 €', auto: '290 €', seo: '490 €' },
+    service: 'site', prix: { site: '500 €', auto: '290 €', seo: '490 €' }, secteurs: [], niveau: 'debut',
     promesse: 'Prix fixe, délais tenus, et un seul interlocuteur du début à la fin.',
   },
   goals: { appelsJour: 40, rdvSemaine: 5, caMois: 1000 },
-  prefs: { theme: 'light', motion: 'full' },
+  prefs: { theme: 'light', motion: 'full', notifs: true, replayIntro: false },
   sub: { plan: 'free', trialStart: null, demo: null },
   prospects: [], activities: [], tasks: [], projects: [],
   favorites: [], recent: [], myScripts: [], mySectors: [], training: {},

@@ -2,6 +2,9 @@
 // Les textes utilisent des variables entre accolades, remplies à l'affichage
 // avec le profil de l'utilisateur et la fiche du prospect choisi.
 import { SECTORS } from './sectors.js';
+import { PLUS } from './sector-plus.js';
+import { META, STEP_PLUS } from './script-plus.js';
+import { SIT } from './situations.js';
 
 export const SERVICES = {
   site: {
@@ -34,7 +37,7 @@ export const CHANNELS = [
   { id: 'dm', label: 'Message Instagram', short: 'Instagram', icon: 'insta', dur: '3 messages', goal: 'Ouvrir une conversation sans être intrusif.' },
   { id: 'relance', label: 'Relances', short: 'Relances', icon: 'refresh', dur: '5 modèles', goal: 'Relancer sans harceler.' },
   { id: 'rdv', label: 'Le rendez-vous', short: 'Rendez-vous', icon: 'calendar', dur: '20 min', goal: 'Comprendre le besoin et présenter la solution.' },
-  { id: 'objections', label: 'Objections', short: 'Objections', icon: 'shield', dur: '14 réponses', goal: 'Répondre calmement et garder la conversation ouverte.' },
+  { id: 'objections', label: 'Objections', short: 'Objections', icon: 'shield', dur: '16 réponses', goal: 'Répondre calmement et garder la conversation ouverte.' },
   { id: 'closing', label: 'Prix & signature', short: 'Signature', icon: 'checkCircle', dur: '5 min', goal: 'Annoncer le prix et conclure.' },
 ];
 export const CH = Object.fromEntries(CHANNELS.map((c) => [c.id, c]));
@@ -84,7 +87,7 @@ function objections(sec, svcId, d) {
     { q: 'J\'ai déjà été déçu par une agence.', a: 'Malheureusement, ça arrive souvent. Qu\'est-ce qui s\'est mal passé ? … {promesse} Et on avance étape par étape : vous validez chaque étape avant la suivante.' },
     { q: 'Comment avez-vous eu mon numéro ?', a: `Il est affiché sur votre fiche Google : c'est en cherchant ${searchQ(sec)} que j'ai vu votre entreprise. Je suis {prenom}, de {societe}, on travaille avec des ${sec.plural} de la région.` },
   ];
-  return [sec.obj, ...SVC_OBJ[svcId](sec), ...common];
+  return [sec.obj, ...(PLUS[sec.id]?.objs || []), ...SVC_OBJ[svcId](sec), ...common];
 }
 
 // ---------- Formats ----------
@@ -159,19 +162,33 @@ const T = {
 const WITH_OBJ = ['appel', 'visite', 'rdv', 'closing'];
 
 export function buildScript(svcId, chId, secId) {
+  if (svcId === 'sit') return situation(chId);
   const sec = getSector(secId), svc = SERVICES[svcId], ch = CH[chId];
   if (!sec || !svc || !ch) return null;
   const d = sec[svcId];
+  const plus = STEP_PLUS[chId]?.(sec, svc, d) || [];
+  const steps = T[chId](sec, svc, d).map((st, i) => ({ ...plus[i], ...st }));
   return {
     id: `${svcId}.${chId}.${secId}`, service: svcId, channel: chId, sector: secId,
     title: ch.label, sub: `${sec.name} · ${svc.short}`, icon: ch.icon,
-    dur: ch.dur, goal: ch.goal, timing: ['appel', 'repondeur', 'visite'].includes(chId),
-    steps: T[chId](sec, svc, d),
+    dur: chId === 'objections' ? `${steps.length} réponses` : ch.dur, goal: ch.goal, timing: ['appel', 'repondeur', 'visite'].includes(chId),
+    meta: META[chId], steps,
     objections: WITH_OBJ.includes(chId) ? objections(sec, svcId, d) : [],
   };
 }
 
-export const scriptCount = () => SERVICE_IDS.length * CHANNELS.length * allSectors().length;
+// Situations délicates : identifiant « sit.<id> », valables pour tous les secteurs.
+export function situation(id) {
+  const s = SIT[id];
+  if (!s) return null;
+  return {
+    id: `sit.${id}`, situation: true, service: 'site', channel: 'situation', sector: 'toute',
+    title: s.title, sub: `Situation · ${s.cat}`, icon: s.icon, dur: '', goal: s.goal, when: s.when,
+    meta: null, steps: s.steps, objections: [],
+  };
+}
+
+export const scriptCount = () => SERVICE_IDS.length * CHANNELS.length * allSectors().length + Object.keys(SIT).length;
 
 // ---------- Variables ----------
 export const VAR_LABELS = {

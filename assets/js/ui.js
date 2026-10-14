@@ -1,5 +1,5 @@
 // Outils d'interface : échappement, formats, feuilles (dialogues), toasts, actions.
-import { ic } from './icons.js';
+import { ic, logoMark } from './icons.js';
 import { S, STAGE, OUTCOME, access, trialActive, PLANS } from './store.js';
 export { ic };
 
@@ -108,16 +108,22 @@ export function confirmSheet({ title, text = '', ok = 'Confirmer', danger = fals
 }
 
 // ---------- Toasts ----------
-export function toast(msg, { action, onAction, ms = 2600 } = {}) {
+// Bannière façon notification Apple : en haut sur iPhone, en haut à droite sur ordinateur.
+export function toast(msg, { title = '', action, onAction, ms = 2800 } = {}) {
   let host = document.querySelector('.toasts');
   if (!host) { host = document.createElement('div'); host.className = 'toasts'; host.setAttribute('role', 'status'); host.setAttribute('aria-live', 'polite'); document.body.append(host); }
+  while (host.children.length > 2) host.firstElementChild.remove();
   const t = document.createElement('div');
   t.className = 'toast';
-  t.innerHTML = `<span>${msg}</span>${action ? `<button class="toast-btn">${action}</button>` : ''}`;
+  t.innerHTML = `<span class="toast-ic">${logoMark('sm')}</span><div class="toast-b"><p class="toast-h"><span>M&amp;S Developer</span><span>maintenant</span></p>${title ? `<p class="toast-t">${title}</p>` : ''}<p class="toast-m">${msg}</p></div>${action ? `<button class="toast-btn">${action}</button>` : ''}`;
   host.append(t);
   requestAnimationFrame(() => t.classList.add('in'));
-  const kill = () => { t.classList.remove('in'); setTimeout(() => t.remove(), 300); };
-  t.querySelector('.toast-btn')?.addEventListener('click', () => { onAction?.(); kill(); });
+  const kill = () => { t.classList.remove('in'); t.classList.add('out'); setTimeout(() => t.remove(), 350); };
+  t.querySelector('.toast-btn')?.addEventListener('click', (e) => { e.stopPropagation(); onAction?.(); kill(); });
+  t.addEventListener('click', kill);
+  let y0 = null;
+  t.addEventListener('pointerdown', (e) => { y0 = e.clientY; });
+  t.addEventListener('pointerup', (e) => { if (y0 !== null && y0 - e.clientY > 20) kill(); y0 = null; });
   setTimeout(kill, action ? ms + 2400 : ms);
 }
 

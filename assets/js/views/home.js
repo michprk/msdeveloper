@@ -7,6 +7,7 @@ import { TIPS } from '../data/guides.js';
 import { stackedBars } from '../charts.js';
 import { trialStrip, sectorTile } from './common.js';
 import { clearDemo } from '../data/demo.js';
+import { cluster } from './flowers.js';
 
 const DAYS = ['di', 'lu', 'ma', 'me', 'je', 've', 'sa'];
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -67,6 +68,7 @@ export function home() {
     <header class="ph ph-home">
       <p class="ph-k">${dateLong()}</p>
       <h1 class="ph-t">Bonjour${p.prenom ? ' ' + esc(p.prenom) : ''}</h1>
+      ${cluster('home-cl')}
     </header>
     ${trialStrip()}
     ${!trialActive() && s.sub.plan === 'free' && !s.sub.trialStart && !s.sub.demo ? `<section class="card cta-trial rise">
@@ -141,9 +143,9 @@ export function home() {
     </div>
 
     <section class="quick rise" style="--i:8">
-      <h2 class="sec-title">Scripts par secteur</h2>
+      <h2 class="sec-title">${(p.secteurs || []).length ? 'Vos secteurs' : 'Scripts par secteur'}</h2>
       <div class="sec-grid sec-grid-sm">
-        ${['fleuriste', 'restaurant', 'coiffeur', 'garage', 'boulangerie', 'toute'].map((id) => sectorTile(getSector(id), `#/scripts/${id}`)).join('')}
+        ${[...((p.secteurs || []).length ? p.secteurs.slice(0, 5) : ['fleuriste', 'restaurant', 'coiffeur', 'garage', 'boulangerie']), 'toute'].map(getSector).filter(Boolean).map((sec) => sectorTile(sec, `#/scripts/${sec.id}`).replace('class="sec-tile"', `class="sec-tile g-${sec.group}"`)).join('')}
       </div>
     </section>
   </div>`;

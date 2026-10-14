@@ -1,14 +1,15 @@
 // Service worker : l'application fonctionne hors ligne.
 // Changer VERSION à chaque mise en ligne pour proposer la mise à jour.
-const VERSION = 'msdev-1.0.0';
+const VERSION = 'msdev-1.1.0';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
   'assets/fonts/fraunces-normal-300-700-latin.woff2', 'assets/fonts/instrument-sans-400-700-latin.woff2',
-  'assets/js/theme.js', 'assets/js/app.js', 'assets/js/store.js', 'assets/js/ui.js', 'assets/js/icons.js', 'assets/js/charts.js',
-  'assets/js/data/sectors.js', 'assets/js/data/scripts.js', 'assets/js/data/guides.js', 'assets/js/data/demo.js',
+  'assets/js/theme.js', 'assets/js/app.js', 'assets/js/notify.js', 'assets/js/store.js', 'assets/js/ui.js', 'assets/js/icons.js', 'assets/js/charts.js',
+  'assets/js/data/sectors.js', 'assets/js/data/scripts.js', 'assets/js/data/guides.js', 'assets/js/data/demo.js', 'assets/js/data/sector-plus.js', 'assets/js/data/script-plus.js', 'assets/js/data/situations.js',
   'assets/js/views/common.js', 'assets/js/views/home.js', 'assets/js/views/scripts.js', 'assets/js/views/call.js',
-  'assets/js/views/crm.js', 'assets/js/views/agenda.js', 'assets/js/views/tools.js', 'assets/js/views/tools2.js', 'assets/js/views/pages.js',
+  'assets/js/views/crm.js', 'assets/js/views/agenda.js', 'assets/js/views/tools.js', 'assets/js/views/tools2.js', 'assets/js/views/pages.js', 'assets/js/views/onboarding.js', 'assets/js/views/flowers.js',
+  'assets/img/fleur-1.webp', 'assets/img/fleur-2.webp', 'assets/img/fleur-3.webp', 'assets/img/fleur-4.webp',
   'icons/favicon.svg', 'icons/favicon-32.png', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];
 
@@ -34,4 +35,15 @@ self.addEventListener('fetch', (e) => {
     if (r.ok) { const copy = r.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
     return r;
   })));
+});
+
+// Un clic sur une notification ouvre l'application au bon endroit.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL('./' + (e.notification.data?.url || '#/agenda'), self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    const c = list.find((w) => w.url.startsWith(self.registration.scope));
+    if (c) { c.navigate(url).catch(() => {}); return c.focus(); }
+    return self.clients.openWindow(url);
+  }));
 });

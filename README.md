@@ -5,12 +5,14 @@ Application de prospection pour les indépendants et les agences qui vendent de 
 - **En ligne :** https://michprk.github.io/msdeveloper/ (non indexée)
 - **S'installe comme une application** sur iPhone (Safari → Partager → Sur l'écran d'accueil), Android (Installer l'application), Mac (Safari → Fichier → Ajouter au Dock, ou Chrome) et PC (Chrome / Edge → Installer).
 - **Fonctionne hors ligne** (service worker) ; les données restent sur l'appareil (localStorage), avec sauvegarde / restauration en fichier.
+- **Accueil façon Apple** à la première ouverture (fonctions, notifications, profil, secteurs, essai). Rejouable pour une présentation : Réglages → Présentation, ou le lien `?accueil`. Les clients ne le voient qu'une fois.
+- **Rappels** : notification avant chaque tâche datée et résumé du matin (quand l'app est ouverte ; sur iPhone, une fois installée sur l'écran d'accueil).
 
 ## Contenu
 
 | Rubrique | Ce qu'on y trouve |
 |---|---|
-| Scripts | 690 scripts générés : 23 secteurs × 3 services × 10 formats (appel à froid, répondeur, visite, e-mail, SMS, Instagram, relances, rendez-vous, objections, prix & signature). Variables remplies avec le profil et la fiche du prospect. |
+| Scripts | 704 scripts : 23 secteurs × 3 services × 10 formats (appel à froid, répondeur, visite, e-mail, SMS, Instagram, relances, rendez-vous, objections, prix & signature) + 14 situations délicates (barrage, remise, impayé, client mécontent…). Chaque script a 4 onglets : le script (avec « pourquoi ça marche », variantes et erreurs à éviter), la préparation (checklist, déroulé minuté, questions SPIN, qualification), la fiche secteur (décideur, priorités, mots à employer, saisonnalité, offre conseillée) et 16 objections. |
 | Mode appel | Le script étape par étape, les objections à portée de doigt, le résultat de l'appel enregistré en un geste (+ rappel ou rendez-vous daté). |
 | CRM | Pipeline en 7 étapes (glisser-déposer à la souris, appui long sur mobile), liste filtrable, fiche client complète avec historique, notes, tâches. |
 | Agenda & projets | Tâches, rappels, rendez-vous ; chaque client signé devient un projet avec délai et étapes. |

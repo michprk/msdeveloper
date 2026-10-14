@@ -3,6 +3,7 @@ import { S, can, STAGES, STAGE, SOURCES, OUTCOMES, OUTCOME, getProspect, addPros
 import { ic, esc, eur, num, register, sheet, sheetHead, closeSheet, toast, confirmSheet, avatar, stageChip, outcomeChip, when, ago, field, input, select, toLocalInput, fromLocalInput, dateShort } from '../ui.js';
 import { SERVICES, SERVICE_IDS, CHANNELS, allSectors, getSector } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
+import { QUALIF } from '../data/script-plus.js';
 
 const secName = (id) => getSector(id)?.name || 'Toute entreprise';
 const searchKey = (p) => esc(`${p.entreprise} ${p.contact} ${p.ville} ${secName(p.secteur)} ${p.tel}`.toLowerCase());
@@ -202,6 +203,10 @@ export function fiche([id]) {
             ${[['Contact', p.contact], ['Téléphone', p.tel], ['E-mail', p.email], ['Adresse', [p.adresse, p.ville].filter(Boolean).join(', ')], ['Site', p.site], ['Instagram', p.instagram], ['Service', SERVICES[svc]?.label], ['Valeur estimée', p.valeur ? eur(p.valeur) : ''], ['Source', p.source], ['Créée', dateShort(p.createdAt)]]
               .map(([k, v]) => `<div><dt>${k}</dt><dd>${v ? esc(v) : '<span class="muted">—</span>'}</dd></div>`).join('')}
           </dl>
+        </section>
+        <section class="card rise">
+          <header class="card-h"><div><h2>Qualification</h2><p>${QUALIF.filter((x) => p.qualif?.[x.k]).length} / 4 · avant de faire un devis</p></div></header>
+          <ul class="checklist">${QUALIF.map((x) => `<li><button class="ck ${p.qualif?.[x.k] ? 'is-on' : ''}" data-act="qualif" data-id="${id}" data-k="${x.k}" aria-pressed="${!!p.qualif?.[x.k]}"><span class="tick ${p.qualif?.[x.k] ? 'is-done' : ''}"></span><span><b>${x.label}</b><em>« ${esc(x.q)} »</em></span></button></li>`).join('')}</ul>
         </section>
         <section class="card rise">
           <header class="card-h"><div><h2>Notes</h2><p>Enregistrées automatiquement</p></div></header>

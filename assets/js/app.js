@@ -9,7 +9,9 @@ import { crmView, fiche } from './views/crm.js';
 import { agenda, projects } from './views/agenda.js';
 import { hub, devis, messages, audit, importView, quoteLive } from './views/tools.js';
 import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
-import { academy, guide, plans, settings, more, onboarding } from './views/pages.js';
+import { academy, guide, plans, settings, more } from './views/pages.js';
+import { onboarding, startOnboarding, isReplay } from './views/onboarding.js';
+import { startReminders } from './notify.js';
 import { accessLabel } from './views/common.js';
 
 const ROUTES = [
@@ -95,7 +97,7 @@ function sideFoot() {
 function render({ keepScroll = false } = {}) {
   const { path, query } = parseHash();
   if (!S().onboarded && path !== 'bienvenue') { location.replace('#/bienvenue'); return; }
-  if (S().onboarded && path === 'bienvenue') { location.replace('#/'); return; }
+  if (S().onboarded && path === 'bienvenue' && !isReplay()) { location.replace('#/'); return; }
   if (path === 'appel' && lastPath !== 'appel') resetCall();
   let v = null, fn = null;
   for (const [re, f] of ROUTES) { const m = path.match(re); if (m) { fn = f; v = f(m.slice(1), query); break; } }
@@ -188,7 +190,10 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     reg.addEventListener('updatefound', () => {
       const w = reg.installing;
       w?.addEventListener('statechange', () => {
-        if (w.state === 'installed' && navigator.serviceWorker.controller) toast('Une nouvelle version est prête.', { action: 'Mettre à jour', onAction: () => w.postMessage('skip') });
+        if (w.state !== 'installed' || !navigator.serviceWorker.controller) return;
+        // Juste après l'ouverture : mise à jour immédiate ; sinon, on propose.
+        if (performance.now() < 10000) w.postMessage('skip');
+        else toast('Une nouvelle version est prête.', { title: 'Mise à jour', action: 'Mettre à jour', onAction: () => w.postMessage('skip') });
       });
     });
   }).catch(() => {});
@@ -197,10 +202,16 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 }
 
 // ---------- Écran d'ouverture ----------
+// Accueil rejoué : demandé par ?accueil, ou réglage « Rejouer l'accueil à chaque ouverture ».
+let seen = false;
+try { seen = !!sessionStorage.getItem('msdev:intro'); } catch (e) { /* rien */ }
+const replay = S().onboarded && (new URLSearchParams(location.search).has('accueil') || (S().prefs.replayIntro && !seen));
+if (replay) { startOnboarding(true); history.replaceState(null, '', location.pathname + '#/bienvenue'); }
 const splash = document.getElementById('splash');
 render();
+startReminders();
 if (splash) {
   // Première ouverture : l'écran de bienvenue joue lui-même l'animation du logo.
-  if (!S().onboarded) splash.remove();
+  if (!S().onboarded || replay) splash.remove();
   else setTimeout(() => { splash.classList.add('out'); setTimeout(() => splash.remove(), 600); }, 900);
 }

@@ -120,7 +120,7 @@ const MSG = [
   { id: 'prospection', label: 'E-mail de prospection', from: ['email', 1] },
   { id: 'bienvenue', label: 'Bienvenue après signature', text: 'Bonjour {contact},\n\nMerci pour votre confiance, et bienvenue chez {societe} ! Pour démarrer, j\'ai besoin de votre logo, de vos photos, de vos textes et des accès à votre nom de domaine si vous en avez un.\n\nJe vous envoie le planning dans la journée.\n\n{prenom}' },
   { id: 'avis', label: 'Demande d\'avis au client', text: 'Bonjour {contact},\n\nMerci encore pour votre confiance. Si vous êtes satisfait du travail, un avis Google nous aiderait énormément : il suffit de deux phrases. [lien vers votre fiche]\n\nMerci beaucoup !\n{prenom}, {societe}' },
-  { id: 'recommandation', label: 'Demande de recommandation', text: 'Bonjour {contact},\n\nJe suis ravi que le projet vous plaise. Connaissez-vous un ou deux commerçants autour de vous à qui ça pourrait aussi rendre service ? Je les contacterai de votre part, sans insister.\n\nMerci !\n{prenom}' },
+  { id: 'recommandation', label: 'Demande de recommandation', text: 'Bonjour {contact},\n\nÃa me fait plaisir que le projet vous plaise. Connaissez-vous un ou deux commerçants autour de vous à qui ça pourrait aussi rendre service ? Je les contacterai de votre part, sans insister.\n\nMerci !\n{prenom}' },
 ];
 const msgState = { type: 'confirmation', pid: '', due: null };
 

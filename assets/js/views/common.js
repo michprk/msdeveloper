@@ -1,6 +1,7 @@
 // Éléments partagés entre les écrans.
 import { S, can, need, PLANS, access, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet } from '../ui.js';
+import { flower } from './flowers.js';
 
 export function pageHead(title, { kicker = '', actions = '', back = '' } = {}) {
   return `<header class="ph">
@@ -31,7 +32,7 @@ export function paywall(feature, { compact = false } = {}) {
   const [t, p] = FEATURE_TEXT[feature] || ['Fonction réservée aux abonnés', ''];
   const plan = PLANS[need(feature)];
   const trialUsed = !!S().sub.trialStart;
-  return `<section class="paywall ${compact ? 'is-compact' : ''}">
+  return `<section class="paywall ${compact ? 'is-compact' : ''}">${flower(1, 'pw-fl a')}${flower(3, 'pw-fl b')}
     <span class="paywall-ic">${ic('lock')}</span>
     <h2>${t}</h2>
     <p>${p}</p>
