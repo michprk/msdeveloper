@@ -1,0 +1,87 @@
+// Données d'exemple (entreprises fictives) pour découvrir l'application.
+// Marquées demo: true — les numéros ne sont pas composables.
+import { DAY, startOfDay, uid } from '../store.js';
+
+const LIST = [
+  ['Atelier Pivoine', 'fleuriste', 'Ixelles', 'Sophie', 'interesse', 'site', 1290, 'Instagram'],
+  ['Maison Lemaire', 'boulangerie', 'Etterbeek', 'Marc', 'rdv', 'site', 1290, 'Appel'],
+  ['Brasserie des Tilleuls', 'restaurant', 'Uccle', 'Karim', 'devis', 'auto', 790, 'Appel'],
+  ['Salon Céleste', 'coiffeur', 'Saint-Gilles', 'Inès', 'signe', 'site', 1290, 'Visite'],
+  ['Garage du Vieux Moulin', 'garage', 'Forest', 'Patrick', 'rappeler', 'seo', 490, 'Appel'],
+  ['Cabinet Delvaux', 'avocat', 'Woluwe-Saint-Lambert', '', 'a_appeler', 'site', 0, 'Appel'],
+  ['Fiduciaire Verbeke', 'comptable', 'Schaerbeek', 'An', 'a_appeler', 'auto', 0, 'Appel'],
+  ['Studio Lumen', 'photographe', 'Molenbeek', 'Théo', 'a_appeler', 'site', 0, 'Instagram'],
+  ['Kiné Flagey', 'sante', 'Ixelles', '', 'a_appeler', 'seo', 0, 'Appel'],
+  ['Hôtel Les Glycines', 'hotel', 'Saint-Josse', 'Claire', 'perdu', 'site', 0, 'Appel'],
+  ['Épicerie Odette', 'epicerie', 'Etterbeek', 'Odette', 'a_appeler', 'site', 0, 'Visite'],
+  ['Club Atlas', 'sport', 'Auderghem', 'Yanis', 'rappeler', 'auto', 290, 'Appel'],
+  ['La Petite Fabrique', 'traiteur', 'Anderlecht', 'Nadia', 'interesse', 'site', 750, 'Recommandation'],
+  ['Boutique Indigo', 'mode', 'Ixelles', 'Léa', 'a_appeler', 'site', 0, 'Instagram'],
+  ['Institut Camélia', 'beaute', 'Jette', 'Sarah', 'a_appeler', 'auto', 0, 'Appel'],
+  ['Menuiserie Peeters', 'artisan', 'Evere', 'Johan', 'a_appeler', 'seo', 0, 'Appel'],
+];
+
+// Générateur pseudo-aléatoire stable (mêmes exemples à chaque installation).
+function rng(seed) { return () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646; }
+
+export function demoData(now = Date.now()) {
+  const r = rng(42);
+  const today = startOfDay(now);
+  const prospects = LIST.map(([entreprise, secteur, ville, contact, stage, service, valeur, source], i) => ({
+    id: uid() + i, demo: true, entreprise, secteur, ville, contact, stage, service, valeur, source,
+    tel: `+32 2 000 00 ${String(i + 10)}`, email: '', adresse: '', site: '', instagram: '',
+    notes: '', next: null, attempts: stage === 'a_appeler' ? 0 : 1 + Math.floor(r() * 3),
+    createdAt: now - (12 - (i % 10)) * DAY, updatedAt: now - Math.floor(r() * 5) * DAY,
+    lastContact: stage === 'a_appeler' ? null : now - Math.floor(1 + r() * 6) * DAY,
+    signedAt: stage === 'signe' ? now - 5 * DAY : undefined,
+  }));
+  const P = Object.fromEntries(prospects.map((p) => [p.entreprise, p]));
+
+  // Historique d'appels sur 13 jours (la journée en cours comprise).
+  const activities = [];
+  const weights = [['nr', 0.44], ['rappeler', 0.16], ['refus', 0.22], ['interesse', 0.11], ['rdv', 0.07]];
+  const pick = () => { let x = r(), acc = 0; for (const [k, w] of weights) { acc += w; if (x < acc) return k; } return 'nr'; };
+  for (let d = 12; d >= 0; d--) {
+    const date = new Date(today - d * DAY);
+    if (date.getDay() === 0 || date.getDay() === 6) continue;
+    const n = d === 0 ? 14 : 16 + Math.floor(r() * 22);
+    for (let k = 0; k < n; k++) {
+      const at = today - d * DAY + (9.5 + r() * 7.5) * 3600e3;
+      if (d === 0 && at > now) continue;
+      activities.push({ id: uid() + d + '-' + k, demo: true, prospectId: null, type: 'appel', outcome: pick(), at });
+    }
+  }
+  const add = (name, a) => activities.push({ id: uid() + name.length + a.type, demo: true, prospectId: P[name].id, ...a });
+  add('Atelier Pivoine', { type: 'appel', outcome: 'interesse', note: 'Très intéressée par la commande en ligne pour la fête des mères. Envoyer deux exemples.', at: now - 2 * DAY });
+  add('Maison Lemaire', { type: 'appel', outcome: 'rdv', note: 'Précommandes de Saint-Nicolas sur papier : gros point de douleur.', at: now - 3 * DAY });
+  add('Brasserie des Tilleuls', { type: 'devis', note: 'Pack réservation + rappels SMS — 790 €', at: now - 1 * DAY });
+  add('Salon Céleste', { type: 'etape', from: 'devis', to: 'signe', at: now - 5 * DAY });
+  add('Garage du Vieux Moulin', { type: 'appel', outcome: 'rappeler', note: 'Patron sous une voiture, rappeler avant 8 h 30.', at: now - 1 * DAY });
+  add('Club Atlas', { type: 'appel', outcome: 'rappeler', note: 'Rappeler après la rentrée des cours du soir.', at: now - 4 * DAY });
+  add('Hôtel Les Glycines', { type: 'appel', outcome: 'refus', note: 'Contrat récent avec une autre agence.', at: now - 6 * DAY });
+  add('La Petite Fabrique', { type: 'note', note: 'Recommandée par Inès (Salon Céleste).', at: now - 2 * DAY });
+  activities.sort((a, b) => b.at - a.at);
+
+  const H = (dayOffset, h, m = 0) => today + dayOffset * DAY + (h * 60 + m) * 60e3;
+  const tasks = [
+    { title: 'Rappeler Garage du Vieux Moulin', kind: 'appel', due: H(1, 8, 15), p: 'Garage du Vieux Moulin' },
+    { title: 'Envoyer deux exemples à Atelier Pivoine', kind: 'tache', due: H(0, 17), p: 'Atelier Pivoine' },
+    { title: 'Rendez-vous — Maison Lemaire', kind: 'rdv', due: H(2, 14, 30), p: 'Maison Lemaire' },
+    { title: 'Relancer le devis — Brasserie des Tilleuls', kind: 'relance', due: H(2, 15, 30), p: 'Brasserie des Tilleuls' },
+    { title: 'Envoyer l\'e-mail promis à Club Atlas', kind: 'tache', due: H(-1, 11), p: 'Club Atlas' },
+    { title: 'Préparer la liste d\'appels de demain', kind: 'tache', due: H(0, 18) },
+  ].map((t) => ({ id: uid() + t.title.length, demo: true, title: t.title, kind: t.kind, due: t.due, prospectId: t.p ? P[t.p].id : null, done: false, createdAt: now }));
+  for (const t of tasks) {
+    const p = prospects.find((x) => x.id === t.prospectId);
+    if (p && (!p.next || p.next.due > t.due)) p.next = { taskId: t.id, label: t.title, due: t.due };
+  }
+  const projects = [{ id: uid(), demo: true, prospectId: P['Salon Céleste'].id, name: 'Salon Céleste', service: 'site', start: now - 5 * DAY, days: 21, done: [0, 1], createdAt: now - 5 * DAY }];
+  return { prospects, activities, tasks, projects };
+}
+
+export function clearDemo(s) {
+  s.prospects = s.prospects.filter((x) => !x.demo);
+  s.activities = s.activities.filter((x) => !x.demo);
+  s.tasks = s.tasks.filter((x) => !x.demo);
+  s.projects = s.projects.filter((x) => !x.demo);
+}
