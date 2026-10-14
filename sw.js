@@ -1,6 +1,6 @@
 // Service worker : l'application fonctionne hors ligne.
 // Changer VERSION à chaque mise en ligne pour proposer la mise à jour.
-const VERSION = 'msdev-1.1.0';
+const VERSION = 'msdev-1.1.1';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
@@ -13,7 +13,9 @@ const FILES = [
   'icons/favicon.svg', 'icons/favicon-32.png', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];
 
+// La nouvelle version prend la main tout de suite : l'application ouverte se recharge seule.
 self.addEventListener('install', (e) => {
+  self.skipWaiting();
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)));
 });
 self.addEventListener('activate', (e) => {
