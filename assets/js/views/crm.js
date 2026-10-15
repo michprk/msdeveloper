@@ -14,6 +14,8 @@ const ownerName = (id) => S().crm.team.find((m) => m.id === id)?.name || '';
 const searchKey = (p) => esc(`${p.entreprise} ${p.contact} ${p.ville} ${secName(p.secteur)} ${p.tel} ${p.email} ${(p.tags || []).join(' ')} ${ownerName(p.owner)} ${Object.values(p.cf || {}).join(' ')}`.toLowerCase());
 const tagChips = (p, n = 9) => (p.tags || []).slice(0, n).map((t) => `<span class="tag-chip">${esc(t)}</span>`).join('');
 export const noun = () => S().crm.noun || 'Clients';
+// Singulier pour les phrases (« mon premier client », « mon premier candidat »…)
+export const one = () => noun().toLowerCase().replace(/s$/, '');
 const subLine = (p) => [showSector(p) ? secName(p.secteur) : p.contact, p.ville].filter(Boolean).map(esc).join(' · ');
 
 // ---------- Pipeline / liste ----------
@@ -28,13 +30,20 @@ export function crmView(params, q) {
   const none = !s.prospects.length;
   const html = `
     ${pageHead(N, { kicker: none ? 'Vos fiches, étape par étape' : `${num(s.prospects.length)} fiche${s.prospects.length > 1 ? 's' : ''}${openSum ? ` · ${eur(openSum)} en cours` : ''}`, actions: `<a class="icon-btn" href="#/crm/personnaliser" aria-label="Personnaliser le CRM" title="Personnaliser">${ic('sliders')}</a><a class="icon-btn" href="#/outils/import" aria-label="Importer une liste" title="Importer">${ic('upload')}</a><button class="btn btn-primary fab-dup" data-act="prospect-new">${ic('plus')}<span>Fiche</span></button>` })}
-    ${none ? `<div class="empty card">
+    ${none ? `<section class="card onboard-empty rise">
         <span class="empty-ic">${ic('users')}</span>
-        <p class="empty-t">Aucune fiche pour l'instant</p>
-        <p class="empty-p">Ajoutez vos ${esc(N.toLowerCase())} un par un, ou collez une liste depuis un tableur. Chaque fiche avance ensuite d'étape en étape, de « ${esc(STAGES[0].label)} » à « ${esc(stageOf('signe').label)} ».</p>
-        <div class="end-a"><button class="btn btn-primary" data-act="prospect-new">${ic('plus')}<span>Ajouter une fiche</span></button><a class="btn btn-ghost" href="#/outils/import">${ic('upload')}<span>Importer une liste</span></a></div>
-        ${!s.crm.preset ? `<a class="link" href="#/crm/personnaliser">${ic('sliders')}Adapter les étapes à votre métier</a>` : ''}
-      </div>` : `
+        <h2>Ajoutez votre premier ${esc(one())}</h2>
+        <p>Une fiche garde les coordonnées, l'historique des échanges et la prochaine relance. Elle avance d'étape en étape, de « ${esc(STAGES[0].label)} » à « ${esc(stageOf('signe').label)} » : plus aucun client oublié, plus aucune proposition sans suite.</p>
+        <button class="btn btn-primary btn-lg" data-act="prospect-new">${ic('plus')}<span>Ajouter mon premier ${esc(one())}</span></button>
+        <div class="oe-alt"><a class="btn btn-ghost" href="#/outils/import">${ic('upload')}<span>Importer une liste</span></a>${!s.crm.preset ? `<a class="btn btn-ghost" href="#/crm/personnaliser">${ic('sliders')}<span>Adapter à mon métier</span></a>` : ''}</div>
+        <div class="demo-preview dp-card" aria-hidden="true">
+          <span class="tag">Exemple</span>
+          <p class="dp-t">Atelier Pivoine</p>
+          <p class="dp-s">Sophie · Ixelles</p>
+          <p class="dp-f"><span class="chip t-${STAGES[2]?.tone || 'blue'}"><i class="dot"></i>${esc(STAGES[2]?.label || '')}</span><span class="kcard-n">${ic('clock')}Relance demain 10 h</span></p>
+        </div>
+        <p class="oe-foot">Vous voulez d'abord voir l'application remplie ? <button class="link" data-act="load-demo">Charger des données d'exemple</button>, effaçables en un geste.</p>
+      </section>` : `
     <div class="crm-bar">
       <div class="search"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Nom, ville, étiquette…" data-filter=".kcard, .rows .row" aria-label="Chercher une fiche"></div>
       <nav class="seg seg-sm" aria-label="Affichage"><a class="seg-i ${view === 'board' ? 'is-on' : ''}" href="#/crm">${ic('crm')}<span>Pipeline</span></a><a class="seg-i ${view === 'list' ? 'is-on' : ''}" href="#/crm?v=list">${ic('list')}<span>Liste</span></a></nav>
@@ -60,7 +69,7 @@ function preview() {
 }
 
 const card = (p) => `<a class="kcard" href="#/fiche/${p.id}" draggable="false" data-id="${p.id}" data-name="${searchKey(p)}">
-  <p class="kcard-t">${esc(p.entreprise)}${p.owner && ownerName(p.owner) ? `<span class="owner" title="${esc(ownerName(p.owner))}">${esc(initials(ownerName(p.owner)))}</span>` : ''}</p>
+  <p class="kcard-t">${esc(p.entreprise)}${p.demo ? '<span class="tag">Exemple</span>' : ''}${p.owner && ownerName(p.owner) ? `<span class="owner" title="${esc(ownerName(p.owner))}">${esc(initials(ownerName(p.owner)))}</span>` : ''}</p>
   ${subLine(p) ? `<p class="kcard-s">${showSector(p) ? ic(getSector(p.secteur)?.icon || 'building') : ''}${subLine(p)}</p>` : ''}
   ${p.tags?.length ? `<p class="kcard-tags">${tagChips(p, 3)}</p>` : ''}
   <div class="kcard-f">${p.valeur ? `<b>${eur(p.valeur)}</b>` : `<span class="muted-s">${on('prospecter') ? SERVICES[p.service]?.short || '' : ''}</span>`}${p.next?.due ? `<span class="kcard-n ${p.next.due < Date.now() ? 'is-late' : ''}">${ic('clock')}${when(p.next.due)}</span>` : p.contact && showSector(p) ? `<span class="muted-s">${esc(p.contact)}</span>` : ''}</div>

@@ -10,7 +10,7 @@ import { quickAdd } from './tasks.js';
 
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const SCREENS = [
-  ['Aujourd\'hui', '#/', 'home'], ['Tâches', '#/taches', 'checkSquare', 'organiser'], ['Agenda', '#/agenda', 'calendar', 'organiser'], ['Notes', '#/notes', 'page', 'organiser'],
+  ['Aujourd\'hui', '#/', 'home'], ['Vue d\'ensemble — chiffres', '#/apercu', 'chart'], ['Tâches', '#/taches', 'checkSquare', 'organiser'], ['Agenda', '#/agenda', 'calendar', 'organiser'], ['Notes', '#/notes', 'page', 'organiser'],
   ['Clients — CRM', '#/crm', 'users', 'clients'], ['Personnaliser le CRM', '#/crm/personnaliser', 'sliders', 'clients'], ['Scripts', '#/scripts', 'script', 'prospecter'], ['Session d\'appels', '#/appel', 'headset', 'prospecter'],
   ['Quiz', '#/quiz', 'quiz', 'apprendre'], ['Académie', '#/academie', 'book', 'apprendre'], ['Abonnement', '#/abonnement', 'diamond'], ['Compte et réglages', '#/reglages', 'sliders'], ['Sauvegarde et données', '#/reglages?s=donnees', 'download'],
 ];

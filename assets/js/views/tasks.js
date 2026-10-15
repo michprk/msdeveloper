@@ -55,6 +55,7 @@ export function taskRow(t, { showList = true } = {}) {
     subs ? `<span class="subs">${ic('tasks')}${subs}</span>` : '',
     p ? `<span>${esc(p.entreprise)}</span>` : '',
     t.notes ? `<span class="has-note" title="Notes">${ic('note')}</span>` : '',
+    t.demo ? '<span class="tag">Exemple</span>' : '',
   ].filter(Boolean).join('<span class="sep">·</span>');
   return `<li class="task trow ${t.done ? 'is-done' : ''} ${t.prio ? `prio-${t.prio}` : ''}" data-id="${t.id}">
     <button class="tick ${t.done ? 'is-done' : ''}" data-act="task-toggle" data-id="${t.id}" aria-label="${t.done ? `Marquer « ${esc(t.title)} » à faire` : `Marquer « ${esc(t.title)} » comme fait`}"></button>
@@ -101,9 +102,11 @@ export function tasksView(params, q) {
     ['Sans date', (t) => !t.due],
   ];
   const listBody = () => {
-    if (!open.length && !done.length) return `<div class="empty card"><span class="empty-ic">${ic('checkSquare')}</span>
-      <p class="empty-t">${lid ? 'Cette liste est vide' : 'Rien à faire pour l\'instant'}</p>
-      <p class="empty-p">Écrivez une tâche comme vous la diriez : « Envoyer le devis vendredi », « Rappeler Marc demain 14h #travail ». La date et la liste sont reconnues toutes seules.</p></div>`;
+    if (!open.length && !done.length && lid) return `<div class="empty card"><span class="empty-ic">${ic('checkSquare')}</span>
+      <p class="empty-t">Cette liste est vide</p>
+      <p class="empty-p">Ajoutez une tâche ci-dessus : elle sera rangée dans cette liste.</p>
+      <button class="btn btn-primary" data-act="task-new" data-list="${lid}">${ic('plus')}<span>Ajouter une tâche</span></button></div>`;
+    if (!open.length && !done.length) return firstTasks();
     const used = new Set();
     return sections.map(([label, test, cls]) => {
       const items = open.filter((t) => !used.has(t.id) && test(t));
@@ -125,11 +128,11 @@ export function tasksView(params, q) {
     ${pageHead('Tâches', { kicker: `${open.length} à faire${todayN ? ` · ${todayN} pour aujourd'hui` : ''}`, actions: `<button class="btn btn-primary fab-dup" data-act="task-new" ${lid ? `data-list="${lid}"` : ''}>${ic('plus')}<span>Tâche</span></button>` })}
     ${viewSeg(v)}
     ${quickAdd({ list: lid })}
-    <nav class="chips-row" aria-label="Listes">
+    ${s.tasks.length || lid ? `<nav class="chips-row" aria-label="Listes">
       <a class="chip-btn ${!lid ? 'is-on' : ''}" href="${href({ l: '' })}">Toutes <b>${s.tasks.filter((t) => !t.done).length}</b></a>
       ${s.lists.map((x) => `<a class="chip-btn ${lid === x.id ? 'is-on' : ''}" href="${href({ l: x.id })}"><i class="dot t-${x.tone}"></i>${esc(x.name)} <b>${counts(x.id)}</b></a>`).join('')}
       <button class="chip-btn" data-act="list-new">${ic('plus')}Liste</button>
-    </nav>
+    </nav>` : ''}
     ${l ? `<p class="list-tools"><button class="link" data-act="list-edit" data-id="${l.id}">${ic('edit')}Renommer</button><button class="link danger" data-act="list-del" data-id="${l.id}">${ic('trash')}Supprimer la liste</button></p>` : ''}
     ${v === 'board' ? boardBody() : listBody()}`;
   return {
@@ -139,6 +142,26 @@ export function tasksView(params, q) {
       if (v === 'board') return enableDnD(root.querySelector('.tboard'), { key: 'col', onDrop: moveTask, onLong: (id) => moveSheet(id) });
     },
   };
+}
+
+// Premier écran d'un nouveau compte : l'action, le bénéfice, des exemples en un geste,
+// et un aperçu clairement marqué « Exemple ».
+const EXAMPLES = ['Envoyer le devis vendredi', 'Appeler le comptable demain 10h', 'Préparer la réunion lundi 9h'];
+function firstTasks() {
+  return `<section class="card onboard-empty rise">
+    <span class="empty-ic">${ic('checkSquare')}</span>
+    <h2>Créez votre première tâche</h2>
+    <p>Notez tout ce que vous avez à faire : chaque tâche arrive le bon jour sur l'écran Aujourd'hui, avec un rappel si vous lui donnez une heure. Plus rien ne reste dans votre tête.</p>
+    <button class="btn btn-primary btn-lg" data-act="task-new">${ic('plus')}<span>Créer ma première tâche</span></button>
+    <p class="oe-k">Ou ajoutez un exemple en un geste</p>
+    <div class="chips-wrap oe-ex">${EXAMPLES.map((x) => `<button class="chip-btn" data-act="task-example" data-t="${esc(x)}">${ic('plus')}${esc(x)}</button>`).join('')}</div>
+    <div class="demo-preview" aria-hidden="true">
+      <span class="tag">Exemple</span>
+      <div class="dp-row"><span class="tick"></span><span><b>Envoyer le devis à Maison Lemaire</b><em>Aujourd'hui · 17 h · Travail</em></span></div>
+      <div class="dp-row"><span class="tick is-done"></span><span><b>Réserver le train pour Gand</b><em>Terminée</em></span></div>
+    </div>
+    <p class="oe-foot">Vous voulez d'abord voir l'application remplie ? <button class="link" data-act="load-demo">Charger des données d'exemple</button>, effaçables en un geste.</p>
+  </section>`;
 }
 
 function moveTask(id, col) {
@@ -211,6 +234,11 @@ register({
     }, 260);
   },
   'task-move': (b) => { moveTask(b.dataset.id, b.dataset.col); closeSheet(); },
+  'task-example': (b) => {
+    const r = parseQuick(b.dataset.t);
+    const t = addTask({ title: r.title, due: r.due, prio: r.prio, list: r.list });
+    toast(`« ${esc(r.title)} »${r.due ? ` · ${when(r.due)}` : ''}`, { title: 'Tâche ajoutée', action: 'Annuler', onAction: () => update((s) => { s.tasks = s.tasks.filter((x) => x.id !== t.id); }) });
+  },
   'task-dup': (b) => {
     const t = S().tasks.find((x) => x.id === b.dataset.id);
     addTask({ ...JSON.parse(JSON.stringify(t)), id: uid(), title: `${t.title} (copie)`, done: false, doneAt: null, status: 'todo', createdAt: Date.now() });

@@ -39,11 +39,11 @@ const LABEL = { appel: 'Rappel', relance: 'Relance', rdv: 'Rendez-vous', tache: 
 
 function check() {
   const s = S();
-  if (!s.onboarded || s.prefs.notifs === false || location.hash.includes('bienvenue')) return;
+  if (!s.onboarded || location.hash.includes('bienvenue') || document.body.classList.contains('is-locked')) return;
   const now = Date.now();
   const sent = s.notified || {};
   const timed = (t) => { const d = new Date(t.due); return d.getHours() || d.getMinutes(); };
-  const due = s.tasks.filter((t) => !t.done && t.due && timed(t) && !sent[t.id] && t.due - now <= 10 * 60e3 && now - t.due < 60 * 60e3);
+  const due = s.prefs.notifs === false ? [] : s.tasks.filter((t) => !t.done && t.due && timed(t) && !sent[t.id] && t.due - now <= 10 * 60e3 && now - t.due < 60 * 60e3);
   if (due.length) {
     update((st) => { st.notified = { ...(st.notified || {}) }; due.forEach((t) => { st.notified[t.id] = now; }); }, { silent: true });
     due.slice(0, 3).forEach((t) => {
@@ -55,11 +55,11 @@ function check() {
   }
   // Résumé du matin, une fois par jour, à partir de 7 h
   const key = dayKey();
-  if (s.lastDigest !== key && new Date().getHours() >= 7) {
+  if (s.prefs.digest !== false && s.lastDigest !== key && new Date().getHours() >= 7) {
     const t0 = startOfDay();
     const today = s.tasks.filter((t) => !t.done && t.due && t.due < t0 + DAY).length;
     update((st) => { st.lastDigest = key; }, { silent: true });
-    if (today) show('Votre journée', `${today} tâche${today > 1 ? 's' : ''} aujourd'hui · objectif ${s.goals.appelsJour} appels.`, 'digest', '#/agenda');
+    if (today) show('Votre journée', `${today} tâche${today > 1 ? 's' : ''} aujourd'hui${s.profile.usages?.includes('prospecter') ? ` · objectif ${s.goals.appelsJour} appels` : ''}.`, 'digest', '#/');
   }
 }
 
@@ -70,5 +70,5 @@ export function startReminders() {
 }
 
 export function testNotification() {
-  show('Rappel · dans 10 min', 'Rappeler Garage du Vieux Moulin — le script est prêt.', 'test-' + Date.now(), '#/agenda');
+  show('Rappel · dans 10 min', 'Ceci est une notification de test : vos rappels ressembleront à ça.', 'test-' + Date.now(), '#/taches');
 }

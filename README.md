@@ -31,6 +31,13 @@
 | Trouver des clients | 934 scripts (23 secteurs × 4 services × 10 formats + 14 situations), dont « Votre offre » pour tous les métiers ; mode appel, audit, import, entraînement |
 | Apprendre et progresser | 9 quiz (90 questions expliquées), quiz du jour, révision des notes en cartes, vos propres quiz, Académie (17 guides) |
 
+## Écrans principaux (1.3.1)
+
+- **Aujourd'hui** : une action principale (ajouter une tâche) et ce qui est urgent d'abord (en retard, puis priorité, puis heure). En plus discret : appels, quiz du jour, notes récentes, et trois chiffres de la semaine.
+- **Vue d'ensemble** : cartes chiffres avec évolution par rapport à la période précédente (7 ou 30 jours) et courbe, graphique d'évolution avec choix de l'indicateur et vue tableau, activité récente, répartition des fiches par origine (ou des tâches par liste). Uniquement les données de l'utilisateur.
+- **Premiers écrans** : Tâches et Clients vides proposent une action directe (« Créer ma première tâche », « Ajouter mon premier client »), le bénéfice en une phrase, des exemples en un geste et un aperçu marqué « Exemple ».
+- **Compte** : sections Profil, Facturation, Activité, Application, Notifications, Sécurité et session, Données, Suppression. Enregistrement automatique avec statut visible ; une saisie invalide (e-mail, téléphone, IBAN, n° de TVA) n'est pas enregistrée et l'erreur est expliquée. Verrouillage automatique réglable, informations de session, date de la dernière sauvegarde, suppression du compte avec confirmation tapée.
+
 ## Navigation
 
 | Téléphone | Ordinateur |

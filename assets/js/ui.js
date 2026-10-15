@@ -156,6 +156,8 @@ export function download(name, content, type = 'application/json') {
 const RULES = {
   tel: (v) => (!v || v.replace(/\D/g, '').length >= 8 ? '' : 'Numéro incomplet : il faut au moins 8 chiffres.'),
   url: (v) => (!v || /^(https?:\/\/)?[\w-]+(\.[\w-]+)+([/?#].*)?$/i.test(v) ? '' : 'Adresse web invalide, par exemple : exemple.be'),
+  iban: (v) => (!v || /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(v.replace(/\s+/g, '').toUpperCase()) ? '' : 'IBAN incomplet, par exemple : BE68 5390 0754 7034'),
+  tva: (v) => { const x = v.replace(/[\s.]/g, '').toUpperCase(); return !v || !x.startsWith('BE') || /^BE[01]\d{9}$/.test(x) ? '' : 'Numéro belge : BE suivi de 10 chiffres, par exemple BE0123.456.789'; },
 };
 export function fieldError(el) {
   const v = (el.value || '').trim();

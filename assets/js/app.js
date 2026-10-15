@@ -12,6 +12,7 @@ import { notesHome, noteView } from './views/notes.js';
 import { quizHome, quizPlay, quizCards, quizEdit } from './views/quiz.js';
 import { searchSheet } from './views/search.js';
 import { plans } from './views/billing.js';
+import { overview } from './views/overview.js';
 import { hub, devis, messages, audit, importView, quoteLive } from './views/tools.js';
 import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
 import { academy, guide, settings, more } from './views/pages.js';
@@ -22,6 +23,7 @@ import { accessLabel } from './views/common.js';
 
 const ROUTES = [
   [/^(accueil)?$/, home],
+  [/^apercu$/, overview],
   [/^taches$/, tasksView],
   [/^agenda$/, agenda],
   [/^notes$/, notesHome],
@@ -76,7 +78,7 @@ function side() {
   const s = S();
   const favs = s.pages.filter((p) => p.fav).slice(0, 5);
   return [
-    [null, [['accueil', 'Aujourd\'hui', 'home', '#/']]],
+    [null, [['accueil', 'Aujourd\'hui', 'home', '#/'], ['apercu', 'Vue d\'ensemble', 'chart', '#/apercu']]],
     on('organiser') && ['S\'organiser', [['taches', 'Tâches', 'checkSquare', '#/taches'], ['agenda', 'Agenda', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ...favs.map((p) => [`note:${p.id}`, p.title || 'Sans titre', p.icon || 'page', `#/note/${p.id}`, 'sub'])]],
     on('clients') && ['Clients', [['crm', noun(), 'users', '#/crm'], ['projets', 'Projets clients', 'folder', '#/projets'], ['devis', 'Devis', 'invoice', '#/outils/devis'], ['stats', 'Statistiques', 'chart', '#/outils/stats']]],
     on('prospecter') && ['Prospecter', [['scripts', 'Scripts', 'script', '#/scripts'], ['appel', 'Session d\'appels', 'headset', '#/appel'], ['outils', 'Outils', 'briefcase', '#/outils']]],

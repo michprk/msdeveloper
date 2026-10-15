@@ -11,9 +11,24 @@ import { QUIZZES } from '../data/quizzes.js';
 import { startOnboarding, notifSheet } from './onboarding.js';
 import { flower } from './flowers.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
-import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow } from '../lock.js';
+import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow, lockAfter, sessionStart } from '../lock.js';
+import { fieldError, setFieldError, ago, time } from '../ui.js';
 
-const VERSION = '1.3.0';
+// Enregistrement automatique avec statut visible : succès, ou erreur expliquée sans rien enregistrer.
+function saveForm(f, id, okMsg, save) {
+  const st = document.getElementById(`st-${id}`);
+  const bad = [...f.querySelectorAll('input, textarea, select')].map((el) => { const m = fieldError(el); setFieldError(el, m); return m ? el : null; }).filter(Boolean);
+  if (bad.length) {
+    if (st) { st.className = 'save-st is-err'; st.innerHTML = `${ic('x')}<span>Non enregistré : corrigez le champ en rouge</span>`; }
+    toast('Corrigez le champ indiqué en rouge : rien n\'a été enregistré.', { title: 'Non enregistré', ms: 3500 });
+    return;
+  }
+  save();
+  if (st) { st.className = 'save-st is-ok'; st.innerHTML = `${ic('check')}<span>Enregistré à ${time(Date.now())}</span>`; }
+  toast(okMsg, { ms: 1400 });
+}
+
+const VERSION = '1.3.1';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -88,34 +103,50 @@ export function guide([id]) {
 }
 
 // ---------- Compte et réglages ----------
+// Sections nettes : informations personnelles, activité, application, notifications,
+// sécurité et session, données, zone sensible. Chaque changement confirme ou explique l'erreur.
+const ACC_SECTIONS = [['profil', 'Profil'], ['application', 'Application'], ['notifications', 'Notifications'], ['securite', 'Sécurité'], ['donnees', 'Données'], ['sensible', 'Suppression']];
+const LOCK_AFTER = [[0, 'Dès que je quitte l\'application'], [1, 'Après 1 minute'], [5, 'Après 5 minutes'], [15, 'Après 15 minutes'], [-1, 'Jamais (seulement à l\'ouverture)']];
+const deviceName = () => {
+  const ua = navigator.userAgent;
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Macintosh/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'PC Windows' : 'Cet appareil';
+  const br = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'navigateur';
+  const app = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  return `${os} · ${app ? 'application installée' : br}`;
+};
+const saveSt = (id, txt = 'Enregistrement automatique') => `<p class="save-st" id="st-${id}" role="status" aria-live="polite">${ic('check')}<span>${txt}</span></p>`;
+
 export function settings(params, q = {}) {
   const s = S(), p = s.profile, g = s.goals;
   const theme = s.prefs.theme, motion = s.prefs.motion, size = s.prefs.textSize || 'm';
   const perm = 'Notification' in window ? Notification.permission : 'unsupported';
-  const html = `${pageHead('Compte', { kicker: 'Profil, préférences, sécurité et données' })}
+  const work = on('prospecter') || on('clients');
+  const lastB = s.prefs.lastBackup;
+  const items = s.tasks.length + s.pages.length + s.prospects.length;
+  const started = sessionStart();
+  const html = `${pageHead('Compte', { kicker: 'Profil, sécurité, notifications et données' })}
     <section class="card account rise">
-      <div class="acc-top">${avatar(p.prenom || 'M S', 'xl')}<div><h2>${esc(p.prenom || 'Votre profil')}</h2><p>${esc(p.societe || 'Société non renseignée')}</p>${planBadge()}</div></div>
+      <div class="acc-top">${avatar(p.prenom || 'M S', 'xl')}<div><h2>${esc(p.prenom || 'Votre profil')}</h2><p>${esc([p.societe, p.email].filter(Boolean).join(' · ') || 'Société non renseignée')}</p>${planBadge()}</div></div>
       <a class="row" href="#/abonnement"><span class="menu-ic">${ic('diamond')}</span><span class="row-b"><b>Abonnement</b><span>${esc(accessLabel())}</span></span>${ic('chevR', 'chev')}</a>
-      <div class="acc-note">${ic('globe')}<p><b>Compte en ligne : bientôt.</b> Aujourd'hui, vos données sont enregistrées uniquement sur cet appareil. La connexion et la synchronisation entre téléphone et ordinateur arriveront avec le lancement.</p></div>
+      <div class="acc-note">${ic('shield')}<p><b>Votre compte, c'est cet appareil.</b> Il n'y a pas encore de compte en ligne : aucun mot de passe n'est stocké, rien n'est envoyé à un serveur. La connexion et la synchronisation entre appareils arriveront avec le paiement en ligne.</p></div>
     </section>
+    <nav class="acc-nav" aria-label="Sections du compte">${ACC_SECTIONS.filter(([id]) => id).map(([id, l]) => `<button class="chip-btn" data-act="acc-go" data-id="${id}">${l}</button>`).join('')}</nav>
 
-    <h2 class="sec-title">Votre application</h2>
-    <section class="card rise" id="modules">
-      <header class="card-h"><div><h2>Modules</h2><p>Ce que vous utilisez apparaît dans la navigation ; le reste se cache</p></div></header>
-      <div class="ios-list">${MODULE_IDS.map((m) => `<label class="ios-row"><span class="mod-r"><span class="feat-ic f-${MODULES[m].tone}">${ic(MODULES[m].icon)}</span><span><b>${MODULES[m].label}</b><em>${MODULES[m].desc}</em></span></span><input type="checkbox" class="switch" ${on(m) ? 'checked' : ''} data-act-change="module" data-m="${m}" aria-label="${MODULES[m].label}"></label>`).join('')}</div>
-      ${p.metier && preset(p.metier) ? `<p class="field-h">Métier : ${esc(preset(p.metier).label)} · <a href="#/crm/personnaliser">changer le modèle du CRM</a></p>` : ''}
-    </section>
-
-    <h2 class="sec-title">Votre activité</h2>
+    <h2 class="sec-title" id="profil">Informations personnelles</h2>
     <form class="card form rise" data-form="profile" data-autosave data-validate novalidate>
-      <header class="card-h"><div><h2>Profil</h2><p>Repris dans les scripts, les messages et les devis</p></div></header>
+      <header class="card-h"><div><h2>Profil</h2><p>Repris dans les scripts, les messages et les devis</p></div>${saveSt('profile')}</header>
       <div class="form-2">${field('Prénom', input('prenom', p.prenom, 'autocomplete="given-name" required'))}${field('Société', input('societe', p.societe, 'autocomplete="organization"'))}</div>
-      <div class="form-2">${field('Ville', input('ville', p.ville))}${field('Téléphone', input('tel', p.tel, 'type="tel" autocomplete="tel" data-rule="tel"'))}</div>
-      <div class="form-2">${field('E-mail', input('email', p.email, 'type="email" autocomplete="email"'))}${field('Adresse', input('adresse', p.adresse, 'autocomplete="street-address"'))}</div>
-      <div class="form-2">${field('N° d\'entreprise / TVA', input('tva', p.tva, 'placeholder="BE0123.456.789"'))}${field('IBAN (devis)', input('iban', p.iban, 'placeholder="BE.."'))}</div>
+      <div class="form-2">${field('E-mail', input('email', p.email, 'type="email" autocomplete="email" inputmode="email"'))}${field('Téléphone', input('tel', p.tel, 'type="tel" autocomplete="tel" data-rule="tel"'))}</div>
+      <div class="form-2">${field('Ville', input('ville', p.ville, 'autocomplete="address-level2"'))}${field('Adresse', input('adresse', p.adresse, 'autocomplete="street-address"'))}</div>
     </form>
+    <form class="card form rise" data-form="profile-billing" data-autosave data-validate novalidate>
+      <header class="card-h"><div><h2>Facturation</h2><p>Imprimés sur vos devis</p></div>${saveSt('billing')}</header>
+      <div class="form-2">${field('N° d\'entreprise / TVA', input('tva', p.tva, 'placeholder="BE0123.456.789" data-rule="tva"'))}${field('IBAN', input('iban', p.iban, 'placeholder="BE68 5390 0754 7034" data-rule="iban" autocomplete="off"'))}</div>
+    </form>
+
+    ${work ? `<h2 class="sec-title" id="activite">Votre activité</h2>` : ''}
     ${on('prospecter') ? `<form class="card form rise" id="offre" data-form="offer" data-autosave>
-      <header class="card-h"><div><h2>Votre offre</h2><p>Reprise dans les scripts de prospection</p></div></header>
+      <header class="card-h"><div><h2>Votre offre</h2><p>Reprise dans les scripts de prospection</p></div>${saveSt('offer')}</header>
       <div class="form-2">${field('Service principal', select('service', SERVICE_IDS.map((x) => [x, SERVICES[x].label]), p.service))}${field('Votre expérience', select('niveau', [['debut', 'Je débute'], ['regulier', 'J\'ai déjà prospecté'], ['expert', 'C\'est mon quotidien']], p.niveau || 'debut'))}</div>
       <fieldset class="offer-box"><legend class="field-l">Votre propre offre (scripts « Votre offre »)</legend>
         ${field('Ce que vous proposez', input('o_quoi', p.offre?.quoi || '', 'maxlength="90" placeholder="la comptabilité et la TVA"'), 'Complète la phrase « on s\'occupe de … pour les fleuristes de Bruxelles ».')}
@@ -126,75 +157,100 @@ export function settings(params, q = {}) {
       <div class="form-3">${SERVICE_IDS.map((x) => field(`Prix — ${SERVICES[x].short}`, input(`prix_${x}`, p.prix[x] || '', 'placeholder="à partir de …"'))).join('')}</div>
       ${field('Votre promesse', `<textarea class="inp" name="promesse" rows="2">${esc(p.promesse)}</textarea>`, 'Une phrase qui rassure : prix fixe, délai garanti, interlocuteur unique…')}
     </form>` : ''}
-    ${on('prospecter') || on('clients') ? `<form class="card form rise" data-form="goals" data-autosave>
-      <header class="card-h"><div><h2>Objectifs</h2><p>Affichés sur l'écran Aujourd'hui</p></div></header>
+    ${work ? `<form class="card form rise" data-form="goals" data-autosave>
+      <header class="card-h"><div><h2>Objectifs</h2><p>Affichés sur Aujourd'hui et dans la vue d'ensemble</p></div>${saveSt('goals')}</header>
       <div class="form-3">${on('prospecter') ? `${field('Appels par jour', input('appelsJour', g.appelsJour, 'type="number" min="1" inputmode="numeric"'))}${field('RDV par semaine', input('rdvSemaine', g.rdvSemaine, 'type="number" min="0" inputmode="numeric"'))}` : ''}${field('Signé par mois (€)', input('caMois', g.caMois, 'type="number" min="0" step="50" inputmode="numeric"'))}</div>
     </form>` : ''}
-    ${on('clients') ? `<a class="card wide-tile rise" href="#/crm/personnaliser"><span class="sec-ic lg t-olive">${ic('sliders')}</span><span class="wide-b"><b>Personnaliser le CRM</b><span>Votre métier, les étapes du pipeline, les champs, l'équipe, l'import de vos données.</span></span>${ic('chevR', 'chev')}</a>` : ''}
-    ${on('clients') ? `<section class="card rise" id="catalogue">` : '<section class="card rise" id="catalogue" hidden>'}
+    ${on('clients') ? `<a class="card wide-tile rise" href="#/crm/personnaliser"><span class="sec-ic lg t-olive">${ic('sliders')}</span><span class="wide-b"><b>Personnaliser le CRM</b><span>Votre métier, les étapes du pipeline, les champs, l'équipe, l'import de vos données.</span></span>${ic('chevR', 'chev')}</a>
+    <section class="card rise" id="catalogue">
       <header class="card-h"><div><h2>Catalogue de prestations</h2><p>Utilisé par l'outil Devis</p></div><button class="link" data-act="cat-add">${ic('plus')}Ajouter</button></header>
       <ul class="cat">${s.catalogue.map((c) => `<li><input class="inp" value="${esc(c.label)}" aria-label="Prestation" data-act-change="cat-edit" data-id="${c.id}" data-k="label"><input class="inp price" type="number" min="0" value="${c.price}" aria-label="Prix" data-act-change="cat-edit" data-id="${c.id}" data-k="price"><label class="mini-check"><input type="checkbox" ${c.monthly ? 'checked' : ''} data-act-change="cat-edit" data-id="${c.id}" data-k="monthly"><span>/mois</span></label><button class="icon-btn sm" data-act="cat-del" data-id="${c.id}" aria-label="Supprimer ${esc(c.label)}">${ic('x')}</button></li>`).join('')}</ul>
-    </section>
+    </section>` : ''}
 
-    <h2 class="sec-title">Préférences</h2>
+    <h2 class="sec-title" id="application">Application</h2>
+    <section class="card rise" id="modules">
+      <header class="card-h"><div><h2>Modules</h2><p>Ce que vous utilisez apparaît dans la navigation ; le reste se cache, sans rien effacer</p></div></header>
+      <div class="ios-list">${MODULE_IDS.map((m) => `<label class="ios-row"><span class="mod-r"><span class="feat-ic f-${MODULES[m].tone}">${ic(MODULES[m].icon)}</span><span><b>${MODULES[m].label}</b><em>${MODULES[m].desc}</em></span></span><input type="checkbox" class="switch" ${on(m) ? 'checked' : ''} data-act-change="module" data-m="${m}" aria-label="${MODULES[m].label}"></label>`).join('')}</div>
+      ${p.metier && preset(p.metier) ? `<p class="field-h">Métier : ${esc(preset(p.metier).label)} · <a href="#/crm/personnaliser">changer le modèle du CRM</a></p>` : ''}
+    </section>
     <section class="card rise">
       <header class="card-h"><div><h2>Affichage</h2></div></header>
       <p class="field-l">Thème</p>
-      <nav class="seg seg-sm">${[['light', 'Clair', 'sun'], ['dark', 'Sombre', 'moon'], ['auto', 'Automatique', 'refresh']].map(([v, l, i]) => `<button class="seg-i ${theme === v ? 'is-on' : ''}" data-act="pref" data-k="theme" data-v="${v}" aria-pressed="${theme === v}">${ic(i)}<span>${l}</span></button>`).join('')}</nav>
+      <nav class="seg seg-sm">${[['light', 'Clair', 'sun'], ['dark', 'Sombre', 'moon'], ['auto', 'Automatique', 'refresh']].map(([v, l, i]) => `<button class="seg-i ${theme === v ? 'is-on' : ''}" data-act="pref" data-k="theme" data-v="${v}" data-l="${l}" aria-pressed="${theme === v}">${ic(i)}<span>${l}</span></button>`).join('')}</nav>
       <p class="field-l">Taille du texte</p>
-      <nav class="seg seg-sm">${[['m', 'Standard'], ['l', 'Grande'], ['xl', 'Très grande']].map(([v, l]) => `<button class="seg-i ${size === v ? 'is-on' : ''}" data-act="pref" data-k="textSize" data-v="${v}" aria-pressed="${size === v}">${l}</button>`).join('')}</nav>
+      <nav class="seg seg-sm">${[['m', 'Standard'], ['l', 'Grande'], ['xl', 'Très grande']].map(([v, l]) => `<button class="seg-i ${size === v ? 'is-on' : ''}" data-act="pref" data-k="textSize" data-v="${v}" data-l="${l}" aria-pressed="${size === v}">${l}</button>`).join('')}</nav>
       <p class="field-l">Animations</p>
-      <nav class="seg seg-sm">${[['full', 'Complètes'], ['reduce', 'Réduites']].map(([v, l]) => `<button class="seg-i ${motion === v ? 'is-on' : ''}" data-act="pref" data-k="motion" data-v="${v}" aria-pressed="${motion === v}">${l}</button>`).join('')}</nav>
-    </section>
-    <section class="card rise">
-      <header class="card-h"><div><h2>Notifications</h2><p>${perm === 'granted' ? 'Autorisées sur cet appareil' : perm === 'denied' ? 'Bloquées dans les réglages du navigateur' : perm === 'default' ? 'Pas encore autorisées' : esc(notifSupport().hint)}</p></div></header>
-      <div class="ios-list"><label class="ios-row"><span><b>Rappel avant chaque tâche</b><em>Et un résumé chaque matin. Fonctionne quand l'application est ouverte ou vient de l'être.</em></span><input type="checkbox" class="switch" ${s.prefs.notifs !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="notifs"></label></div>
-      <div class="act-row">${perm === 'default' ? `<button class="btn btn-primary" data-act="notif-ask-sheet">${ic('bell')}<span>Autoriser</span></button>` : ''}<button class="btn btn-ghost" data-act="notif-test">${ic('bell')}<span>Tester</span></button></div>
+      <nav class="seg seg-sm">${[['full', 'Complètes'], ['reduce', 'Réduites']].map(([v, l]) => `<button class="seg-i ${motion === v ? 'is-on' : ''}" data-act="pref" data-k="motion" data-v="${v}" data-l="${l}" aria-pressed="${motion === v}">${l}</button>`).join('')}</nav>
     </section>
     <section class="card rise">
       <header class="card-h"><div><h2>Installer l'application</h2><p>Écran d'accueil du téléphone, Dock du Mac, bureau du PC</p></div></header>
       <button class="btn btn-ghost" data-act="install">${ic('install')}<span>Installer M&amp;S Developer</span></button>
     </section>
 
-    <h2 class="sec-title">Sécurité et session</h2>
+    <h2 class="sec-title" id="notifications">Notifications</h2>
     <section class="card rise">
-      <header class="card-h"><div><h2>Code de verrouillage</h2><p>${hasLock() ? 'Activé sur cet appareil' : 'Désactivé'}</p></div><span class="chip ${hasLock() ? 't-olive' : ''}">${ic('lock')}${hasLock() ? 'Activé' : 'Désactivé'}</span></header>
-      <p class="body">Un code à 4 chiffres protège l'accès à vos fiches si quelqu'un prend votre téléphone. Il ne chiffre pas les données et ne peut pas être récupéré : pensez à la sauvegarde.</p>
-      ${hasLock() ? `<div class="ios-list"><label class="ios-row"><span><b>Verrouiller après 5 minutes en arrière-plan</b></span><input type="checkbox" class="switch" ${s.lock?.auto !== false ? 'checked' : ''} data-act-change="lock-auto"></label></div>` : ''}
-      <div class="act-row">${!lockSupported() ? '<p class="field-h">Le verrouillage demande une connexion sécurisée (https).</p>' : hasLock() ? `<button class="btn btn-primary" data-act="lock-now">${ic('lock')}<span>Verrouiller maintenant</span></button><button class="btn btn-ghost" data-act="lock-change">Changer le code</button><button class="btn btn-ghost" data-act="lock-off">Désactiver</button>` : `<button class="btn btn-primary" data-act="lock-set">${ic('lock')}<span>Activer un code</span></button>`}</div>
+      <header class="card-h"><div><h2>Sur cet appareil</h2><p>${perm === 'granted' ? 'Autorisées' : perm === 'denied' ? 'Bloquées par le navigateur' : perm === 'default' ? 'Pas encore autorisées' : esc(notifSupport().hint)}</p></div><span class="chip ${perm === 'granted' ? 't-olive' : perm === 'denied' ? 't-rose' : ''}">${ic('bell')}${perm === 'granted' ? 'Activées' : perm === 'denied' ? 'Bloquées' : 'Inactives'}</span></header>
+      <div class="ios-list">
+        <label class="ios-row"><span><b>Rappel avant chaque tâche</b><em>Dix minutes avant chaque tâche à heure fixe.</em></span><input type="checkbox" class="switch" ${s.prefs.notifs !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="notifs" data-on="Rappels activés" data-off="Rappels désactivés"></label>
+        <label class="ios-row"><span><b>Résumé du matin</b><em>Le nombre de tâches du jour, à partir de 7 h.</em></span><input type="checkbox" class="switch" ${s.prefs.digest !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="digest" data-on="Résumé du matin activé" data-off="Résumé du matin désactivé"></label>
+      </div>
+      ${perm === 'denied' ? '<p class="field-h">Pour les réactiver : réglages du navigateur (ou de l\'iPhone) → Notifications → M&amp;S Developer.</p>' : '<p class="field-h">Sans serveur d\'envoi, les rappels partent quand l\'application est ouverte ou vient de l\'être. Sur iPhone, installez-la d\'abord sur l\'écran d\'accueil.</p>'}
+      <div class="act-row">${perm === 'default' ? `<button class="btn btn-primary" data-act="notif-ask-sheet">${ic('bell')}<span>Autoriser</span></button>` : ''}<button class="btn btn-ghost" data-act="notif-test">${ic('bell')}<span>Envoyer une notification de test</span></button></div>
     </section>
 
-    <h2 class="sec-title">Présentation</h2>
+    <h2 class="sec-title" id="securite">Sécurité et session</h2>
     <section class="card rise">
-      <header class="card-h"><div><h2>Montrer l'application</h2><p>Pour une démonstration à un futur client</p></div></header>
-      <div class="ios-list">
-        <label class="ios-row"><span><b>Rejouer l'accueil à chaque ouverture</b><em>Vos clients, eux, ne le voient qu'une fois.</em></span><input type="checkbox" class="switch" ${s.prefs.replayIntro ? 'checked' : ''} data-act-change="pref-switch" data-k="replayIntro"></label>
-      </div>
-      <div class="btn-list">
-        <button class="btn btn-ghost" data-act="replay-intro">${ic('play')}<span>Revoir l'accueil maintenant</span></button>
-        ${s.prospects.some((x) => x.demo) ? `<button class="btn btn-ghost" data-act="clear-demo">${ic('x')}<span>Effacer les données de démonstration</span></button>` : `<button class="btn btn-ghost" data-act="load-demo">${ic('users')}<span>Charger des données de démonstration</span></button>`}
-      </div>
-      <label class="field"><span class="field-l">Mode démonstration</span>${select('demo', [['', 'Désactivé'], ['pro', 'Afficher comme Pro'], ['premium', 'Afficher comme Premium']], s.sub.demo || '', 'data-act-change="demo-mode"')}<span class="field-h">Ouvre toutes les fonctions le temps d'une présentation. Ce n'est pas un abonnement.</span></label>
+      <header class="card-h"><div><h2>Code de verrouillage</h2><p>Protège l'accès si quelqu'un prend votre téléphone</p></div><span class="chip ${hasLock() ? 't-olive' : ''}">${ic('lock')}${hasLock() ? 'Activé' : 'Désactivé'}</span></header>
+      <p class="body">Quatre chiffres demandés à l'ouverture. Le code est stocké sous forme chiffrée irréversible ; il ne chiffre pas les données et ne peut pas être récupéré : pensez à la sauvegarde.</p>
+      ${hasLock() ? `<label class="field"><span class="field-l">Verrouillage automatique</span>${select('after', LOCK_AFTER, lockAfter(), 'data-act-change="lock-after"')}</label>` : ''}
+      <div class="act-row">${!lockSupported() ? '<p class="field-h">Le verrouillage demande une connexion sécurisée (https).</p>' : hasLock() ? `<button class="btn btn-primary" data-act="lock-now">${ic('lock')}<span>Verrouiller maintenant</span></button><button class="btn btn-ghost" data-act="lock-change">Changer le code</button><button class="btn btn-ghost" data-act="lock-off">Désactiver</button>` : `<button class="btn btn-primary" data-act="lock-set">${ic('lock')}<span>Activer un code</span></button>`}</div>
+    </section>
+    <section class="card rise">
+      <header class="card-h"><div><h2>Session</h2><p>Où et depuis quand l'application est ouverte</p></div></header>
+      <dl class="dl">
+        <div><dt>Appareil</dt><dd>${esc(deviceName())}</dd></div>
+        <div><dt>Ouverte</dt><dd>${started ? esc(ago(started)) : '—'}</dd></div>
+        <div><dt>Données</dt><dd>Sur cet appareil uniquement</dd></div>
+        <div><dt>Sessions à distance</dt><dd>Aucune</dd></div>
+      </dl>
+      <p class="field-h">Avec les comptes en ligne, vous verrez ici chaque appareil connecté et pourrez le déconnecter à distance. ${hasLock() ? 'Pour fermer la session maintenant, verrouillez l\'application.' : 'Activez un code pour pouvoir fermer la session.'}</p>
     </section>
 
     <h2 class="sec-title" id="donnees">Vos données</h2>
     <section class="card rise">
       <header class="card-h"><div><h2>Sauvegarde et import</h2><p>${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''} · ${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} sur cet appareil</p></div></header>
+      <div class="backup-st ${!lastB && items ? 'is-warn' : lastB && Date.now() - lastB > 30 * 864e5 ? 'is-warn' : ''}">${ic(lastB ? 'checkCircle' : 'download')}<p>${lastB ? `Dernière sauvegarde : <b>${esc(ago(lastB))}</b>${Date.now() - lastB > 30 * 864e5 ? ' — pensez à en refaire une.' : '.'}` : items ? '<b>Aucune sauvegarde pour l\'instant.</b> Si ce téléphone est perdu, vos données le sont aussi.' : 'Aucune sauvegarde pour l\'instant.'}</p></div>
       <div class="btn-list">
-        <button class="btn btn-ghost" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde</span></button>
+        <button class="btn ${!lastB && items ? 'btn-primary' : 'btn-ghost'}" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde</span></button>
         <label class="btn btn-ghost">${ic('upload')}<span>Importer un fichier (ajoute sans rien effacer)</span><input type="file" accept="application/json,.json" hidden data-act-change="import-merge"></label>
         <label class="btn btn-ghost">${ic('refresh')}<span>Restaurer une sauvegarde (remplace tout)</span><input type="file" accept="application/json,.json" hidden data-act-change="restore"></label>
         <button class="btn btn-ghost" data-act="export-csv" ${s.prospects.length ? '' : 'disabled'}>${ic('list')}<span>Exporter les fiches (CSV)</span>${can('export') ? '' : '<span class="badge b-premium">Premium</span>'}</button>
       </div>
     </section>
+
+    <h2 class="sec-title" id="sensible">Suppression</h2>
     <section class="card danger-zone rise">
-      <header class="card-h"><div><h2>Supprimer toutes mes données</h2><p>Tâches, pages, fiches, historique, réglages : tout est effacé de cet appareil</p></div></header>
-      <button class="btn btn-danger-ghost" data-act="wipe">${ic('trash')}<span>Supprimer toutes mes données</span></button>
+      <header class="card-h"><div><h2>Supprimer mon compte</h2><p>Action définitive</p></div><span class="chip t-rose">${ic('trash')}Irréversible</span></header>
+      <p class="body">Efface de cet appareil tout ce qui compose votre compte : tâches, pages, fiches, historique, quiz, abonnement de test et réglages. Rien n'est conservé ailleurs. Téléchargez une sauvegarde avant si vous voulez pouvoir revenir en arrière.</p>
+      <button class="btn btn-danger-ghost" data-act="wipe">${ic('trash')}<span>Supprimer mon compte et mes données</span></button>
     </section>
+
+    <details class="card demo-tools rise">
+      <summary><h2>Outils de présentation</h2>${ic('chevD', 'chev')}</summary>
+      <p class="body">Pour montrer l'application à un futur client. Rien de tout cela n'est visible pour vos clients.</p>
+      <div class="ios-list">
+        <label class="ios-row"><span><b>Rejouer l'accueil à chaque ouverture</b><em>Vos clients, eux, ne le voient qu'une fois.</em></span><input type="checkbox" class="switch" ${s.prefs.replayIntro ? 'checked' : ''} data-act-change="pref-switch" data-k="replayIntro" data-on="L'accueil sera rejoué à chaque ouverture" data-off="L'accueil ne sera plus rejoué"></label>
+      </div>
+      <div class="btn-list">
+        <button class="btn btn-ghost" data-act="replay-intro">${ic('play')}<span>Revoir l'accueil maintenant</span></button>
+        ${s.prospects.some((x) => x.demo) || s.pages.some((x) => x.demo) ? `<button class="btn btn-ghost" data-act="clear-demo">${ic('x')}<span>Effacer les données de démonstration</span></button>` : `<button class="btn btn-ghost" data-act="load-demo">${ic('users')}<span>Charger des données de démonstration</span></button>`}
+      </div>
+      <label class="field"><span class="field-l">Mode démonstration</span>${select('demo', [['', 'Désactivé'], ['pro', 'Afficher comme Pro'], ['premium', 'Afficher comme Premium']], s.sub.demo || '', 'data-act-change="demo-mode"')}<span class="field-h">Ouvre toutes les fonctions le temps d'une présentation. Ce n'est pas un abonnement.</span></label>
+    </details>
 
     <section class="about-card rise">
       <p class="about-p"><b>${PROMISE}</b> ${PITCH}</p>
-      <p class="about">M&amp;S Developer ${VERSION} · ${scriptCount()} scripts · conçu à Bruxelles par M&amp;S Design</p>
+      <p class="about">M&amp;S Developer ${VERSION} · conçu à Bruxelles par M&amp;S Design</p>
     </section>`;
   return { title: 'Compte', tab: 'plus', html, after(root) { if (q.s) setTimeout(() => root.querySelector('#' + CSS.escape(q.s))?.scrollIntoView({ block: 'start' }), 50); } };
 }
@@ -205,11 +261,12 @@ export function more() {
   const read = GUIDES.filter((g) => isRead(g.id)).length;
   const N = s.crm.noun || 'Clients';
   const groups = [
+    ['Suivi', null, [['#/apercu', 'chart', 'Vue d\'ensemble', 'Vos chiffres, l\'activité récente, la répartition']]],
     ['S\'organiser', 'organiser', [['#/taches', 'checkSquare', 'Tâches', `${s.tasks.filter((t) => !t.done).length} à faire · listes, tableau`], ['#/agenda', 'calendar', 'Agenda', 'Vos tâches jour par jour'], ['#/notes', 'page', 'Notes', `${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · modèles, sous-pages`]]],
     ['Clients', 'clients', [['#/crm', 'users', N, `${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · pipeline`, 'crm'], ['#/projets', 'folder', 'Projets clients', 'Après la signature : étapes et délais', 'projects'], ['#/outils/devis', 'invoice', 'Devis', 'Calculé et imprimable en PDF', 'quote'], ['#/outils/messages', 'message', 'Messages prêts à envoyer', 'Confirmation, relance, avis', 'messages'], ['#/outils/stats', 'chart', 'Statistiques', 'Vos taux, étape par étape', 'stats']]],
     ['Prospecter', 'prospecter', [['#/scripts', 'script', 'Scripts', `${scriptCount()} scripts prêts à l'emploi`], ['#/appel', 'headset', 'Session d\'appels', 'Le script pas à pas, le résultat en un geste', 'callMode'], ['#/outils/audit', 'clipboard', 'Audit express', 'La présence en ligne notée sur 10', 'audit'], ['#/outils/import', 'upload', 'Importer une liste', 'Depuis un tableur', 'import'], ['#/outils/entrainement', 'target', 'Entraînement', 'Répondre aux objections', 'training'], ['#/outils/mes-scripts', 'edit', 'Mes scripts et secteurs', 'Vos propres versions', 'myScripts']]],
     ['Progresser', 'apprendre', [['#/quiz', 'quiz', 'Quiz', `${QUIZZES.length} quiz · quiz du jour, révision des notes`], ['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`]]],
-  ].filter(([, m]) => on(m));
+  ].filter(([, m]) => !m || on(m));
   const account = [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Modules, profil, sécurité, données']];
   const rows = (items) => `<ul class="menu card rise">${items.map(([h, i, t, d, f]) => `<li><a class="row" href="${h}"><span class="menu-ic">${ic(i)}</span><span class="row-b"><b>${esc(t)}</b><span>${esc(d)}</span></span>${f && !can(f) ? `<span class="badge b-${FEATURES[f]}">${PLANS[FEATURES[f]].name}</span>` : ''}${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`;
   const html = `${pageHead('Plus', { actions: `<button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button>` })}
@@ -233,9 +290,10 @@ function codeSheet(mode) {
 }
 
 function wipeSheet() {
-  sheet(`${sheetHead('Supprimer toutes vos données ?')}
+  const s = S();
+  sheet(`${sheetHead('Supprimer votre compte ?', 'Action définitive')}
     <form class="sheet-body form" data-form="wipe" data-validate novalidate>
-      <p class="sheet-p">Fiches, historique, tâches, scripts personnels, personnalisation du CRM et réglages seront <b>définitivement effacés de cet appareil</b>. Rien n'est conservé ailleurs.</p>
+      <p class="sheet-p">Seront <b>définitivement effacés de cet appareil</b> : ${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''}, ${s.pages.length} page${s.pages.length > 1 ? 's' : ''}, ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} et leur historique, vos quiz, l'abonnement de test et vos réglages. Rien n'est conservé ailleurs.</p>
       <button type="button" class="btn btn-ghost btn-block" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde d'abord</span></button>
       ${field('Tapez SUPPRIMER pour confirmer', '<input class="inp" name="confirm" autocomplete="off" autocapitalize="characters" required data-act-input="wipe-check">')}
       <button class="btn btn-danger btn-block" type="submit" disabled>Supprimer définitivement</button>
@@ -267,7 +325,13 @@ register({
     update((s) => { s.profile.usages = MODULE_IDS.filter((x) => next.includes(x)); });
     toast(el.checked ? `${MODULES[m].label} : affiché dans la navigation` : `${MODULES[m].label} : masqué. Vos données sont conservées.`, { ms: 2200 });
   },
-  'pref-switch': (el) => { update((s) => { s.prefs[el.dataset.k] = el.checked; }, { silent: true }); toast(el.checked ? 'Activé' : 'Désactivé', { ms: 1200 }); },
+  'pref-switch': (el) => { update((s) => { s.prefs[el.dataset.k] = el.checked; }, { silent: true }); toast(el.checked ? el.dataset.on || 'Activé' : el.dataset.off || 'Désactivé', { ms: 1600 }); },
+  'acc-go': (b) => document.getElementById(b.dataset.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+  'lock-after': (el) => {
+    const v = Number(el.value);
+    update((s) => { if (s.lock) { s.lock.after = v; delete s.lock.auto; } }, { silent: true });
+    toast(v < 0 ? 'Le code sera demandé seulement à l\'ouverture.' : v === 0 ? 'Verrouillage dès que vous quittez l\'application.' : `Verrouillage après ${v} minute${v > 1 ? 's' : ''} hors de l'application.`, { title: 'Verrouillage automatique' });
+  },
   'replay-intro': () => { startOnboarding(true); location.hash = '#/bienvenue'; },
   'sectors-edit': () => sectorsSheet(),
   'sector-toggle': (b) => {
@@ -276,7 +340,11 @@ register({
   },
   'notif-ask': async () => { const r = await askNotifications(); toast(r === 'granted' ? 'Une notification arrivera avant chaque rappel.' : r === 'unsupported' ? notifSupport().hint : 'Autorisation refusée : modifiable dans les réglages du navigateur.', { title: 'Notifications' }); rr(); },
   'notif-test': () => testNotification(),
-  pref: (b) => { update((s) => { s.prefs[b.dataset.k] = b.dataset.v; }); },
+  pref: (b) => {
+    if (S().prefs[b.dataset.k] === b.dataset.v) return;
+    update((s) => { s.prefs[b.dataset.k] = b.dataset.v; });
+    toast(`${{ theme: 'Thème', textSize: 'Taille du texte', motion: 'Animations' }[b.dataset.k]} : ${(b.dataset.l || '').toLowerCase()}`, { ms: 1500 });
+  },
   'demo-mode': (el) => { update((s) => { s.sub.demo = el.value || null; }); toast(el.value ? `Affichage ${PLANS[el.value].name} activé pour la présentation` : 'Mode démonstration désactivé'); },
   'cat-add': () => update((s) => { s.catalogue.push({ id: uid(), label: 'Nouvelle prestation', price: 0 }); }),
   'cat-del': (b) => {
@@ -285,11 +353,19 @@ register({
     update((s) => { s.catalogue = s.catalogue.filter((x) => x.id !== c.id); });
     toast(`${esc(c.label)} retiré du catalogue`, { action: 'Annuler', onAction: () => update((s) => { s.catalogue.splice(i, 0, c); }) });
   },
-  'cat-edit': (el) => update((s) => {
-    const c = s.catalogue.find((x) => x.id === el.dataset.id); if (!c) return;
-    const k = el.dataset.k; c[k] = k === 'price' ? Number(el.value) || 0 : k === 'monthly' ? el.checked : el.value;
-  }, { silent: true }),
-  backup: () => { download(`msdeveloper-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ ...S(), lock: null }, null, 1)); toast('Le fichier est dans vos téléchargements.', { title: 'Sauvegarde téléchargée' }); },
+  'cat-edit': (el) => {
+    if (el.dataset.k === 'label' && !el.value.trim()) { toast('Le nom de la prestation ne peut pas être vide.', { title: 'Non enregistré' }); el.value = S().catalogue.find((x) => x.id === el.dataset.id)?.label || ''; return; }
+    update((s) => {
+      const c = s.catalogue.find((x) => x.id === el.dataset.id); if (!c) return;
+      const k = el.dataset.k; c[k] = k === 'price' ? Math.max(0, Number(el.value) || 0) : k === 'monthly' ? el.checked : el.value.trim();
+    }, { silent: true });
+    toast('Catalogue enregistré', { ms: 1200 });
+  },
+  backup: () => {
+    download(`msdeveloper-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ ...S(), lock: null }, null, 1));
+    update((s) => { s.prefs.lastBackup = Date.now(); });
+    toast('Le fichier est dans vos téléchargements. Gardez-le en lieu sûr (iCloud, Google Drive…).', { title: 'Sauvegarde téléchargée', ms: 4000 });
+  },
   'import-merge': async (el) => {
     const f = el.files?.[0]; if (!f) return;
     const btn = el.closest('.btn');
@@ -336,23 +412,26 @@ register({
   'lock-change': () => codeSheet('change'),
   'lock-off': () => codeSheet('off'),
   'lock-now': () => lockNow(),
-  'lock-auto': (el) => { update((s) => { if (s.lock) s.lock.auto = el.checked; }, { silent: true }); },
   install: () => installFlow(),
 }, {
-  profile: (d) => { if (!(d.prenom || '').trim()) return; update((s) => { Object.assign(s.profile, d); }, { silent: true }); toast('Profil enregistré', { ms: 1200 }); },
-  offer: (d) => {
+  profile: (d, f) => saveForm(f, 'profile', 'Profil enregistré', () => {
+    const keep = ['prenom', 'societe', 'email', 'tel', 'ville', 'adresse'];
+    update((s) => { keep.forEach((k) => { s.profile[k] = (d[k] || '').trim(); }); }, { silent: true });
+  }),
+  'profile-billing': (d, f) => saveForm(f, 'billing', 'Facturation enregistrée', () => {
+    update((s) => { s.profile.tva = (d.tva || '').trim(); s.profile.iban = (d.iban || '').replace(/\s+/g, ' ').trim().toUpperCase(); }, { silent: true });
+  }),
+  offer: (d, f) => saveForm(f, 'offer', 'Offre enregistrée', () => {
     update((s) => {
       s.profile.service = d.service; s.profile.promesse = d.promesse; s.profile.niveau = d.niveau || s.profile.niveau;
       SERVICE_IDS.forEach((x) => { s.profile.prix[x] = d[`prix_${x}`] ?? s.profile.prix[x]; });
       s.profile.offre = { quoi: (d.o_quoi || '').trim(), resultat: (d.o_resultat || '').trim(), exemple: (d.o_exemple || '').trim() };
     }, { silent: true });
-    toast('Offre enregistrée', { ms: 1200 });
-  },
-  goals: (d) => {
+  }),
+  goals: (d, f) => saveForm(f, 'goals', 'Objectifs enregistrés', () => {
     const n = (v, min, cur) => (v === undefined ? cur : Math.max(min, Math.round(Number(v) || 0)));
     update((s) => { const g = s.goals; s.goals = { appelsJour: n(d.appelsJour, 1, g.appelsJour), rdvSemaine: n(d.rdvSemaine, 0, g.rdvSemaine), caMois: n(d.caMois, 0, g.caMois) }; }, { silent: true });
-    toast('Objectifs enregistrés', { ms: 1200 });
-  },
+  }),
   lock: async (d, f) => {
     const mode = f.dataset.mode;
     const four = (v) => /^\d{4}$/.test(v || '');
@@ -367,7 +446,7 @@ register({
     closeSheet();
     resetState(); try { sessionStorage.clear(); } catch (e) { /* rien */ }
     startOnboarding(); location.hash = '#/bienvenue';
-    toast('Toutes les données de cet appareil ont été supprimées.', { title: 'Données supprimées' });
+    toast('Votre compte et toutes vos données ont été effacés de cet appareil.', { title: 'Compte supprimé' });
   },
 });
 

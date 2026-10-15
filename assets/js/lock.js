@@ -15,7 +15,7 @@ export const lockSupported = () => !!(window.crypto && crypto.subtle);
 export async function setLock(code) {
   const salt = Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-');
   const h = await hash(code, salt);
-  update((s) => { s.lock = { salt, hash: h, auto: s.lock?.auto ?? true }; }, { silent: true });
+  update((s) => { s.lock = { salt, hash: h, after: Number.isFinite(s.lock?.after) ? s.lock.after : 5 }; }, { silent: true });
   unlockSession();
 }
 export async function checkCode(code) { const l = S().lock; return !!l && (await hash(code, l.salt)) === l.hash; }
@@ -72,10 +72,19 @@ function showLock() {
   });
 }
 
+// Délai de verrouillage automatique, en minutes : 0 = dès qu'on quitte l'app, -1 = jamais.
+export const lockAfter = () => { const l = S().lock; if (!l) return -1; if (Number.isFinite(l.after)) return l.after; return l.auto === false ? -1 : 5; };
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', () => {
-  if (!hasLock() || S().lock?.auto === false) return;
+  const after = lockAfter();
+  if (!hasLock() || after < 0) return;
   if (document.hidden) hiddenAt = Date.now();
-  else if (hiddenAt && Date.now() - hiddenAt > 5 * 60e3) lockNow();
+  else if (hiddenAt && Date.now() - hiddenAt >= after * 60e3) lockNow();
 });
-export function bootLock() { if (hasLock() && !isUnlocked()) showLock(); }
+// Début de la session sur cet onglet / cette ouverture de l'application
+const SESSION = 'msdev:session';
+export const sessionStart = () => { try { return Number(sessionStorage.getItem(SESSION)) || null; } catch (e) { return null; } };
+export function bootLock() {
+  try { if (!sessionStorage.getItem(SESSION)) sessionStorage.setItem(SESSION, String(Date.now())); } catch (e) { /* rien */ }
+  if (hasLock() && !isUnlocked()) showLock();
+}

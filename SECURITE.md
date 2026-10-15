@@ -16,7 +16,9 @@ Ce qui est en place :
 | Retour en arrière sans perte | Les pages s'enregistrent à chaque frappe ; les formulaires de nouvelle tâche et de nouvelle fiche gardent un brouillon si on ferme ou change d'écran. Suppression de tâche, de page ou de bloc : bouton « Annuler ». |
 | Mise à jour du format | Les données de la version 1.2 sont migrées automatiquement (schéma v2), sans perte : testé avec un état v1 complet (fiches, étapes, champs, équipe, tâches). |
 | Liens externes | Ouverts dans un nouvel onglet avec `rel="noopener"`. |
-| Accès à l'appareil | Code de verrouillage facultatif (4 chiffres, haché en SHA-256 avec sel, verrouillage auto après 5 min en arrière-plan). Il protège l'écran, il ne chiffre pas les données — c'est écrit dans l'application. |
+| Accès à l'appareil | Code de verrouillage facultatif (4 chiffres, haché en SHA-256 avec sel). Verrouillage automatique réglable : dès qu'on quitte l'app, après 1, 5 ou 15 minutes, ou seulement à l'ouverture. Il protège l'écran, il ne chiffre pas les données — c'est écrit dans l'application. |
+| Session | Page Compte → Session : appareil, ouverture de la session, données locales, aucune session à distance. « Verrouiller maintenant » ferme la session quand un code est actif. |
+| Suppression du compte | Compte → Suppression : récapitulatif de ce qui sera effacé, sauvegarde proposée, confirmation en tapant SUPPRIMER. |
 | Sauvegarde et restauration | Testées : téléchargement d'un fichier, restauration (remplace tout, avec confirmation), import par fusion (ajoute sans effacer, doublons ignorés). Les dates mal formées dans un fichier sont corrigées à la lecture. |
 | Actions destructrices | Confirmation systématique ; « Supprimer toutes mes données » demande de taper SUPPRIMER. |
 | Données réelles de clients | Jamais dans le dépôt GitHub. Les vraies fiches M&S s'importent depuis un fichier privé, gardé hors du dépôt. |
