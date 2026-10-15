@@ -140,6 +140,29 @@ const P = {
 
 export const ic = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[name] || P.note}</svg>`;
 
-// Le monogramme MindView : un grand M crème et un grand V bleu clair en Fraunces
-// (la police de M&S Design, qui conçoit l’application).
-export const logoMark = (cls = '') => `<svg class="logo-mark ${cls}" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="236" class="lm-bg"/><text x="512" y="652" text-anchor="middle" class="lm-t">M<tspan class="lm-a">V</tspan></text></svg>`;
+// Le logo MindView : un cerveau bleu clair aux deux grands yeux, dont un œil doré.
+// Il cligne des yeux, regarde autour de lui, et une petite étincelle brille près de l'œil doré.
+// Chaque logo a ses propres identifiants de dégradés (plusieurs logos peuvent être affichés).
+let logoN = 0;
+export const BRAIN_PATH = 'M256 394C236 412 200 410 186 392C160 406 120 396 112 366C80 362 62 332 72 302C50 284 50 248 72 230C58 200 72 164 104 156C106 124 136 104 166 110C182 86 220 80 240 98C246 102 252 108 256 114C260 108 266 102 272 98C292 80 330 86 346 110C376 104 406 124 408 156C440 164 454 200 440 230C462 248 462 284 440 302C450 332 432 362 400 366C392 396 352 406 326 392C312 410 276 412 256 394Z';
+export function brainSvg(k, { bg = true, cls = '' } = {}) {
+  return `<svg class="logo-mark ${cls}" viewBox="0 0 512 512" aria-hidden="true"><defs>
+    <linearGradient id="mvf${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dbe8ff"/><stop offset=".5" stop-color="#acc9ff"/><stop offset="1" stop-color="#7ea6f2"/></linearGradient>
+    <radialGradient id="mvg${k}" cx=".36" cy=".32" r=".8"><stop offset="0" stop-color="#fff4c2"/><stop offset=".3" stop-color="#f6d060"/><stop offset=".7" stop-color="#d39a1f"/><stop offset="1" stop-color="#8f5e05"/></radialGradient>
+    <radialGradient id="mvs${k}" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e4ebfb"/></radialGradient></defs>
+    ${bg ? '<rect class="lm-bg" width="512" height="512" rx="118"/>' : ''}
+    <g class="mv-body">
+      <path d="${BRAIN_PATH}" fill="url(#mvf${k})" stroke="#0a1530" stroke-width="12" stroke-linejoin="round"/>
+      <g class="mv-folds" fill="none" stroke-linecap="round">
+        <path d="M256 116C249 142 262 160 254 186C248 206 259 220 256 234" stroke="#0f1e3d" stroke-width="9" opacity=".5"/>
+        <g stroke="#0f1e3d" stroke-width="8" opacity=".38"><path d="M106 198C126 184 148 192 150 210C152 226 174 232 186 220"/><path d="M150 140C168 132 186 144 182 160C180 172 196 176 210 168"/><path d="M90 264C102 252 120 258 122 270"/><path d="M98 322C114 312 128 320 132 334"/><path d="M200 120C214 116 224 124 226 136"/><path d="M406 198C386 184 364 192 362 210C360 226 338 232 326 220"/><path d="M362 140C344 132 326 144 330 160C332 172 316 176 302 168"/><path d="M422 264C410 252 392 258 390 270"/><path d="M414 322C398 312 384 320 380 334"/><path d="M312 120C298 116 288 124 286 136"/></g>
+        <g stroke="#ffffff" stroke-width="7" opacity=".55"><path d="M124 150C134 140 146 136 158 136"/><path d="M78 244C80 236 86 230 94 226"/></g>
+      </g>
+      <g fill="none" stroke="#0a1530" stroke-width="8" stroke-linecap="round"><path class="mv-brow" d="M176 214C190 204 210 202 226 208"/><path class="mv-brow" d="M286 206C302 200 322 202 336 212"/></g>
+      <g class="mv-eye"><circle cx="204" cy="268" r="44" fill="url(#mvs${k})" stroke="#0a1530" stroke-width="9"/><g class="mv-pupil"><circle cx="211" cy="272" r="19" fill="#0f1e3d"/><circle cx="218" cy="263" r="6.5" fill="#fff"/></g></g>
+      <g class="mv-eye"><circle cx="308" cy="268" r="44" fill="url(#mvs${k})" stroke="#0a1530" stroke-width="9"/><g class="mv-pupil"><circle cx="315" cy="272" r="26" fill="url(#mvg${k})" stroke="#7a4f04" stroke-width="2"/><circle cx="315" cy="272" r="11.5" fill="#0f1e3d"/><circle cx="323" cy="263" r="6" fill="#fff"/><circle cx="307" cy="282" r="2.6" fill="#fff" opacity=".85"/></g></g>
+      <path d="M238 330C250 340 264 340 276 330" fill="none" stroke="#0a1530" stroke-width="8" stroke-linecap="round"/>
+      <path class="mv-spark" d="M372 222l5 12 12 5-12 5-5 12-5-12-12-5 12-5z" fill="#f6d060"/>
+    </g></svg>`;
+}
+export const logoMark = (cls = '') => brainSvg(++logoN, { cls });

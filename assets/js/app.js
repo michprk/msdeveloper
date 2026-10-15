@@ -28,6 +28,7 @@ import { startReminders } from './notify.js';
 import { bootLock } from './lock.js';
 import { accessLabel } from './views/common.js';
 import { cloudUser, refreshSubscription, checkActivation, track } from './cloud.js';
+import { authButton } from './views/account.js';
 
 const ROUTES = [
   [/^(accueil)?$/, home],
@@ -165,7 +166,8 @@ function sideFoot() {
   return `${st === 'trial' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}Essai gratuit</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
     : st === 'past_due' ? `<a class="side-trial is-warn" href="#/abonnement"><span>${ic('bell')}Paiement refusé</span><b>Régler pour garder ${PLANS[a].name}</b></a>`
       : a === 'free' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}Passez à Pro</span><b>CRM, pages illimitées, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
-    <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>`;
+    <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>
+    ${authButton('side-auth')}`;
 }
 function drawNav() {
   const t = tabs();

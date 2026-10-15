@@ -91,7 +91,7 @@ export function studiesView() {
       ${kpi('sky', 'target', 'Prochain examen', next ? countdown(next.date) : '—', next ? esc(next.title) : 'Aucun examen prévu', '#/etudes/examens')}
       ${kpi('blue', 'calendar', 'Cours aujourd\'hui', today.length ? num(today.length) : '—', nextCourse ? `${esc(subject(nextCourse.subjectId)?.name || 'Cours')} à ${hhmm(toMin(nextCourse.start))}` : today.length ? 'Journée terminée' : 'Pas de cours', '#/etudes/emploi')}
       ${kpi('olive', 'cards', 'Cartes à réviser', sr.total ? num(sr.due) : '—', sr.total ? `sur ${num(sr.total)} cartes` : 'Créez des questions dans vos notes', '#/etudes/revision')}
-      ${kpi('navy', 'award', 'Moyenne générale', avg === null ? '—' : `${fmtAvg(avg)}<small> /20</small>`, focusWeek ? `${hhmm(focusWeek)} de travail cette semaine` : 'Ajoutez vos notes', '#/etudes/moyennes')}
+      ${kpi('navy', 'award', 'Moyenne générale', avg === null ? '—' : `${fmtAvg(avg)}<small> /20</small>`, avg === null ? 'Ajoutez vos notes' : focusWeek ? `${hhmm(focusWeek)} de travail cette semaine` : `Objectif : ${num(Number(s.profile.target) || 12)} / 20`, '#/etudes/moyennes')}
     </div>
     <div class="st-two">
       <section class="card rise">
@@ -431,7 +431,7 @@ export function focusView() {
         <button class="btn btn-primary btn-lg" data-act="fo-toggle">${ic(t.running ? 'pause' : 'play')}<span>${t.running ? 'Pause' : ms < t.total ? 'Reprendre' : 'Démarrer'}</span></button>
         <button class="icon-btn" data-act="fo-reset" aria-label="Recommencer">${ic('refresh')}</button>
         <button class="icon-btn" data-act="fo-skip" aria-label="Passer à la suite">${ic('arrowR')}</button>
-        <button class="icon-btn" data-act="fo-full" aria-label="Plein écran">${ic('layers')}</button>
+        <button class="icon-btn" data-act="fo-full" aria-label="Plein écran">${ic('fit')}</button>
       </div>
       ${t.running ? '' : `<form class="fo-set form" data-form="focus-set">
         <div class="chips-wrap">${[[25, 5], [50, 10], [15, 3], [90, 15]].map(([w, p]) => `<button type="button" class="chip-btn ${s.focus.work === w && s.focus.pause === p ? 'is-on' : ''}" data-act="fo-preset" data-w="${w}" data-p="${p}">${w} / ${p} min</button>`).join('')}</div>

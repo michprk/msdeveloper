@@ -1,6 +1,6 @@
 // Abonnement : statut réel, formules et limites, paiement (mode test), changement de formule,
 // résiliation, échec de paiement et délai de grâce, historique et reçus.
-import { S, update, on, access, billing, PLANS, RANK, TRIAL_DAYS, GRACE_DAYS, LIMITS, trialEnd, trialLeft, prorata, subscribe, changePlan, cancelSub, resumeSub, settleDue, simulateDays, nextBillingEvent } from '../store.js';
+import { S, update, on, schoolOnly, access, billing, PLANS, RANK, TRIAL_DAYS, GRACE_DAYS, LIMITS, trialEnd, trialLeft, prorata, subscribe, changePlan, cancelSub, resumeSub, settleDue, simulateDays, nextBillingEvent } from '../store.js';
 import { ic, esc, eur2, register, toast, sheet, sheetHead, closeSheet, confirmSheet, busy, pause, dateLong } from '../ui.js';
 import { scriptCount } from '../data/scripts.js';
 import { GUIDES } from '../data/guides.js';
@@ -42,7 +42,7 @@ export const OFFER = [
   ['Statistiques commerciales, export CSV', false, false, true, 'clients'],
   ['Vos scripts et secteurs, entraînement aux objections', false, false, true, 'prospecter'],
 ];
-export const offerRows = () => OFFER.filter((r) => !r[4] || on(r[4]));
+export const offerRows = () => OFFER.filter((r) => (!r[4] || on(r[4])) && !(r[0] === 'Académie' && schoolOnly()));
 const cell = (v) => (v === true ? `<span class="ok">${ic('check')}<span class="sr-only">Inclus</span></span>` : v === false ? '<span class="no" aria-label="Non inclus">—</span>' : `<span class="txt">${esc(v)}</span>`);
 
 const STATUS = {

@@ -1,7 +1,8 @@
 // Compte en ligne : connexion par e-mail et code à 6 chiffres (sans mot de passe).
 // Il sert à payer et gérer l'abonnement ; les tâches, notes et fiches restent sur l'appareil.
 import { S, update } from '../store.js';
-import { ic, esc, register, toast, sheet, sheetHead, closeSheet, field, input, busy } from '../ui.js';
+import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, busy } from '../ui.js';
+import { hasLock, lockNow } from '../lock.js';
 import { cloudReady, cloudUser, sendCode, verifyCode, signOut, refreshSubscription, checkout, cloudMessage } from '../cloud.js';
 
 let flow = { email: '', then: '' };
@@ -69,4 +70,31 @@ register({
       else toast(`Connecté avec ${esc(flow.email)}.`, { title: 'Compte en ligne' });
     } catch (e) { showErr(f, e); }
   },
+});
+
+// Se connecter / se déconnecter, partout dans l'application (barre latérale, Compte)
+export function authButton(cls = '') {
+  const u = cloudUser();
+  if (u) return `<button class="${cls}" data-act="auth-out">${ic('logout')}<span>Se déconnecter</span></button>`;
+  if (!cloudReady() && hasLock()) return `<button class="${cls}" data-act="auth-lock">${ic('lock')}<span>Verrouiller la session</span></button>`;
+  return `<button class="${cls}" data-act="auth-in">${ic('user')}<span>Se connecter</span></button>`;
+}
+function offlineSheet() {
+  sheet(`${sheetHead('Se connecter', 'Votre compte MindView')}
+    <div class="sheet-body">
+      <p class="sheet-p">Les comptes en ligne ouvrent avec l'abonnement : ils servent à retrouver votre abonnement sur tous vos appareils. Aujourd'hui, vos tâches, notes et tableaux restent sur cet appareil, sans mot de passe à retenir.</p>
+      <p class="sheet-p">Pour protéger l'application et pouvoir « fermer » votre session, activez un code à quatre chiffres : il sera demandé à chaque ouverture.</p>
+      <div class="btn-list"><a class="btn btn-primary" href="#/reglages?s=securite" data-act="close-sheet-go" data-h="#/reglages?s=securite">${ic('lock')}<span>Activer un code de verrouillage</span></a>
+      <button class="btn btn-ghost" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde</span></button></div>
+    </div>`, { cls: 'sheet-sm' });
+}
+register({
+  'auth-in': () => (cloudReady() ? accountSheet() : offlineSheet()),
+  'auth-lock': () => lockNow(),
+  'auth-out': async () => {
+    if (!await confirmSheet({ title: 'Se déconnecter ?', text: 'Votre abonnement reste actif. Vos données restent sur cet appareil ; reconnectez-vous pour gérer l\'abonnement.', ok: 'Se déconnecter' })) return;
+    await signOut();
+    toast('Vous êtes déconnecté.', { title: 'Compte en ligne' });
+  },
+  'close-sheet-go': (b) => { closeSheet(); location.hash = b.dataset.h; },
 });

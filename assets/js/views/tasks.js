@@ -1,5 +1,5 @@
 // Tâches : saisie rapide en langage courant, listes, priorités, sous-tâches, tableau.
-import { S, update, on, uid, addTask, toggleTask, getProspect, getProject, startOfDay, startOfWeek, DAY, TONES } from '../store.js';
+import { S, update, on, schoolOnly, uid, addTask, toggleTask, getProspect, getProject, startOfDay, startOfWeek, DAY, TONES } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, when, time, toLocalInput, fromLocalInput, enableDnD, clearDraft, cap } from '../ui.js';
 import { pageHead } from './common.js';
 
@@ -76,7 +76,7 @@ export function taskRow(t, { showList = true, showProject = true } = {}) {
 }
 
 // ---------- Saisie rapide ----------
-export function quickAdd({ list = '', due = '', project = '', placeholder = 'Ajouter une tâche… « Appeler Marc demain 14h »', cls = '' } = {}) {
+export function quickAdd({ list = '', due = '', project = '', placeholder = `Ajouter une tâche… « ${schoolOnly() ? 'Réviser le chapitre 3 demain 18h' : 'Appeler Marc demain 14h'} »`, cls = '' } = {}) {
   return `<form class="qadd ${cls}" data-form="quick-task" autocomplete="off">
     <span class="qadd-ic">${ic('plus')}</span>
     <input class="qadd-in" name="title" placeholder="${esc(placeholder)}" aria-label="Nouvelle tâche" data-act-input="qadd-preview" enterkeyhint="done" maxlength="200">
@@ -161,7 +161,7 @@ export function tasksView(params, q) {
 
 // Premier écran d'un nouveau compte : l'action, le bénéfice, des exemples en un geste,
 // et un aperçu clairement marqué « Exemple ».
-const EXAMPLES = ['Envoyer le devis vendredi', 'Appeler le comptable demain 10h', 'Préparer la réunion lundi 9h'];
+const EXAMPLES = () => (schoolOnly() ? ['Réviser le chapitre 3 demain 18h', 'Rendre le devoir de maths vendredi', 'Préparer l’exposé lundi 9h'] : ['Envoyer le devis vendredi', 'Appeler le comptable demain 10h', 'Préparer la réunion lundi 9h']);
 function firstTasks() {
   return `<section class="card onboard-empty rise">
     <span class="empty-ic">${ic('checkSquare')}</span>
@@ -169,10 +169,10 @@ function firstTasks() {
     <p>Notez tout ce que vous avez à faire : chaque tâche arrive le bon jour sur l'écran Aujourd'hui, avec un rappel si vous lui donnez une heure. Plus rien ne reste dans votre tête.</p>
     <button class="btn btn-primary btn-lg" data-act="task-new">${ic('plus')}<span>Créer ma première tâche</span></button>
     <p class="oe-k">Ou ajoutez un exemple en un geste</p>
-    <div class="chips-wrap oe-ex">${EXAMPLES.map((x) => `<button class="chip-btn" data-act="task-example" data-t="${esc(x)}">${ic('plus')}${esc(x)}</button>`).join('')}</div>
+    <div class="chips-wrap oe-ex">${EXAMPLES().map((x) => `<button class="chip-btn" data-act="task-example" data-t="${esc(x)}">${ic('plus')}${esc(x)}</button>`).join('')}</div>
     <div class="demo-preview" aria-hidden="true">
       <span class="tag">Exemple</span>
-      <div class="dp-row"><span class="tick"></span><span><b>Envoyer le devis à Maison Lemaire</b><em>Aujourd'hui · 17 h · Travail</em></span></div>
+      <div class="dp-row"><span class="tick"></span><span><b>${schoolOnly() ? 'Réviser le chapitre 3 d’histoire' : 'Envoyer le devis à Maison Lemaire'}</b><em>Aujourd'hui · 17 h · ${schoolOnly() ? 'École' : 'Travail'}</em></span></div>
       <div class="dp-row"><span class="tick is-done"></span><span><b>Réserver le train pour Gand</b><em>Terminée</em></span></div>
     </div>
     <p class="oe-foot">Vous voulez d'abord voir l'application remplie ? <button class="link" data-act="load-demo">Charger des données d'exemple</button>, effaçables en un geste.</p>

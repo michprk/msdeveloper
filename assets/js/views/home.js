@@ -1,7 +1,7 @@
 // Aujourd'hui : une action principale (ajouter une tâche) et ce qui est urgent, d'abord.
 // Ensuite, en plus discret : les raccourcis utiles selon les modules, et les chiffres de la
 // semaine (détaillés dans Vue d'ensemble). Uniquement les données de l'utilisateur.
-import { S, update, on, can, calls, startOfDay, DAY } from '../store.js';
+import { S, update, on, can, schoolOnly, calls, startOfDay, DAY } from '../store.js';
 import { ic, esc, num, dateLong, when, ring, bar, avatar, ago, register, toast, confirmSheet } from '../ui.js';
 import { logoMark } from '../icons.js';
 import { trialStrip } from './common.js';
@@ -46,7 +46,8 @@ export function home() {
 
   // Premiers pas, selon les modules choisis ; disparaît une fois tout fait
   const steps = [
-    ...(org ? [['Ajouter votre première tâche', 'Écrivez-la comme vous la diriez : « Envoyer le devis vendredi ».', s.tasks.length > 0, '#/taches?new=1'], ['Créer votre première page', 'Un compte rendu, un projet, une liste d\'idées : partez d\'un modèle.', s.pages.length > 0, '#/notes']] : []),
+    ...(org ? [['Ajouter votre première tâche', `Écrivez-la comme vous la diriez : « ${schoolOnly() ? 'Réviser le chapitre 3 demain 18h' : 'Envoyer le devis vendredi'} ».`, s.tasks.length > 0, '#/taches?new=1'], ['Créer votre première page', schoolOnly() ? 'Une fiche de cours, un planning de révision, une liste d\'idées : partez d\'un modèle.' : 'Un compte rendu, un projet, une liste d\'idées : partez d\'un modèle.', s.pages.length > 0, '#/notes']] : []),
+    ...(on('etudes') ? [['Ajouter vos matières', 'Elles servent partout : cours, examens, notes, concentration.', s.subjects.length > 0, '#/etudes'], ['Ajouter votre prochain examen', 'Le compte à rebours commence, avec une tâche par chapitre.', s.exams.length > 0, '#/etudes/examens']] : []),
     ...(on('clients') ? [['Adapter le CRM à votre métier', 'Des étapes et des champs prêts pour votre activité.', !!s.crm.preset || s.crm.extra.length > 0, '#/crm/personnaliser'], ['Ajouter votre premier client', 'Une fiche par client : historique, prochaine relance, notes.', s.prospects.length > 0, '#/crm?new=1']] : []),
     ...(pro ? [['Lire le script de votre secteur', 'Le bon discours, adapté au métier de la personne appelée.', s.recent.length > 0, '#/scripts']] : []),
     ...(app ? [['Faire votre premier quiz', 'Dix questions, chacune expliquée.', Object.keys(s.quiz.results).length > 0, `#/quiz/${quiz.id}?restart=1`]] : []),
@@ -80,7 +81,7 @@ export function home() {
         </div>
         ${quickAdd({ due: String(t0), placeholder: 'Ajouter une tâche', cls: 'qadd-main' })}
         ${today.length ? `<ul class="tasks">${today.slice(0, 7).map((t) => taskRow(t)).join('')}</ul>${today.length > 7 ? `<a class="link" href="#/taches">Et ${today.length - 7} autre${today.length - 7 > 1 ? 's' : ''}…</a>` : ''}` : ''}
-        <footer class="day-f"><a class="link" href="#/taches">${ic('tasks')}Toutes les tâches</a><a class="link" href="#/agenda">${ic('calendar')}Agenda</a></footer>
+        <footer class="day-f"><a class="link" href="#/taches">${ic('tasks')}Toutes les tâches</a><a class="link" href="#/agenda">${ic('calendar')}Calendrier</a></footer>
       </section>
 
       ${steps.length && doneSteps < steps.length && !s.prefs.hideStart ? `<section class="card start rise" style="--i:2">
@@ -95,6 +96,18 @@ export function home() {
             <div><h2>Appels</h2><p>${callsToday ? `${callsToday} sur ${g.appelsJour} aujourd'hui` : `Objectif : ${g.appelsJour} par jour`} · ${queue.length} à appeler</p></div></div>
           <a class="btn ${queue.length ? 'btn-soft' : 'btn-ghost'} btn-block" href="${queue.length && can('callMode') ? '#/appel' : queue.length ? '#/scripts' : '#/crm?new=1'}">${ic(queue.length ? 'phone' : 'plus')}<span>${queue.length && can('callMode') ? 'Lancer une session d\'appels' : queue.length ? 'Lire les scripts' : 'Ajouter des fiches à appeler'}</span></a>
         </section>` : ''}
+        ${on('etudes') ? (() => {
+          const ex = s.exams.filter((x) => x.date >= t0).sort((a, b) => a.date - b.date)[0];
+          const wd = (new Date().getDay() + 6) % 7;
+          const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+          const toMin = (v) => { const [h, m] = String(v || '0:0').split(':').map(Number); return h * 60 + (m || 0); };
+          const next = s.courses.filter((c) => +c.day === wd && toMin(c.end) > nowMin).sort((a, b) => toMin(a.start) - toMin(b.start))[0];
+          const left = ex ? Math.round((startOfDay(ex.date) - t0) / DAY) : 0;
+          return `<a class="card side-card study-card rise" style="--i:3" href="#/etudes">
+            <span class="sc-cd">${ex ? `<b>${left === 0 ? 'J' : left}</b><em>${left === 0 ? 'aujourd\'hui' : left === 1 ? 'jour' : 'jours'}</em>` : `<b>${ic('book')}</b>`}</span>
+            <span class="row-b"><span class="day-k">Études</span><b>${ex ? esc(ex.title) : 'Ajoutez votre prochain examen'}</b><span>${next ? `Prochain cours : ${esc(s.subjects.find((x) => x.id === next.subjectId)?.name || 'Cours')} à ${next.start.replace(':', ' h ')}` : s.courses.length ? 'Plus de cours aujourd\'hui' : 'Emploi du temps, moyennes, révisions'}</span></span>${ic('chevR', 'chev')}
+          </a>`;
+        })() : ''}
         ${app ? `<a class="card side-card quiz-card rise" style="--i:4" href="#/quiz/${quiz.id}?restart=1">
           <span class="qz-ic">${ic(quiz.icon)}</span>
           <span class="row-b"><span class="day-k">Quiz du jour</span><b>${esc(quiz.title)}</b><span>${qDone ? `Fait : ${qr.last} %` : `${quiz.qs.length} questions · 4 min`}</span></span>${ic('chevR', 'chev')}
@@ -119,7 +132,7 @@ export function home() {
 register({
   'hide-start': () => { update((s) => { s.prefs.hideStart = true; }); toast('« Pour bien démarrer » n\'apparaîtra plus.', { title: 'Liste masquée', action: 'Annuler', onAction: () => update((s) => { s.prefs.hideStart = false; }) }); },
   'clear-demo': async () => {
-    const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: 'Les fiches, appels, tâches et pages fictifs seront supprimés. Ce que vous avez ajouté vous-même est conservé.', ok: 'Effacer', danger: true });
+    const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: 'Tout ce qui est marqué « Exemple » sera supprimé. Ce que vous avez ajouté vous-même est conservé.', ok: 'Effacer', danger: true });
     if (!ok) return;
     update((s) => clearDemo(s));
     toast('Données de démonstration effacées');

@@ -1,6 +1,6 @@
 // Vue d'ensemble : les chiffres de l'utilisateur (aucune donnée inventée) — cartes avec
 // évolution par rapport à la période précédente, courbe, activité récente, répartition.
-import { S, on, can, DAY, startOfDay, stageOf, OUTCOME, SOURCES } from '../store.js';
+import { S, on, can, schoolOnly, DAY, startOfDay, dayKey, stageOf, OUTCOME, SOURCES } from '../store.js';
 import { ic, esc, eur, num, ago, register } from '../ui.js';
 import { sparkline, lineChart, donut } from '../charts.js';
 import { pageHead } from './common.js';
@@ -30,18 +30,22 @@ export const METRICS = {
   conv: { label: 'Taux de rendez-vous', icon: 'target', tone: 'sand', fmt: (v) => (v === null ? '—' : pct(v)), rate: true, get: rdvRate },
   calls: { label: 'Appels', icon: 'phone', tone: 'navy', fmt: num, get: (s, r) => s.activities.filter((a) => a.type === 'appel' && inR(a.at, r)).length },
   newcli: { label: 'Nouvelles fiches', icon: 'users', tone: 'navy', fmt: num, get: (s, r) => s.prospects.filter((p) => inR(p.createdAt, r)).length },
+  focus: { label: 'Minutes de travail', icon: 'hourglass', tone: 'blue', fmt: num, get: (s, r) => (s.focus?.sessions || []).filter((x) => inR(x.at, r)).reduce((n, x) => n + (x.min || 0), 0) },
+  reviews: { label: 'Cartes révisées', icon: 'cards', tone: 'sand', fmt: num, get: (s, r) => { let n = 0; for (let t = r[0]; t < r[1]; t += DAY) n += (s.srsLog || {})[dayKey(t)] || 0; return n; } },
 };
 const mLabel = (id) => { const l = METRICS[id].label; return typeof l === 'function' ? l() : l; };
 export function metricIds() {
   const crm = can('crm');
   const ids = [];
   if (on('organiser')) ids.push('done');
+  if (schoolOnly()) return [...ids, 'focus', 'reviews'];
   if (on('clients') && crm) ids.push('signed');
   if (on('prospecter') && crm) ids.push('conv', 'calls');
   else if (on('clients') && crm) ids.push('newcli');
-  return ids;
+  if (on('etudes')) ids.push('focus', 'reviews');
+  return ids.slice(0, 4);
 }
-export const hasData = (s = S()) => s.tasks.some((t) => t.done) || s.prospects.length > 0 || s.activities.length > 0;
+export const hasData = (s = S()) => s.tasks.some((t) => t.done) || s.prospects.length > 0 || s.activities.length > 0 || (s.focus?.sessions || []).length > 0;
 
 // Valeurs jour par jour sur la période
 export function daily(id, days) {
@@ -90,6 +94,7 @@ export function activity(limit = 6) {
       : { at: a.at, i: ACT[a.type]?.[0] || 'note', tone: a.outcome === 'rdv' ? 'olive' : 'blue', ev: `${ACT[a.type]?.[1] || 'Échange'}${a.outcome && OUTCOME[a.outcome] ? ` · ${OUTCOME[a.outcome].short}` : ''}`, what: pName(a.prospectId), href: `#/fiche/${a.prospectId}` }),
     ...s.pages.map((p) => ({ at: p.updatedAt, i: 'page', tone: 'navy', ev: p.updatedAt - p.createdAt < 60e3 ? 'Page créée' : 'Page modifiée', what: p.title || 'Sans titre', href: `#/note/${p.id}` })),
     ...Object.entries(s.quiz.results).filter(([, r]) => r.at).map(([id, r]) => ({ at: r.at, i: 'quiz', tone: 'sand', ev: 'Quiz terminé', what: id.startsWith('note:') ? 'Révision de notes' : id.startsWith('mq-') ? s.quiz.mine.find((m) => m.id === id)?.title || 'Mon quiz' : id, amount: r.last !== undefined ? `${r.last} %` : '', href: '#/quiz', quiz: id })),
+    ...(s.focus?.sessions || []).map((x) => ({ at: x.at, i: 'hourglass', tone: 'blue', ev: 'Séance de travail', what: x.label || (s.subjects || []).find((y) => y.id === x.subjectId)?.name || 'Concentration', amount: `${x.min} min`, href: '#/concentration' })),
     ...(s.sub.history || []).filter((h) => h.type === 'paiement').map((h) => ({ at: h.at, i: 'receipt', tone: 'blue', ev: 'Paiement (test)', what: h.label, amount: eur(h.amount), href: '#/abonnement' })),
   ].filter((e) => Number.isFinite(e.at) && e.at <= now + 60e3 && e.what !== undefined).sort((a, b) => b.at - a.at);
   return { list: ev.slice(0, limit), total: ev.length };

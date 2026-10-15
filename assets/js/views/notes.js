@@ -2,13 +2,16 @@
 // citation, encadré, séparateur, question / réponse). « / » ouvre le menu des blocs ;
 // les raccourcis Markdown marchent aussi (# titre, - liste, [] case, > citation).
 // Tout s'enregistre au fil de la frappe, sans rechargement de l'écran.
-import { S, update, on, can, addPage, getPage, getProspect, getProject, pageFamily, canAddPage, bid, addTask, LIMITS } from '../store.js';
+import { S, update, on, can, schoolOnly, addPage, getPage, getProspect, getProject, pageFamily, canAddPage, bid, addTask, LIMITS } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, ago, dateLong, copyText, download, select } from '../ui.js';
 import { pageHead, paywall } from './common.js';
 import { clean, plain, hasFormat, caretOffset, caretAtEnd, setCaret, splitAtCaret, wrapSelection } from '../rich.js';
 import { mountCanvas, FONTS } from '../draw.js';
 import { dataSheet } from './boards.js';
 import { TEMPLATES, template } from '../data/templates.js';
+// Modèles proposés : à l'école d'abord ceux qui servent aux cours ; jamais de compte rendu client sans CRM
+const SCHOOL_ORDER = ['vierge', 'planning', 'cours', 'revision', 'semaine', 'journal', 'idees', 'checklist', 'objectifs', 'budget', 'code', 'projet', 'reunion'];
+const tplList = () => (schoolOnly() ? SCHOOL_ORDER.map((id) => TEMPLATES.find((t) => t.id === id)).filter(Boolean) : TEMPLATES.filter((t) => t.id !== 'rdv' || on('clients')));
 
 export const BLOCKS = [
   ['p', 'Texte', 'text', 'Un paragraphe'],
@@ -52,7 +55,7 @@ function limitSheet() {
   sheet(`${sheetHead('Cinq pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">Vos ${S().pages.length} pages restent modifiables. Vous pouvez aussi supprimer une page pour en créer une autre.</p></div>`, { cls: 'sheet-sm' });
 }
 export function templatesSheet(opts = {}) {
-  sheet(`${sheetHead('Nouvelle page', 'Partez d\'une page vierge ou d\'un modèle')}<div class="sheet-body"><div class="tpl-grid">${TEMPLATES.map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}" ${opts.parent ? `data-parent="${opts.parent}"` : ''} ${opts.prospectId ? `data-pid="${opts.prospectId}"` : ''}><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div></div>`, { cls: 'sheet-tall' });
+  sheet(`${sheetHead('Nouvelle page', 'Partez d\'une page vierge ou d\'un modèle')}<div class="sheet-body"><div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}" ${opts.parent ? `data-parent="${opts.parent}"` : ''} ${opts.prospectId ? `data-pid="${opts.prospectId}"` : ''}><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div></div>`, { cls: 'sheet-tall' });
 }
 
 // ---------- Accueil des notes ----------
@@ -89,7 +92,7 @@ export function notesHome(params, q) {
     <h2 class="sec-title">Toutes les pages</h2>
     <ul class="rows card pages-tree rise">${roots.map((p) => row(p)).join('')}</ul>`}
     <h2 class="sec-title">Modèles</h2>
-    <div class="tpl-grid">${TEMPLATES.map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}"><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div>`;
+    <div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}"><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div>`;
   return { title: 'Notes', tab: 'notes', fab: 'page-templates', html };
 }
 

@@ -2740,3 +2740,39 @@ div.blk-in mark { padding: 0 2px; border-radius: 3px; }
 .cx-nav { margin-top: 4px; }
 .lk-embed.is-video { aspect-ratio: 16 / 9; }
 .btn.is-locked { opacity: .85; }
+.side-auth { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 6px; padding: 9px 12px; border-radius: var(--r-sm); color: var(--on-navy-2); font-size: 13.5px; transition: background .2s, color .2s; }
+.side-auth:hover { background: rgba(245, 241, 233, .07); color: var(--on-navy); }
+.side-auth .ic { width: 17px; height: 17px; }
+
+/* ========== v1.6 : logo cerveau animé ========== */
+.logo-mark .mv-eye { transform-box: fill-box; transform-origin: center; animation: mv-blink 5.2s infinite; }
+.logo-mark .mv-eye + .mv-eye { animation-delay: .02s; }
+.logo-mark .mv-pupil { animation: mv-look 9s ease-in-out infinite; }
+.logo-mark .mv-spark { transform-box: fill-box; transform-origin: center; animation: mv-spark 3.4s ease-in-out infinite; }
+.logo-mark .mv-brow { animation: mv-brow 9s ease-in-out infinite; }
+.logo-mark.xl .mv-body, .logo-mark.lg .mv-body, .splash-mark .mv-body { transform-box: fill-box; transform-origin: 50% 92%; animation: mv-bob 3.6s ease-in-out infinite; }
+.logo-mark.draw .mv-body { animation: mv-pop .9s .1s cubic-bezier(.2, 1.4, .4, 1) both, mv-bob 3.6s 1s ease-in-out infinite; }
+.logo-mark.sm .mv-folds g, .logo-mark.sm .mv-spark { display: none; }
+@keyframes mv-blink { 0%, 91%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.08); } 97% { transform: scaleY(1); } }
+@keyframes mv-look { 0%, 16%, 100% { transform: translate(0, 0); } 22%, 38% { transform: translate(-9px, 2px); } 46%, 60% { transform: translate(8px, -4px); } 68% { transform: translate(0, 0); } }
+@keyframes mv-brow { 0%, 40%, 100% { transform: translateY(0); } 48%, 58% { transform: translateY(-5px); } }
+@keyframes mv-spark { 0%, 100% { opacity: .25; transform: scale(.55) rotate(0deg); } 50% { opacity: 1; transform: scale(1.15) rotate(45deg); } }
+@keyframes mv-bob { 0%, 100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-10px) scale(1.015, .985); } }
+@keyframes mv-pop { from { transform: scale(.4); opacity: 0; } }
+.splash-mark.logo-mark { width: 104px; height: 104px; }
+.study-card { display: flex; align-items: center; gap: 14px; }
+.sc-cd { flex: none; width: 58px; height: 58px; border-radius: 16px; display: grid; place-content: center; text-align: center; background: var(--navy); color: var(--on-navy); }
+.sc-cd b { font: 600 24px/1 var(--display); }
+.sc-cd b .ic { width: 24px; height: 24px; }
+.sc-cd em { font-style: normal; font-size: 10.5px; color: var(--on-navy-2); }
+.plan-fl.is-big { top: auto; bottom: -70px; right: -70px; width: 260px; height: 260px; opacity: .9; }
+@media (min-width: 960px) { .plan-fl.is-big { top: auto; bottom: -80px; right: -80px; width: 300px; height: 300px; } }
+.plan-p b { white-space: nowrap; }
+.mk-hl { background: #ffe066; padding: 0 3px; border-radius: 3px; }
+.mk-red { text-decoration: underline 2px #d92d20; }
+.mk-trio { display: grid; gap: 8px; }
+.mk-t { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); }
+.mk-t b { min-width: 52px; font: 600 22px/1 var(--display); color: var(--navy); }
+.mk-t em { font-style: normal; font-weight: 600; font-size: 14px; color: var(--ink); }
+.plan-fl.is-big { bottom: 110px; }
+@media (min-width: 960px) { .plan-fl.is-big { bottom: 120px; } }

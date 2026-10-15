@@ -1,16 +1,16 @@
 // Académie, abonnement, compte et réglages, menu « Plus ».
-import { S, update, can, on, PLANS, FEATURES, MODULES, MODULE_IDS, replaceState, resetState, mergeImport, uid } from '../store.js';
+import { S, update, can, on, schoolOnly, PLANS, FEATURES, MODULES, MODULE_IDS, replaceState, resetState, mergeImport, uid } from '../store.js';
 import { ic, esc, eur, register, toast, confirmSheet, download, field, input, select, sheet, sheetHead, closeSheet, planBadge, avatar, busy, pause, dateLong } from '../ui.js';
 import { GUIDES } from '../data/guides.js';
 import { SECTORS } from '../data/sectors.js';
 import { SERVICES, SERVICE_IDS, scriptCount, typo, CHANNELS, getSector, allSectors } from '../data/scripts.js';
-import { demoData, clearDemo } from '../data/demo.js';
+import { demoData, schoolDemo, clearDemo } from '../data/demo.js';
 import { pageHead, paywall, accessLabel, PROMISE, PITCH, AUDIENCE, BENEFITS } from './common.js';
 import { preset } from '../data/presets.js';
 import { QUIZZES } from '../data/quizzes.js';
 import { startOnboarding, notifSheet } from './onboarding.js';
 import { catSwitches, unreadCount } from './notifications.js';
-import { accountCard } from './account.js';
+import { accountCard, authButton } from './account.js';
 import { cloudUser, deleteCloudAccount, cloudMessage } from '../cloud.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
 import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow, lockAfter, sessionStart } from '../lock.js';
@@ -30,7 +30,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -221,6 +221,7 @@ export function settings(params, q = {}) {
         <div><dt>Sessions à distance</dt><dd>Aucune</dd></div>
       </dl>
       <p class="field-h">Avec les comptes en ligne, vous verrez ici chaque appareil connecté et pourrez le déconnecter à distance. ${hasLock() ? 'Pour fermer la session maintenant, verrouillez l\'application.' : 'Activez un code pour pouvoir fermer la session.'}</p>
+      <div class="act-row">${authButton('btn btn-ghost')}</div>
     </section>
 
     <h2 class="sec-title" id="donnees">Vos données</h2>
@@ -272,10 +273,11 @@ export function more() {
   const groups = [
     ['Suivi', null, [['#/notifications', 'bell', 'Notifications', (() => { const n = unreadCount(); return n ? `${n} non lue${n > 1 ? 's' : ''} · retards, échéances, devis` : 'Retards, échéances, devis à relancer'; })()], ['#/apercu', 'chart', 'Vue d\'ensemble', 'Vos chiffres, l\'activité récente, la répartition']]],
     ['S\'organiser', null, [...(on('organiser') ? [['#/taches', 'checkSquare', 'Tâches', `${s.tasks.filter((t) => !t.done).length} à faire · listes, tableau`]] : []), ['#/projets', 'folder', 'Projets', `${s.projects.filter((x) => x.status !== 'termine').length} en cours · progression automatique`], ...(on('organiser') ? [['#/agenda', 'calendar', 'Agenda', 'Vos tâches jour par jour'], ['#/notes', 'page', 'Notes', `${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · modèles, sous-pages`]] : [])]],
+    ['Tableau blanc et études', null, [...(on('organiser') ? [['#/tableaux', 'compose', 'Tableau blanc', `${s.boards.length ? `${s.boards.length} tableau${s.boards.length > 1 ? 'x' : ''} · ` : ''}dessin, schémas, graphiques`]] : []), ...(on('etudes') ? [['#/etudes', 'book', 'Mes études', 'Examens, cours du jour, moyenne'], ['#/etudes/emploi', 'calendar', 'Emploi du temps', 'Vos cours de la semaine', 'timetable'], ['#/etudes/examens', 'target', 'Examens', 'Compte à rebours et planificateur'], ['#/etudes/moyennes', 'award', 'Moyennes', 'Coefficients et objectif', 'grades'], ['#/etudes/revision', 'cards', 'Révision espacée', 'Chaque carte au bon moment', 'spaced'], ['#/concentration', 'hourglass', 'Concentration', 'Minuteur Pomodoro', 'focus']] : [])]],
     ['Clients', 'clients', [['#/crm', 'users', N, `${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · pipeline`, 'crm'], ['#/devis', 'invoice', 'Devis', s.quotes.length ? `${s.quotes.length} devis · brouillon, envoyé, accepté` : 'Brouillon, envoyé, accepté, refusé', 'quote'], ['#/outils/messages', 'message', 'Messages prêts à envoyer', 'Confirmation, relance, avis', 'messages'], ['#/outils/stats', 'chart', 'Statistiques', 'Vos taux, étape par étape', 'stats']]],
     ['Prospecter', 'prospecter', [['#/scripts', 'script', 'Scripts', `${scriptCount()} scripts prêts à l'emploi`], ['#/appel', 'headset', 'Session d\'appels', 'Le script pas à pas, le résultat en un geste', 'callMode'], ['#/outils/audit', 'clipboard', 'Audit express', 'La présence en ligne notée sur 10', 'audit'], ['#/outils/import', 'upload', 'Importer une liste', 'Depuis un tableur', 'import'], ['#/outils/entrainement', 'target', 'Entraînement', 'Répondre aux objections', 'training'], ['#/outils/mes-scripts', 'edit', 'Mes scripts et secteurs', 'Vos propres versions', 'myScripts']]],
-    ['Progresser', 'apprendre', [['#/quiz', 'quiz', 'Quiz', `${QUIZZES.length} quiz · quiz du jour, révision des notes`], ['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`]]],
-  ].filter(([, m]) => !m || on(m));
+    ['Progresser', 'apprendre', [['#/quiz', 'quiz', 'Quiz', `${QUIZZES.length} quiz · quiz du jour, révision des notes`], ...(schoolOnly() ? [] : [['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`]])]],
+  ].filter(([, m, items]) => (!m || on(m)) && items.length);
   const account = [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Modules, profil, sécurité, données'], ['#/connecteurs', 'plug', 'Connecteurs', 'Canva, Figma, Notion, Drive, agenda'], ['#/confidentialite', 'shield', 'Confidentialité et RGPD', 'Vos données restent sur cet appareil']];
   const rows = (items) => `<ul class="menu card rise">${items.map(([h, i, t, d, f]) => `<li><a class="row" href="${h}"><span class="menu-ic">${ic(i)}</span><span class="row-b"><b>${esc(t)}</b><span>${esc(d)}</span></span>${f && !can(f) ? `<span class="badge b-${FEATURES[f]}">${PLANS[FEATURES[f]].name}</span>` : ''}${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`;
   const html = `${pageHead('Plus', { actions: `<button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button>` })}
@@ -411,6 +413,13 @@ register({
     toast(`${s.prospects.length} fiches exportées`, { title: 'Export CSV' });
   },
   'load-demo': async () => {
+    // Études seulement : un exemple scolaire (matières, cours, examens, notes, fiches), sans clients
+    if (schoolOnly()) {
+      if (!await confirmSheet({ title: 'Charger un exemple d’année scolaire ?', text: 'Quatre matières, un emploi du temps, deux examens, des notes, des tâches et deux fiches de révision fictives. Tout est marqué « Exemple » et s’efface en un geste.', ok: 'Charger l’exemple' })) return;
+      update((s) => { const d = schoolDemo(); for (const k of ['subjects', 'courses', 'exams', 'grades', 'tasks', 'projects', 'pages']) s[k].push(...d[k].filter((x) => !s[k].some((y) => y.id === x.id))); if (!s.lists.some((l) => l.id === 'ecole')) s.lists.push({ id: 'ecole', name: 'École', tone: 'olive' }); });
+      toast('Exemple scolaire chargé', { action: 'Voir mes études', onAction: () => { location.hash = '#/etudes'; } });
+      return;
+    }
     if (!await confirmSheet({ title: 'Charger des données de démonstration ?', text: 'Seize entreprises fictives avec leurs appels, des tâches et trois pages de notes, pour présenter l\'application. Tout est marqué « démonstration » et s\'efface en un geste.', ok: 'Charger' })) return;
     update((s) => { const d = demoData(); s.prospects.push(...d.prospects); s.activities.push(...d.activities); s.tasks.push(...d.tasks); s.projects.push(...d.projects.filter((x) => !s.projects.some((y) => y.id === x.id))); s.quotes.push(...d.quotes.filter((x) => !s.quotes.some((y) => y.id === x.id))); s.pages.push(...d.pages.filter((p) => !s.pages.some((x) => x.id === p.id))); });
     toast('Données de démonstration chargées');

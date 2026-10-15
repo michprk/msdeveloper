@@ -91,18 +91,18 @@ export function iphone(prenom) {
 // ---------- Présentation : cinq écrans illustrés ----------
 const mkRow = (t, m, cls = '') => `<div class="mk-row"><i class="tick ${cls.includes('done') ? 'is-done' : ''}"></i><span><b class="${cls}">${t}</b><em class="${cls.includes('late') ? 'late' : ''}">${m}</em></span></div>`;
 const SLIDES = [
-  ['Votre journée sur un écran', 'Les urgences d\'abord, puis le reste. Écrivez « Rappeler Marc demain 14h » : la date et l\'heure se règlent toutes seules.',
-    `<div class="mock"><p class="mk-k">Aujourd'hui</p><p class="mk-h">3 choses à faire</p><div class="mk-in">${ic('plus')}Rappeler Marc demain 14h</div>
-      ${mkRow('Envoyer le devis Lemaire', 'En retard · hier', 'late')}${mkRow('Appeler le comptable', 'Fait · 10 h', 'done')}${mkRow('Préparer la réunion', '14 h · Travail')}</div>`],
-  ['Des notes comme dans un carnet', 'Des pages et des sous-pages, des cases à cocher, des modèles prêts : réunion, projet, journal, révision.',
-    `<div class="mock mk-page"><span class="mk-pic">${ic('users')}</span><p class="mk-title">Réunion de lancement</p><p class="mk-h2">Décisions</p>
-      <p class="mk-li">Site en ligne avant le 15</p><p class="mk-li">Photos le mardi</p><p class="mk-h2">Actions</p>${mkRow('Envoyer la maquette', 'Léa', 'done')}${mkRow('Réserver le photographe', 'Sam')}</div>`],
-  ['Vos clients, étape par étape', 'Un CRM qui parle votre métier : vos étapes, vos champs, et une relance datée pour chaque fiche.',
-    `<div class="mock mk-board">${[['Premier contact', 'grey', ['Atelier Pivoine', 'Kiné Flagey']], ['Rendez-vous', 'navy', ['Maison Lemaire']], ['Signé', 'olive', ['Salon Céleste']]].map(([l, t, cards]) => `<div class="mk-col"><p><i class="dot t-${t}"></i>${l}</p>${cards.map((c) => `<span class="mk-card">${c}</span>`).join('')}</div>`).join('')}</div>`],
-  ['Des chiffres qui motivent', 'Tâches terminées, montants signés, origine de vos clients : votre progression, semaine après semaine.',
+  ['Votre journée sur un écran', 'Les urgences d\'abord, puis le reste. Écrivez « Réviser le chapitre 3 demain 18h » : la date et l\'heure se règlent toutes seules.',
+    `<div class="mock"><p class="mk-k">Aujourd'hui</p><p class="mk-h">3 choses à faire</p><div class="mk-in">${ic('plus')}Réviser le chapitre 3 demain 18h</div>
+      ${mkRow('Rendre le devoir de maths', 'En retard · hier', 'late')}${mkRow('Appeler le dentiste', 'Fait · 10 h', 'done')}${mkRow('Préparer la réunion', '14 h · Travail')}</div>`],
+  ['Des notes que vous mettez en forme', 'Polices, couleurs, surligneur, souligné rouge, encadrés, et un stylo pour dessiner directement sur la page. Plus un tableau blanc sans limite.',
+    `<div class="mock mk-page"><span class="mk-pic">${ic('cards')}</span><p class="mk-title">Cours — la Révolution</p><p class="mk-h2">L'essentiel</p>
+      <p class="mk-li"><mark class="mk-hl">Prise de la Bastille : 14 juillet 1789</mark></p><p class="mk-li"><span class="mk-red">États généraux</span> en mai 1789</p><p class="mk-h2">À réviser</p>${mkRow('Les dates clés', 'Quiz demain', '')}</div>`],
+  ['Vos études, vos projets, vos clients', 'Examens avec compte à rebours, projets qui avancent tout seuls, et un CRM si vous avez des clients : chacun n\'affiche que ce qui lui sert.',
+    `<div class="mock mk-trio"><span class="mk-t"><b>J−9</b><em>Examen d'histoire</em></span><span class="mk-t"><b>60 %</b><em>Projet : site du club</em></span><span class="mk-t"><b>✓</b><em>Devis accepté</em></span></div>`],
+  ['Des chiffres qui motivent', 'Tâches terminées, minutes de travail, cartes révisées : votre progression, semaine après semaine.',
     `<div class="mock mk-stats"><div class="kpi2 k-olive"><span class="kpi2-h"><span class="kpi2-l">Tâches terminées</span><span class="kpi2-ic">${ic('checkSquare')}</span></span><span class="kpi2-v">24</span><span class="kpi2-d up">${ic('arrowR', 'up-ic')}<b>18 %</b><span>vs semaine dernière</span></span>${sparkline([2, 3, 2, 4, 3, 5, 4, 6, 5, 7, 6, 8])}</div>
-      <div class="mk-donut"><span class="mk-ring"></span><ul><li><i class="sw c1"></i>Appel</li><li><i class="sw c2"></i>Recommandation</li><li><i class="sw c3"></i>Instagram</li></ul></div></div>`],
-  ['Des quiz pour progresser', 'Organisation, relation client, prix, gestion : dix questions, chacune expliquée. Et vos notes deviennent des cartes de révision.',
+      <div class="mk-donut"><span class="mk-ring"></span><ul><li><i class="sw c1"></i>École</li><li><i class="sw c2"></i>Travail</li><li><i class="sw c3"></i>Personnel</li></ul></div></div>`],
+  ['Des quiz pour retenir', 'Organisation, méthodes de travail, gestion : dix questions, chacune expliquée. Et vos notes deviennent des cartes, qui reviennent au bon moment.',
     `<div class="mock"><p class="mk-k">Quiz du jour</p><p class="mk-q">La règle des deux minutes dit qu'une tâche courte…</p>
       <span class="mk-opt">se note pour plus tard</span><span class="mk-opt ok">${ic('check')}se fait tout de suite</span><span class="mk-opt">se délègue</span></div>`],
 ];

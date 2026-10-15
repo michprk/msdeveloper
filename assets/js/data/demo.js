@@ -117,4 +117,40 @@ export function clearDemo(s) {
   s.projects = s.projects.filter((x) => !x.demo);
   s.pages = s.pages.filter((x) => !x.demo);
   s.quotes = (s.quotes || []).filter((x) => !x.demo);
+  for (const k of ['subjects', 'courses', 'exams', 'grades', 'boards']) s[k] = (s[k] || []).filter((x) => !x.demo);
+}
+
+// Données d'exemple pour l'école : matières, emploi du temps, examens, notes, tâches et fiches de révision.
+export function schoolDemo() {
+  const now = Date.now(), today = startOfDay(now);
+  const S = [['sj-d1', 'Histoire', 'sand', 2], ['sj-d2', 'Maths', 'blue', 3], ['sj-d3', 'Anglais', 'olive', 2], ['sj-d4', 'Biologie', 'sky', 2]].map(([id, name, tone, coef]) => ({ id, name, tone, coef, demo: true }));
+  const C = [[0, 'sj-d2', '08:30', '10:10', 'B12', 'M. Dupont'], [0, 'sj-d1', '10:20', '12:00', 'A04', 'Mme Lambert'], [1, 'sj-d3', '13:00', '14:40', 'L2', 'Ms Carter'], [2, 'sj-d4', '08:30', '10:10', 'Labo 1', 'M. Haddad'], [3, 'sj-d2', '10:20', '12:00', 'B12', 'M. Dupont'], [4, 'sj-d1', '13:00', '14:40', 'A04', 'Mme Lambert'], [4, 'sj-d3', '14:50', '16:30', 'L2', 'Ms Carter']]
+    .map(([day, subjectId, start, end, room, teacher], i) => ({ id: `co-d${i}`, demo: true, day, subjectId, start, end, room, teacher, title: '' }));
+  const projects = [{ id: 'pj-dex1', demo: true, name: 'Examen d’histoire', icon: 'book', tone: 'sand', status: 'actif', due: today + 9 * DAY + 9 * 3600e3, desc: 'Matière : Histoire', links: [], createdAt: now - 4 * DAY }];
+  const exams = [
+    { id: 'ex-d1', demo: true, title: 'Examen d’histoire', subjectId: 'sj-d1', date: today + 9 * DAY + 9 * 3600e3, chapters: ['La Révolution française', 'L’Empire', 'La révolution industrielle', 'La colonisation'], projectId: 'pj-dex1', createdAt: now - 4 * DAY },
+    { id: 'ex-d2', demo: true, title: 'Contrôle de maths', subjectId: 'sj-d2', date: today + 3 * DAY + 10 * 3600e3, chapters: ['Fonctions', 'Dérivées'], projectId: null, createdAt: now - 2 * DAY },
+  ];
+  const grades = [['sj-d1', 15, 20, 2, 'Interrogation ch. 1'], ['sj-d1', 13.5, 20, 1, 'Devoir maison'], ['sj-d2', 11, 20, 2, 'Contrôle fonctions'], ['sj-d2', 14, 20, 1, 'Exercices'], ['sj-d3', 16, 20, 1, 'Oral'], ['sj-d4', 12, 20, 2, 'TP cellule']]
+    .map(([subjectId, value, max, coef, label], i) => ({ id: `gr-d${i}`, demo: true, subjectId, value, max, coef, label, date: now - (20 - i * 3) * DAY }));
+  const T = (title, due, extra = {}) => ({ id: `t-ds${Math.random().toString(36).slice(2, 8)}`, demo: true, title, due, done: false, doneAt: null, status: 'todo', kind: 'tache', list: 'ecole', prio: 0, notes: '', sub: [], projectId: null, prospectId: null, createdAt: now - DAY, ...extra });
+  const tasks = [
+    T('Fiche : la Révolution française', today - DAY + 17 * 3600e3, { projectId: 'pj-dex1', done: true, doneAt: now - 20 * 3600e3, status: 'done' }),
+    T('Fiche : l’Empire', today + 17 * 3600e3, { projectId: 'pj-dex1', status: 'doing', prio: 1 }),
+    T('Fiche : la révolution industrielle', today + DAY + 17 * 3600e3, { projectId: 'pj-dex1' }),
+    T('Réviser : la colonisation', today + 4 * DAY + 17 * 3600e3, { projectId: 'pj-dex1' }),
+    T('Examen blanc d’histoire', today + 8 * DAY + 14 * 3600e3, { projectId: 'pj-dex1', prio: 2 }),
+    T('Exercices de maths p. 42', today + 18 * 3600e3, { prio: 1 }),
+    T('Rendre le devoir de français', today + 2 * DAY + 8 * 3600e3, { prio: 2 }),
+    T('Apprendre le vocabulaire d’anglais', today - DAY, {}),
+    T('Acheter un classeur', null, { list: 'perso' }),
+  ];
+  const b = (t, x, extra = {}) => ({ id: `b${Math.random().toString(36).slice(2, 9)}`, t, x, ...extra });
+  const pages = [
+    { id: 'pg-ds1', demo: true, title: 'Cours — la Révolution française', icon: 'cards', fav: true, parent: null, prospectId: null, projectId: 'pj-dex1', createdAt: now - 3 * DAY, updatedAt: now - 3600e3,
+      blocks: [b('callout', 'Bouton « Réviser » en haut de la page : chaque question devient une carte.'), b('h1', 'L’essentiel'), b('ul', 'Crise financière et États généraux (mai 1789)', { h: 'Crise financière et <b>États généraux</b> (mai 1789)' }), b('ul', 'Prise de la Bastille : 14 juillet 1789', { h: '<span style="background-color:rgb(255, 224, 102)">Prise de la Bastille : 14 juillet 1789</span>' }), b('ul', 'Fin de la monarchie en 1792'), b('h1', 'Questions'), b('qa', 'Date de la prise de la Bastille ?', { a: '14 juillet 1789' }), b('qa', 'Que sont les États généraux ?', { a: 'Une assemblée des trois ordres : clergé, noblesse, tiers état.' }), b('qa', 'Quand la monarchie prend-elle fin ?', { a: 'En 1792, avec la proclamation de la République.' })] },
+    { id: 'pg-ds2', demo: true, title: 'Planning de révision', icon: 'book', fav: false, parent: null, prospectId: null, createdAt: now - 4 * DAY, updatedAt: now - 5 * 3600e3,
+      blocks: [b('callout', 'Une matière par ligne, une date par chapitre. La veille de l’examen, uniquement des quiz.'), b('h1', 'Histoire — examen dans 9 jours'), b('todo', 'Révolution française', { c: true }), b('todo', 'L’Empire', { c: false }), b('todo', 'Révolution industrielle', { c: false }), b('h1', 'Maths — contrôle dans 3 jours'), b('todo', 'Fonctions : exercices 1 à 12', { c: false }), b('todo', 'Dérivées : fiche de formules', { c: false })] },
+  ];
+  return { subjects: S, courses: C, exams, grades, tasks, projects, pages };
 }

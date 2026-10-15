@@ -57,7 +57,7 @@ export function projectsView(params, q) {
       </div>
     </section>`}
     <h2 class="sec-title">Partir d'un modèle</h2>
-    <div class="tpl-grid">${PROJECT_TPL.map(([id, name, icon, , tasks]) => `<button class="tpl" data-act="project-tpl" data-tpl="${id}"><span class="tpl-ic">${ic(icon)}</span><b>${esc(name)}</b><span>${tasks.length} tâches prêtes</span></button>`).join('')}</div>`;
+    <div class="tpl-grid">${PROJECT_TPL.filter(([k]) => k !== 'client' || on('clients')).map(([id, name, icon, , tasks]) => `<button class="tpl" data-act="project-tpl" data-tpl="${id}"><span class="tpl-ic">${ic(icon)}</span><b>${esc(name)}</b><span>${tasks.length} tâches prêtes</span></button>`).join('')}</div>`;
   return { title: 'Projets', tab: 'projets', fab: 'project-new', html };
 }
 
