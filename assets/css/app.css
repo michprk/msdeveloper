@@ -2736,3 +2736,7 @@ div.blk-in mark { padding: 0 2px; border-radius: 3px; }
 .nt-done { height: 46px; }
 @media (min-width: 900px) { .nt-bar { max-width: 900px; } .nt-fmt { flex-wrap: wrap; overflow: visible; row-gap: 4px; } }
 .nt-s select { max-width: 112px; }
+.cx.is-focus { box-shadow: 0 0 0 3px var(--sky-2), var(--shadow); }
+.cx-nav { margin-top: 4px; }
+.lk-embed.is-video { aspect-ratio: 16 / 9; }
+.btn.is-locked { opacity: .85; }
