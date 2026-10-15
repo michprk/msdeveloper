@@ -46,7 +46,7 @@ export function newPage(tplId = 'vierge', { parent = null, prospectId = null, pr
   return addPage({ title, icon: t.icon === 'page' ? 'page' : t.icon, parent, prospectId, projectId, tpl: t.id, blocks: t.blocks.map(([type, x, a]) => ({ id: bid(), t: type, x: x || '', ...(type === 'todo' ? { c: false } : {}), ...(type === 'qa' ? { a: a || '' } : {}) })) });
 }
 function limitSheet() {
-  sheet(`${sheetHead('Dix pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">Vos ${S().pages.length} pages restent modifiables. Vous pouvez aussi supprimer une page pour en créer une autre.</p></div>`, { cls: 'sheet-sm' });
+  sheet(`${sheetHead('Cinq pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">Vos ${S().pages.length} pages restent modifiables. Vous pouvez aussi supprimer une page pour en créer une autre.</p></div>`, { cls: 'sheet-sm' });
 }
 export function templatesSheet(opts = {}) {
   sheet(`${sheetHead('Nouvelle page', 'Partez d\'une page vierge ou d\'un modèle')}<div class="sheet-body"><div class="tpl-grid">${TEMPLATES.map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}" ${opts.parent ? `data-parent="${opts.parent}"` : ''} ${opts.prospectId ? `data-pid="${opts.prospectId}"` : ''}><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div></div>`, { cls: 'sheet-tall' });

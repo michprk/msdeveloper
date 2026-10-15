@@ -1,7 +1,6 @@
 // Éléments partagés entre les écrans.
 import { S, can, need, PLANS, access, billing, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
 import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
-import { flower } from './flowers.js';
 
 // Positionnement : une phrase, un public, trois bénéfices, un exemple. Repris partout.
 export const PROMISE = 'Vos tâches, vos projets, vos notes et vos clients, au même endroit.';
@@ -25,11 +24,22 @@ export function pageHead(title, { kicker = '', actions = '', back = '' } = {}) {
 
 const FEATURE_TEXT = {
   crm: ['Le CRM est inclus dans Pro', 'Vos fiches clients, un pipeline à vos étapes, l\'historique des échanges et une relance datée pour chacun.'],
-  notesUnlimited: ['Pages illimitées avec Pro', 'La version gratuite garde dix pages. Avec Pro, créez autant de pages et de sous-pages que vous voulez.'],
+  notesUnlimited: ['Pages illimitées avec Pro', 'La version gratuite garde cinq pages. Avec Pro, créez autant de pages et de sous-pages que vous voulez.'],
   myQuiz: ['Vos propres quiz avec Pro', 'Créez des quiz sur votre métier, vos tarifs ou vos procédures, pour vous entraîner ou former votre équipe.'],
   scriptsAll: ['Tous les formats sont inclus dans Pro', 'Répondeur, visite, e-mail, SMS, Instagram, relances, rendez-vous, objections et signature — pour chaque secteur.'],
   callMode: ['Le mode appel est inclus dans Pro', 'Le script s\'affiche étape par étape pendant l\'appel, et le résultat s\'enregistre dans la fiche en un geste.'],
-  projectsUnlimited: ['Projets illimités avec Pro', 'La version gratuite suit 3 projets en cours. Avec Pro, suivez autant de projets que vous voulez, chacun avec ses tâches et sa progression.'],
+  projectsUnlimited: ['Projets illimités avec Pro', 'La version gratuite suit un projet en cours. Avec Pro, suivez autant de projets que vous voulez, chacun avec ses tâches et sa progression.'],
+  boardsUnlimited: ['Tableaux blancs illimités avec Pro', 'La version gratuite garde un tableau blanc. Avec Pro, créez-en autant que vous voulez : cours, projets, schémas, graphiques.'],
+  notesDraw: ['L\'éditeur complet est inclus dans Pro', 'Polices, tailles, couleurs, surligneur, encadrés, et des outils pour dessiner, souligner et annoter directement sur vos pages.'],
+  calendarFull: ['Le calendrier complet est inclus dans Pro', 'Vues semaine et jour avec les heures, glisser-déposer des tâches, et votre emploi du temps directement dans le calendrier.'],
+  connectors: ['Les imports sont inclus dans Pro', 'Importez vos pages Notion, vos tableaux Trello, vos listes Todoist, vos agendas et vos cartes Quizlet en un geste.'],
+  timetable: ['L\'emploi du temps est inclus dans Pro', 'Vos cours de la semaine, avec salle et professeur, dans l\'application et dans le calendrier.'],
+  grades: ['Les moyennes sont incluses dans Pro', 'Vos notes par matière, avec coefficients, votre moyenne générale et la note qu\'il vous faut au prochain contrôle.'],
+  focus: ['Le mode concentration est inclus dans Pro', 'Un minuteur Pomodoro plein écran, relié à vos tâches et à vos matières.'],
+  planner: ['Le planificateur de révisions est inclus dans Premium', 'Donnez la date de l\'examen et les chapitres : MindView répartit les révisions jour par jour, avec des rappels.'],
+  spaced: ['La révision espacée est incluse dans Premium', 'Chaque carte revient juste avant que vous l\'oubliiez : moins de temps à réviser, plus de choses retenues.'],
+  focusStats: ['Les statistiques de concentration sont incluses dans Premium', 'Vos heures de travail par jour et par matière, et votre régularité semaine après semaine.'],
+  exportsPro: ['Les exports en image sont inclus dans Premium', 'Exportez vos tableaux blancs en image pour les partager ou les imprimer.'],
   academy: ['L\'Académie complète est incluse dans Pro', 'Tous les guides pratiques : organisation, rendez-vous, voix, prix, relances, horaires par secteur…'],
   messages: ['Le générateur de messages est inclus dans Pro', 'Des e-mails et SMS prêts à envoyer, remplis avec la fiche.'],
   audit: ['L\'audit express est inclus dans Pro', 'Une note sur 10 de la présence en ligne d\'une entreprise, et les points à aborder.'],
@@ -45,7 +55,7 @@ export function paywall(feature, { compact = false } = {}) {
   const [t, p] = FEATURE_TEXT[feature] || ['Fonction réservée aux abonnés', ''];
   const plan = PLANS[need(feature)];
   const trialUsed = !!S().sub.trialStart;
-  return `<section class="paywall ${compact ? 'is-compact' : ''}">${flower(1, 'pw-fl a')}${flower(3, 'pw-fl b')}
+  return `<section class="paywall ${compact ? 'is-compact' : ''}">
     <span class="paywall-ic">${ic('lock')}</span>
     <h2>${t}</h2>
     <p>${p}</p>

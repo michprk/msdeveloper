@@ -7,7 +7,6 @@ import { DISCOVERY, SPIN_HELP, QUALIF } from '../data/script-plus.js';
 import { SITUATIONS, FREE_SITUATIONS } from '../data/situations.js';
 import { SERVICES, SERVICE_IDS, CHANNELS, FREE_CHANNELS, allSectors, getSector, buildScript, fill, scriptToText, scriptCount, typo, serviceData } from '../data/scripts.js';
 import { pageHead, paywall, sectorTile } from './common.js';
-import { flower } from './flowers.js';
 
 const svcSeg = (cur, base) => `<nav class="seg svc-seg" aria-label="Service vendu">${SERVICE_IDS.map((id) => `<a class="seg-i ${id === cur ? 'is-on' : ''}" href="${base}${base.includes('?') ? '&' : '?'}s=${id}" ${id === cur ? 'aria-current="true"' : ''}>${ic(SERVICES[id].icon)}<span>${SERVICES[id].short}</span></a>`).join('')}</nav>`;
 const isFree = (chId) => FREE_CHANNELS.includes(chId);
@@ -41,7 +40,7 @@ export function library(params, q) {
   const mine = (s.profile.secteurs || []).map(getSector).filter((x) => x && x.id !== 'toute');
   const favs = s.favorites.map((id) => (id.startsWith('my-') ? null : scriptFromId(id))).filter(Boolean);
   const html = `
-    <div class="ph-flower" aria-hidden="true">${flower(2, 'xs drift')}</div>
+
     ${pageHead('Scripts', { kicker: `${scriptCount()} scripts prêts à l'emploi` })}
     ${svcSeg(svc, '#/scripts')}
     ${offerHint(svc)}

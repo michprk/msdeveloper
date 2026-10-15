@@ -9,7 +9,6 @@ import { pageHead, paywall, accessLabel, PROMISE, PITCH, AUDIENCE, BENEFITS } fr
 import { preset } from '../data/presets.js';
 import { QUIZZES } from '../data/quizzes.js';
 import { startOnboarding, notifSheet } from './onboarding.js';
-import { flower } from './flowers.js';
 import { catSwitches, unreadCount } from './notifications.js';
 import { accountCard } from './account.js';
 import { cloudUser, deleteCloudAccount, cloudMessage } from '../cloud.js';

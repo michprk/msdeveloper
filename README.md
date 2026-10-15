@@ -74,7 +74,7 @@
 
 ## Formules
 
-| | Gratuit | Pro 17,99 €/mois | Premium 31,99 €/mois |
+| | Gratuit | Pro 11,99 €/mois | Premium 21,99 €/mois |
 |---|---|---|---|
 | Tâches, listes, tableau, agenda | ✓ | ✓ | ✓ |
 | Projets reliés aux tâches | 3 en cours | Illimités | Illimités |

@@ -91,7 +91,7 @@ const sortTasks = (a, b) => (b.prio || 0) - (a.prio || 0) || (a.due || 9e15) - (
 export const viewSeg = (cur) => `<nav class="seg seg-sm view-seg" aria-label="Affichage">
   <a class="seg-i ${cur === 'list' ? 'is-on' : ''}" href="#/taches">${ic('tasks')}<span>Liste</span></a>
   <a class="seg-i ${cur === 'board' ? 'is-on' : ''}" href="#/taches?v=board">${ic('board')}<span>Tableau</span></a>
-  <a class="seg-i ${cur === 'agenda' ? 'is-on' : ''}" href="#/agenda">${ic('calendar')}<span>Agenda</span></a></nav>`;
+  <a class="seg-i ${cur === "agenda" ? "is-on" : ""}" href="#/agenda">${ic("calendar")}<span>Calendrier</span></a></nav>`;
 
 export function tasksView(params, q) {
   const s = S();
@@ -197,9 +197,9 @@ const chipDays = () => {
   const mon = t0 + (((8 - new Date().getDay()) % 7) || 7) * DAY;
   return [['Aujourd\'hui', t0 + 18 * 3600e3], ['Demain', t0 + DAY + 9 * 3600e3], ['Lundi', mon + 9 * 3600e3], ['Sans date', '']];
 };
-export function taskSheet({ pid = '', task = null, list = '', title = '', project = '' } = {}) {
+export function taskSheet({ pid = '', task = null, list = '', title = '', project = '', due = null } = {}) {
   const s = S();
-  const t = task || { title: title || (pid ? `Rappeler ${getProspect(pid)?.entreprise || ''}` : ''), kind: pid ? 'appel' : 'tache', due: pid ? startOfDay() + DAY + 10 * 3600e3 : null, prospectId: pid || getProject(project)?.prospectId || '', projectId: project || null, list: list || null, prio: 0, status: 'todo', notes: '', sub: [] };
+  const t = task || { title: title || (pid ? `Rappeler ${getProspect(pid)?.entreprise || ''}` : ''), kind: pid ? 'appel' : 'tache', due: due ?? (pid ? startOfDay() + DAY + 10 * 3600e3 : null), prospectId: pid || getProject(project)?.prospectId || '', projectId: project || null, list: list || null, prio: 0, status: 'todo', notes: '', sub: [] };
   const st = t.done ? 'done' : t.status === 'doing' ? 'doing' : 'todo';
   const projects = s.projects.filter((x) => x.status !== 'termine' || x.id === t.projectId);
   const crm = on('clients') || on('prospecter');

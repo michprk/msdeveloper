@@ -48,6 +48,6 @@ Pour chaque consigne : le temps, les hésitations de plus de cinq secondes, les 
 1. Qu'est-ce qui vous a le plus servi ?
 2. Qu'est-ce qui vous a agacé ?
 3. Qu'est-ce qui manque pour que vous l'utilisiez chaque jour ?
-4. Paieriez-vous 17,99 € par mois ? Pourquoi, ou pourquoi pas ?
+4. Paieriez-vous 11,99 € par mois ? Pourquoi, ou pourquoi pas ?
 
 Corrigez d'abord ce qui a bloqué plusieurs personnes, puis refaites un tour de tests.

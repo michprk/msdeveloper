@@ -1,6 +1,6 @@
 // Abonnement : statut réel, formules et limites, paiement (mode test), changement de formule,
 // résiliation, échec de paiement et délai de grâce, historique et reçus.
-import { S, update, access, billing, PLANS, RANK, TRIAL_DAYS, GRACE_DAYS, LIMITS, trialEnd, trialLeft, prorata, subscribe, changePlan, cancelSub, resumeSub, settleDue, simulateDays, nextBillingEvent } from '../store.js';
+import { S, update, on, access, billing, PLANS, RANK, TRIAL_DAYS, GRACE_DAYS, LIMITS, trialEnd, trialLeft, prorata, subscribe, changePlan, cancelSub, resumeSub, settleDue, simulateDays, nextBillingEvent } from '../store.js';
 import { ic, esc, eur2, register, toast, sheet, sheetHead, closeSheet, confirmSheet, busy, pause, dateLong } from '../ui.js';
 import { scriptCount } from '../data/scripts.js';
 import { GUIDES } from '../data/guides.js';
@@ -15,27 +15,38 @@ const price = (n) => n.toFixed(2).replace('.', ',');
 const dl = (t) => dateLong(t).toLowerCase();
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 
-// Ce que comprend chaque formule, avec ses limites
+// Ce que comprend chaque formule, avec ses limites. 5e colonne : module concerné (masqué s'il n'est pas utilisé).
 export const OFFER = [
-  ['Tâches, listes, tableau et agenda', true, true, true],
-  ['Projets reliés aux tâches, progression automatique', `${LIMITS.freeProjects} en cours`, 'Illimités', 'Illimités'],
+  ['Tâches, listes, tableau et rappels', true, true, true],
+  ['Calendrier', 'Vue mois', 'Mois, semaine, jour, glisser-déposer', 'Mois, semaine, jour, glisser-déposer'],
+  ['Projets reliés aux tâches, progression automatique', `${LIMITS.freeProjects} projet`, 'Illimités', 'Illimités'],
   ['Notes en pages et sous-pages, modèles', `${LIMITS.freePages} pages`, 'Illimitées', 'Illimitées'],
-  ['Centre de notifications, recherche globale, connecteurs', true, true, true],
-  ['Quiz intégrés et révision de vos notes', true, true, true],
+  ['Éditeur complet : polices, couleurs, surligneur, encadrés, dessin sur la page', 'Gras, italique, souligné', true, true],
+  ['Tableau blanc : dessin, formes, textes, graphiques, évolutions', `${LIMITS.freeBoards} tableau`, 'Illimités', 'Illimités + export en image'],
+  ['Connecteurs : Notion, Figma, Canva, Google, Trello, Quizlet, agendas…', 'Liens', 'Imports et aperçus', 'Imports et aperçus'],
+  ['Notifications et recherche globale', true, true, true],
+  ['Quiz intégrés, quiz du jour, révision des notes', true, true, true],
   ['Créer vos propres quiz', false, true, true],
-  ['CRM personnalisé : fiches, pipeline, champs, équipe', false, true, true],
-  ['Devis suivis (brouillon → accepté), PDF, prospect → client', false, true, true],
-  ['Scripts d\'appel à froid (23 secteurs)', true, true, true],
-  [`Les ${scriptCount()} scripts, situations délicates, mode appel`, false, true, true],
-  ['Académie', `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.length} guides`, `${GUIDES.length} guides`],
-  ['Messages prêts, audit express, import de listes', false, true, true],
-  ['Statistiques, export CSV', false, false, true],
-  ['Vos scripts et secteurs, entraînement aux objections', false, false, true],
+  ['Examens et compte à rebours', true, true, true, 'etudes'],
+  ['Emploi du temps, moyennes avec coefficients', false, true, true, 'etudes'],
+  ['Mode concentration (minuteur Pomodoro)', false, true, true, 'etudes'],
+  ['Planificateur de révisions automatique', false, false, true, 'etudes'],
+  ['Révision espacée : chaque carte revient au bon moment', false, false, true, 'etudes'],
+  ['Statistiques de concentration et de révision', false, false, true, 'etudes'],
+  ['CRM personnalisé : fiches, pipeline, champs, équipe', false, true, true, 'clients'],
+  ['Devis suivis (brouillon → accepté), PDF, prospect → client', false, true, true, 'clients'],
+  ['Scripts d\'appel à froid (23 secteurs)', true, true, true, 'prospecter'],
+  [`Les ${scriptCount()} scripts, situations délicates, mode appel`, false, true, true, 'prospecter'],
+  ['Messages prêts, audit express, import de listes', false, true, true, 'prospecter'],
+  ['Académie', `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.length} guides`, `${GUIDES.length} guides`, 'apprendre'],
+  ['Statistiques commerciales, export CSV', false, false, true, 'clients'],
+  ['Vos scripts et secteurs, entraînement aux objections', false, false, true, 'prospecter'],
 ];
+export const offerRows = () => OFFER.filter((r) => !r[4] || on(r[4]));
 const cell = (v) => (v === true ? `<span class="ok">${ic('check')}<span class="sr-only">Inclus</span></span>` : v === false ? '<span class="no" aria-label="Non inclus">—</span>' : `<span class="txt">${esc(v)}</span>`);
 
 const STATUS = {
-  free: () => ['Version gratuite', `Tâches, agenda, ${LIMITS.freeProjects} projets, ${LIMITS.freePages} pages de notes, les quiz et les scripts d'appel à froid. Essayez tout le reste pendant ${TRIAL_DAYS} jours, sans carte.`],
+  free: () => ['Version gratuite', `Tâches, calendrier, quiz, ${LIMITS.freeProjects} projet, ${LIMITS.freePages} pages de notes et ${LIMITS.freeBoards} tableau blanc. Essayez tout le reste pendant ${TRIAL_DAYS} jours, sans carte.`],
   trial: () => ['Essai gratuit', `Toutes les fonctions jusqu'au ${dl(trialEnd())} (encore ${trialLeft()} jour${trialLeft() > 1 ? 's' : ''}). Sans carte : à la fin, l'application repasse en version gratuite si vous ne choisissez rien.`],
   trial_ended: () => ['Version gratuite', `Votre essai s'est terminé le ${dl(trialEnd())}. Vos fiches, vos pages et vos tâches sont conservées.`],
   active: (s) => [`${PLANS[s.plan].name} · actif`, `Prochain prélèvement : ${price(PLANS[s.pending || s.plan].price)} € le ${dl(s.periodEnd)}.${s.pending ? ` Passage à ${PLANS[s.pending].name} à cette date.` : ''}`],
@@ -65,10 +76,10 @@ export function plans() {
       : `<button class="btn btn-ghost btn-block" data-act="sub-down" data-plan="${id}">Passer à ${PLANS[id].name}</button><p class="plan-sub">À partir du ${dl(b.periodEnd)}</p>`;
     return `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="co-open" data-plan="${id}">Choisir ${PLANS[id].name}</button>`;
   };
-  const card = (id, k) => `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''} ${id === 'pro' ? 'is-reco' : ''}">${id === 'premium' ? flower(2, 'plan-fl') : ''}
+  const card = (id, k) => `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''} ${id === 'pro' ? 'is-reco' : ''}">${id === 'premium' ? flower(2, 'plan-fl is-big') : ''}
       ${id === 'pro' ? '<span class="plan-tag">Le plus choisi pour démarrer</span>' : ''}
       <header><h2>${PLANS[id].name}</h2><p class="plan-p">${PLANS[id].price ? `<b>${price(PLANS[id].price)} €</b><span>par mois, sans engagement</span>` : '<b>0 €</b><span>pour toujours</span>'}</p></header>
-      <ul class="plan-f">${OFFER.filter((r) => r[k + 1] && (k === 0 || r[k] !== r[k + 1])).map((r) => `<li>${ic('check')}<span>${esc(r[0])}${typeof r[k + 1] === 'string' ? ` <em>(${esc(r[k + 1])})</em>` : ''}</span></li>`).join('')}</ul>
+      <ul class="plan-f">${offerRows().filter((r) => r[k + 1] && (k === 0 || r[k] !== r[k + 1])).map((r) => `<li>${ic('check')}<span>${esc(r[0])}${typeof r[k + 1] === 'string' ? ` <em>(${esc(r[k + 1])})</em>` : ''}</span></li>`).join('')}</ul>
       ${id !== 'free' ? `<p class="plan-plus">${id === 'pro' ? 'En plus de la version gratuite' : 'En plus de tout Pro'}</p>` : ''}
       ${planBtn(id)}
     </section>`;
@@ -98,7 +109,7 @@ export function plans() {
     <section class="card rise">
       <header class="card-h"><div><h2>Comparer les formules</h2><p>Ce qui est inclus, et les limites de chacune</p></div></header>
       <div class="cmp-wrap"><table class="cmp"><thead><tr><th scope="col"><span class="sr-only">Fonction</span></th>${['free', 'pro', 'premium'].map((id) => `<th scope="col" class="${cur === id ? 'is-cur' : ''}">${PLANS[id].name}</th>`).join('')}</tr></thead>
-        <tbody>${OFFER.map((r) => `<tr><th scope="row">${esc(r[0])}</th>${r.slice(1).map((v, k) => `<td class="${cur === ['free', 'pro', 'premium'][k] ? 'is-cur' : ''}">${cell(v)}</td>`).join('')}</tr>`).join('')}
+        <tbody>${offerRows().map((r) => `<tr><th scope="row">${esc(r[0])}</th>${r.slice(1, 4).map((v, k) => `<td class="${cur === ['free', 'pro', 'premium'][k] ? 'is-cur' : ''}">${cell(v)}</td>`).join('')}</tr>`).join('')}
         <tr class="cmp-p"><th scope="row">Prix par mois</th>${['free', 'pro', 'premium'].map((id) => `<td>${PLANS[id].price ? `${price(PLANS[id].price)} €` : '0 €'}</td>`).join('')}</tr></tbody></table></div>
     </section>
     <section class="card rise">

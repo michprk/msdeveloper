@@ -7,7 +7,6 @@ import { ic, esc, register, toast, sheet, sheetHead, closeSheet, cap } from '../
 import { logoMark } from '../icons.js';
 import { SERVICES, SERVICE_IDS } from '../data/scripts.js';
 import { PRESETS, preset } from '../data/presets.js';
-import { flower, cluster } from './flowers.js';
 import { askNotifications, notifSupport } from '../notify.js';
 import { PROMISE, PITCH, AUDIENCE } from './common.js';
 import { applyPreset } from './crm.js';
@@ -32,7 +31,8 @@ const SITUATIONS = [
 const DEFIS = [
   ['oublier', 'Ne plus rien oublier', 'Tâches, rappels, notifications', 'bell', ['organiser']],
   ['projets', 'Mener mes projets à bout', 'Tâches reliées, progression', 'folder', ['organiser']],
-  ['reviser', 'Réviser mes cours', 'Planning, fiches, quiz', 'book', ['organiser', 'apprendre']],
+  ['reviser', 'Réviser mes cours', 'Planning, fiches, révision espacée', 'book', ['organiser', 'etudes', 'apprendre']],
+  ['examens', 'Réussir mes examens', 'Emploi du temps, examens, moyennes', 'target', ['organiser', 'etudes']],
   ['temps', 'Mieux organiser mes journées', 'Priorités, plan de la semaine', 'calendar', ['organiser']],
   ['idees', 'Ranger mes idées et mes notes', 'Pages, modèles, sous-pages', 'page', ['organiser']],
   ['clients', 'Suivre mes clients et mes devis', 'Un CRM à mon métier', 'users', ['clients']],
@@ -42,14 +42,21 @@ const DEFIS = [
 const SUGG = {
   oublier: ['Noter tout ce que j\'ai en tête', 0],
   projets: ['Créer mon premier projet et ses étapes', 0],
-  reviser: ['Faire mon planning de révision', 0],
+  reviser: ['Ajouter mes matières et mes examens', 0],
+  examens: ['Remplir mon emploi du temps', 0],
   temps: ['Préparer ma semaine (modèle « Plan de la semaine »)', 0],
   idees: ['Ranger mes idées dans une page', 0],
   clients: ['Ajouter mes clients en cours', 0],
   trouver: ['Lister 10 entreprises à contacter', 1],
   progresser: ['Faire le quiz du jour', 0],
 };
-const modulesFor = (defis) => ['organiser', 'clients', 'prospecter', 'apprendre'].filter((m) => m === 'organiser' || DEFIS.some(([id, , , , mods]) => defis.includes(id) && mods.includes(m)));
+// Études seulement : aucun module d'entrepreneuriat (clients, scripts, appels)
+const SCHOOL = (sit) => sit === 'etudes';
+const defisFor = (sit) => (SCHOOL(sit) ? DEFIS.filter(([id]) => !['clients', 'trouver'].includes(id)) : DEFIS);
+const modulesFor = (defis, sit = '') => {
+  const mods = ['organiser', 'etudes', 'clients', 'prospecter', 'apprendre'].filter((m) => m === 'organiser' || DEFIS.some(([id, , , , ms]) => defis.includes(id) && ms.includes(m)));
+  return SCHOOL(sit) ? [...new Set(['organiser', 'etudes', ...mods])].filter((m) => !['clients', 'prospecter'].includes(m)) : mods;
+};
 
 function data() {
   if (!ob.d) {
@@ -71,7 +78,7 @@ export function iphone(prenom) {
   return `<div class="phone" aria-hidden="true">
     <div class="phone-screen">
       <span class="phone-island"></span>
-      ${flower(2, 'ph-fl a')}${flower(4, 'ph-fl b')}
+
       <p class="phone-date">${cap(new Intl.DateTimeFormat('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()))}</p>
       <p class="phone-time">9:41</p>
       <div class="phone-notes">${notes.map(([t, b, w], k) => `<div class="inote" style="--k:${k}">
@@ -108,7 +115,7 @@ export function onboarding() {
 
   if (step === 'welcome') {
     body = `<div class="ob-page ob-welcome-p">
-        <div class="ob-mark">${cluster('ob-cl')}${logoMark('xl draw')}</div>
+        <div class="ob-mark">${logoMark('xl draw')}</div>
         <p class="ob-kick">L'app de M&amp;S Design</p>
         <p class="ob-hook">Marre des applications ennuyeuses et des tableaux Excel pour vous organiser&nbsp;?</p>
         <h1 class="ob-name">C'est là qu'intervient <span>MindView</span>.</h1>
@@ -144,12 +151,12 @@ export function onboarding() {
       </form>
       <div class="ob-foot"><button class="btn btn-apple" type="submit" form="ob-form" data-needs="prenom" ${d.prenom ? '' : 'disabled'}>Continuer</button></div>`;
   } else if (step === 'goals') {
-    const mods = modulesFor(d.defis);
+    const mods = modulesFor(d.defis, d.situation);
     const showMetier = d.defis.includes('clients') || d.defis.includes('trouver');
     body = `<form class="ob-page" data-form="ob-goals" id="ob-form" novalidate>
         <h1 class="ob-h">${d.prenom ? `${esc(cap(d.prenom))}, qu'est-ce qui` : 'Qu\'est-ce qui'} vous aiderait le plus&nbsp;?</h1>
         <p class="ob-p">Choisissez une ou plusieurs réponses.</p>
-        <div class="pick-cards is-multi" role="group" aria-label="Ce qui vous aiderait">${DEFIS.map(([id, l, sub, i]) => `<label class="pick-c"><input type="checkbox" name="d_${id}" ${d.defis.includes(id) ? 'checked' : ''} data-act-change="ob-defi"><span class="pick-ic">${ic(i)}</span><b>${l}</b><em>${sub}</em>${ic('check', 'pick-ck')}</label>`).join('')}</div>
+        <div class="pick-cards is-multi" role="group" aria-label="Ce qui vous aiderait">${defisFor(d.situation).map(([id, l, sub, i]) => `<label class="pick-c"><input type="checkbox" name="d_${id}" ${d.defis.includes(id) ? 'checked' : ''} data-act-change="ob-defi"><span class="pick-ic">${ic(i)}</span><b>${l}</b><em>${sub}</em>${ic('check', 'pick-ck')}</label>`).join('')}</div>
         <p class="ob-mods">${ic('grid')}<span>Votre application : <b class="ob-mods-l">${mods.map((m) => MODULES[m].label).join(' · ')}</b></span></p>
         <div class="ob-metier" ${showMetier ? '' : 'hidden'}>
           <p class="group-k">Votre métier</p>
@@ -164,12 +171,12 @@ export function onboarding() {
       </form>
       <div class="ob-foot"><button class="btn btn-apple" type="submit" form="ob-form">Continuer</button></div>`;
   } else {
-    const mods = modulesFor(d.defis);
+    const mods = modulesFor(d.defis, d.situation);
     const pr = d.metier && preset(d.metier);
     const sugg = d.defis.map((id) => [id, ...SUGG[id]]).slice(0, 3);
     if (!Object.keys(d.sugg).length) sugg.forEach(([id]) => { d.sugg[id] = true; });
     body = `<div class="ob-page">
-        <div class="ob-trial-fl" aria-hidden="true">${flower(1, 'tf-a')}${flower(3, 'tf-b')}</div>
+
         <h1 class="ob-h">Votre espace est prêt${d.prenom ? `, ${esc(cap(d.prenom))}` : ''}</h1>
         <ul class="ready-l">
           <li><span class="tt-ic f-blue">${ic('grid')}</span><div><b>Vos modules</b><p>${mods.map((m) => MODULES[m].label).join(' · ')}</p></div></li>
@@ -179,7 +186,7 @@ export function onboarding() {
         ${sugg.length ? `<p class="group-k">Vos premières tâches, à cocher ou non</p>
         <div class="group">${sugg.map(([id, t, day]) => `<label class="group-r is-pick is-multi"><input type="checkbox" ${d.sugg[id] ? 'checked' : ''} data-act-change="ob-sugg" data-id="${id}"><span class="group-ic f-olive">${ic('checkSquare')}</span><span class="group-t"><b>${esc(t)}</b><em>${day ? 'Demain' : 'Aujourd\'hui'}</em></span>${ic('check', 'group-ck')}</label>`).join('')}</div>` : ''}
         <p class="group-k">Essai gratuit de ${TRIAL_DAYS} jours</p>
-        <p class="ob-trial-t">Tout est ouvert pendant ${TRIAL_DAYS} jours, sans carte. Ensuite, Pro à ${price(PLANS.pro.price)} € ou Premium à ${price(PLANS.premium.price)} € par mois, ou la version gratuite : tâches, agenda, 3 projets, 10 pages et quiz. Vos données restent.</p>
+        <p class="ob-trial-t">Tout est ouvert pendant ${TRIAL_DAYS} jours, sans carte. Ensuite, Pro à ${price(PLANS.pro.price)} € ou Premium à ${price(PLANS.premium.price)} € par mois, ou la version gratuite : tâches, calendrier, quiz, 1 projet et 5 pages. Vos données restent.</p>
       </div>
       <div class="ob-foot">
         <button class="btn btn-apple" data-act="ob-finish" data-trial="1">${S().sub.trialStart && !ob.replay ? 'Ouvrir mon espace' : 'Commencer l\'essai gratuit'}</button>
@@ -239,17 +246,19 @@ function finish(trial) {
   update((s) => {
     s.profile.prenom = d.prenom.trim(); s.profile.societe = d.societe.trim();
     s.profile.situation = d.situation; s.profile.equipe = d.equipe; s.profile.defis = [...d.defis];
-    s.profile.usages = modulesFor(d.defis);
+    s.profile.usages = modulesFor(d.defis, d.situation);
     s.profile.metier = metier;
     s.profile.service = d.service || (metier === 'agence' ? 'site' : 'offre');
     if (trial && !s.sub.trialStart) s.sub.trialStart = Date.now();
+    // Études : une liste « École » à la place de « Travail » (gardée si elle sert déjà)
+    if (SCHOOL(d.situation) && !s.lists.some((l) => l.id === 'ecole')) s.lists = [...s.lists.filter((l) => l.id !== 'travail' || s.tasks.some((t) => t.list === 'travail')), { id: 'ecole', name: 'École', tone: 'olive' }];
     s.onboarded = true;
   });
   // Modèle de CRM du métier, si le CRM est encore vierge
   if (metier && preset(metier) && (first || !S().crm.preset) && !S().prospects.length) applyPreset(metier);
   // Premières tâches proposées (jamais pendant une démonstration)
   if (!wasReplay) {
-    d.defis.slice(0, 3).filter((id) => d.sugg[id]).forEach((id) => addTask({ title: SUGG[id][0], due: startOfDay() + SUGG[id][1] * DAY, list: ['etudes', 'autre'].includes(d.situation) ? 'perso' : 'travail' }));
+    d.defis.slice(0, 3).filter((id) => d.sugg[id]).forEach((id) => addTask({ title: SUGG[id][0], due: startOfDay() + SUGG[id][1] * DAY, list: SCHOOL(d.situation) ? 'ecole' : d.situation === 'autre' ? 'perso' : 'travail' }));
   }
   ob.replay = false; ob.d = null; ob.i = 0; ob.slide = 0;
   try { sessionStorage.setItem('msdev:intro', '1'); } catch (e) { /* rien */ }
@@ -269,7 +278,7 @@ export function notifSheet() {
     </div>`, { cls: 'sheet-sm' });
 }
 
-const readDefis = (f) => DEFIS.map(([id]) => id).filter((id) => f.elements[`d_${id}`]?.checked);
+const readDefis = (f) => defisFor(data().situation).map(([id]) => id).filter((id) => f.elements[`d_${id}`]?.checked);
 register({
   'ob-next': () => go(1),
   'ob-back': () => {
@@ -287,7 +296,7 @@ register({
     const f = el.closest('form');
     const d = data();
     d.defis = readDefis(f);
-    f.querySelector('.ob-mods-l').textContent = modulesFor(d.defis).map((m) => MODULES[m].label).join(' · ');
+    f.querySelector('.ob-mods-l').textContent = modulesFor(d.defis, d.situation).map((m) => MODULES[m].label).join(' · ');
     f.querySelector('.ob-metier').hidden = !(d.defis.includes('clients') || d.defis.includes('trouver'));
     f.querySelector('.ob-svc').hidden = !d.defis.includes('trouver');
     f.querySelector('.ob-need').hidden = d.defis.length > 0;

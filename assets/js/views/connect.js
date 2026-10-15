@@ -157,8 +157,8 @@ register({
       n++;
     }
     el.value = '';
-    if (n) toast(stop ? `${n} page${n > 1 ? 's' : ''} importée${n > 1 ? 's' : ''} : la version gratuite s'arrête à 10 pages.` : `${n} page${n > 1 ? 's' : ''} importée${n > 1 ? 's' : ''} dans Notes.`, { title: 'Import Notion', action: 'Voir', onAction: () => { location.hash = '#/notes'; } });
-    else toast(stop ? 'La version gratuite garde 10 pages : passez à Pro pour en importer davantage.' : 'Aucun fichier .md lisible.', { title: 'Import Notion' });
+    if (n) toast(stop ? `${n} page${n > 1 ? 's' : ''} importée${n > 1 ? 's' : ''} : la version gratuite s'arrête à 5 pages.` : `${n} page${n > 1 ? 's' : ''} importée${n > 1 ? 's' : ''} dans Notes.`, { title: 'Import Notion', action: 'Voir', onAction: () => { location.hash = '#/notes'; } });
+    else toast(stop ? 'La version gratuite garde 5 pages : passez à Pro pour en importer davantage.' : 'Aucun fichier .md lisible.', { title: 'Import Notion' });
   },
 }, {
   link: (d, f) => {

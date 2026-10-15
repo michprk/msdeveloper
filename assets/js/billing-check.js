@@ -25,7 +25,7 @@ const SCENARIOS = [
     subscribe('pro');
     const b = S().sub;
     c('Statut actif, accès Pro', billing() === 'active' && access() === 'pro');
-    c('Un paiement de 17,99 €', paid().length === 1 && near(paid()[0].amount, 17.99));
+    c('Un paiement de 11,99 €', paid().length === 1 && near(paid()[0].amount, 11.99));
     c('Prochain prélèvement un mois plus tard', b.periodEnd === addMonth(b.periodStart));
     c('Reçu avec une référence', /^MSD-/.test(paid()[0].id));
   }],
@@ -34,8 +34,8 @@ const SCENARIOS = [
     subscribe('pro');
     simulateDays('next'); simulateDays('next'); simulateDays('next');
     const total = paid().reduce((n, h) => n + h.amount, 0);
-    c('Quatre paiements de 17,99 € en quatre mois', paid().length === 4 && paid().every((h) => near(h.amount, 17.99)));
-    c(`Total encaissé : ${eur(4 * 17.99)}`, near(total, 4 * 17.99));
+    c('Quatre paiements de 11,99 € en quatre mois', paid().length === 4 && paid().every((h) => near(h.amount, 11.99)));
+    c(`Total encaissé : ${eur(4 * 11.99)}`, near(total, 4 * 11.99));
     c('Toujours actif, période suivante calculée', billing() === 'active' && S().sub.periodEnd === addMonth(S().sub.periodStart));
   }],
   ['Passage à Premium en cours de mois (au prorata)', (c) => {
@@ -45,9 +45,9 @@ const SCENARIOS = [
     const due = prorata('premium');
     changePlan('premium');
     c('Accès Premium tout de suite', access() === 'premium');
-    c(`Seulement la différence pour les jours restants (${eur(due)})`, near(paid()[0].amount, due) && due > 5 && due < 9);
+    c(`Seulement la différence pour les jours restants (${eur(due)})`, near(paid()[0].amount, due) && due > 4 && due < 6);
     simulateDays('next');
-    c('Le mois suivant : 31,99 €', near(paid()[0].amount, 31.99));
+    c('Le mois suivant : 21,99 €', near(paid()[0].amount, 21.99));
   }],
   ['Passage à Pro à la fin de la période', (c) => {
     set();
@@ -56,7 +56,7 @@ const SCENARIOS = [
     c('Premium gardé jusqu\'à la fin du mois payé', access() === 'premium' && S().sub.pending === 'pro');
     c('Aucun paiement en plus', paid().length === 1);
     simulateDays('next');
-    c('Ensuite Pro, prélevé 17,99 €', access() === 'pro' && near(paid()[0].amount, 17.99));
+    c('Ensuite Pro, prélevé 11,99 €', access() === 'pro' && near(paid()[0].amount, 11.99));
   }],
   ['Annuler un changement prévu', (c) => {
     set();
@@ -65,7 +65,7 @@ const SCENARIOS = [
     changePlan('premium');
     c('Plus aucun changement prévu', S().sub.pending === null);
     simulateDays('next');
-    c('Premium renouvelé à 31,99 €', access() === 'premium' && near(paid()[0].amount, 31.99));
+    c('Premium renouvelé à 21,99 €', access() === 'premium' && near(paid()[0].amount, 21.99));
   }],
   ['Résiliation', (c) => {
     set();
@@ -106,11 +106,11 @@ const SCENARIOS = [
   }],
   ['Fonctions selon la formule', (c) => {
     set({ trialStart: Date.now() - 30 * DAY });
-    c('Gratuit : CRM et devis verrouillés', !can('crm') && !can('quote'));
+    c('Gratuit : CRM, devis, emploi du temps et pages illimitées verrouillés', !can('crm') && !can('quote') && !can('timetable') && !can('notesUnlimited'));
     subscribe('pro');
-    c('Pro : CRM et devis ouverts, statistiques verrouillées', can('crm') && can('quote') && !can('stats'));
+    c('Pro : CRM, devis, emploi du temps et tableaux blancs ouverts ; planificateur verrouillé', can('crm') && can('quote') && can('timetable') && can('boardsUnlimited') && !can('planner') && !can('stats'));
     changePlan('premium');
-    c('Premium : tout est ouvert', can('stats') && can('export'));
+    c('Premium : tout est ouvert, y compris planificateur et révision espacée', can('stats') && can('export') && can('planner') && can('spaced'));
   }],
   ['Dates d\'échéance (mois courts, années bissextiles)', (c) => {
     const d = (y, m, day, h = 10) => new Date(y, m, day, h).getTime();

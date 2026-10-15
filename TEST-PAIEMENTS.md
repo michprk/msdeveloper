@@ -9,10 +9,10 @@ Abonnement → **Vérifier les paiements** → « Lancer la vérification ». En
 | Situation | Ce qui est vérifié |
 |---|---|
 | Essai de 7 jours | Toutes les fonctions, rien de prélevé, retour au gratuit à la fin |
-| Souscription Pro | Actif, 17,99 €, échéance un mois plus tard, reçu |
-| Renouvellements | 4 × 17,99 € en 4 mois, total exact |
-| Passage à Premium en cours de mois | Accès immédiat, seulement la différence au prorata, 31,99 € le mois suivant |
-| Passage à Pro en fin de période | Premium gardé jusqu'à l'échéance, aucun paiement en plus, puis 17,99 € |
+| Souscription Pro | Actif, 11,99 €, échéance un mois plus tard, reçu |
+| Renouvellements | 4 × 11,99 € en 4 mois, total exact |
+| Passage à Premium en cours de mois | Accès immédiat, seulement la différence au prorata, 21,99 € le mois suivant |
+| Passage à Pro en fin de période | Premium gardé jusqu'à l'échéance, aucun paiement en plus, puis 11,99 € |
 | Changement prévu annulé | Plus de changement, Premium renouvelé |
 | Résiliation | Accès gardé jusqu'à la fin du mois, puis gratuit, aucun prélèvement |
 | Reprise | Renouvelé normalement |
@@ -35,7 +35,7 @@ Cartes de test officielles de Stripe (n'importe quelle date future, n'importe qu
 | `4000 0000 0000 9995` | Refus immédiat (fonds insuffisants) |
 
 Pour voir des renouvellements sans attendre un mois, deux possibilités en mode test :
-- **La plus simple** : créer deux prix de test « tous les jours » (Pro 17,99 €/jour, Premium 31,99 €/jour) et les mettre dans `STRIPE_PRICE_PRO` / `STRIPE_PRICE_PREMIUM` le temps des tests. Les renouvellements arrivent chaque jour. Remettre les prix mensuels ensuite.
+- **La plus simple** : créer deux prix de test « tous les jours » (Pro 11,99 €/jour, Premium 21,99 €/jour) et les mettre dans `STRIPE_PRICE_PRO` / `STRIPE_PRICE_PREMIUM` le temps des tests. Les renouvellements arrivent chaque jour. Remettre les prix mensuels ensuite.
 - **Horloges de test** Stripe : créer un client sur une horloge de test (Billing → Horloges de test), copier son identifiant `cus_…` dans `profiles.stripe_customer_id` du compte de test (Table Editor), puis payer depuis l'application et « Avancer le temps » d'un mois.
 
 Pour chaque ligne, regarder **trois endroits** : le tableau de bord Stripe, la table `subscriptions` (Supabase → Table Editor) et l'écran Abonnement de l'application (« Mettre à jour mon abonnement » dans Compte si besoin).
@@ -43,11 +43,11 @@ Pour chaque ligne, regarder **trois endroits** : le tableau de bord Stripe, la t
 | # | Action | Stripe | Base | Application |
 |---|---|---|---|---|
 | 1 | Créer un compte (e-mail + code) | — | une ligne dans `profiles` | « Connecté » dans Compte |
-| 2 | Choisir Pro, carte 4242 | abonnement `active`, facture 17,99 € payée | `plan = pro`, `status = active`, `first_paid_at` rempli | « Paiement confirmé », CRM ouvert |
+| 2 | Choisir Pro, carte 4242 | abonnement `active`, facture 11,99 € payée | `plan = pro`, `status = active`, `first_paid_at` rempli | « Paiement confirmé », CRM ouvert |
 | 3 | Revenir sans payer (bouton retour de Stripe) | rien | rien | « Paiement annulé, rien n'a été prélevé » |
 | 4 | Gérer → passer à Premium | facture au prorata | `plan = premium` | Premium ouvert tout de suite |
 | 5 | Gérer → repasser à Pro | changement prévu à l'échéance | `plan = premium` jusqu'à l'échéance | Premium jusqu'à la date |
-| 6 | Attendre le renouvellement (prix journalier ou horloge) | facture 17,99 € payée | `plan = pro`, nouvelle échéance | Pro, nouvelle date |
+| 6 | Attendre le renouvellement (prix journalier ou horloge) | facture 11,99 € payée | `plan = pro`, nouvelle échéance | Pro, nouvelle date |
 | 7 | Gérer → résilier | `cancel_at_period_end = true` | idem | « Résilié, accès jusqu'au … » |
 | 8 | Gérer → reprendre | `cancel_at_period_end = false` | idem | « Actif » |
 | 9 | Gérer → remplacer la carte par 0341, attendre le renouvellement | `past_due`, relances | `status = past_due` | « Paiement refusé », accès gardé |

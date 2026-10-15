@@ -7,27 +7,35 @@ export const TRIAL_DAYS = 7;
 
 export const PLANS = {
   free: { id: 'free', name: 'Gratuit', price: 0 },
-  pro: { id: 'pro', name: 'Pro', price: 17.99 },
-  premium: { id: 'premium', name: 'Premium', price: 31.99 },
+  pro: { id: 'pro', name: 'Pro', price: 11.99 },
+  premium: { id: 'premium', name: 'Premium', price: 21.99 },
 };
 export const RANK = { free: 0, pro: 1, premium: 2 };
 // Fonction → formule minimale. L'essai gratuit donne accès à tout (Premium).
-// Tâches, agenda, notes (10 pages) et quiz intégrés restent gratuits.
+// Gratuit : tâches, calendrier (mois), 1 projet, 5 pages, 1 tableau blanc, quiz intégrés, examens.
 export const FEATURES = {
-  crm: 'pro', notesUnlimited: 'pro', myQuiz: 'pro', scriptsAll: 'pro', callMode: 'pro', projectsUnlimited: 'pro', quote: 'pro', academy: 'pro',
-  messages: 'pro', audit: 'pro', import: 'pro',
+  // Pro : tout l'outil d'organisation, les études et l'entrepreneuriat
+  notesUnlimited: 'pro', projectsUnlimited: 'pro', boardsUnlimited: 'pro', notesDraw: 'pro', calendarFull: 'pro', connectors: 'pro', myQuiz: 'pro',
+  timetable: 'pro', grades: 'pro', focus: 'pro',
+  crm: 'pro', quote: 'pro', scriptsAll: 'pro', callMode: 'pro', academy: 'pro', messages: 'pro', audit: 'pro', import: 'pro',
+  // Premium : ce qui fait gagner des heures
+  planner: 'premium', spaced: 'premium', focusStats: 'premium', exportsPro: 'premium',
   myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium',
 };
-export const LIMITS = { freePages: 10, freeProjects: 3 };
+export const LIMITS = { freePages: 5, freeProjects: 1, freeBoards: 1 };
 
 // Modules : chacun choisit ce qu'il utilise (accueil, puis Compte → Modules).
+// Une personne qui ne fait que des études ne voit rien de l'entrepreneuriat (clients, scripts, appels).
 export const MODULES = {
-  organiser: { label: 'M\'organiser', desc: 'Tâches, agenda et notes en pages', icon: 'checkSquare', tone: 'blue' },
-  clients: { label: 'Suivre mes clients', desc: 'Un CRM adapté à votre métier', icon: 'users', tone: 'olive' },
-  prospecter: { label: 'Trouver des clients', desc: 'Scripts d\'appel et mode appel', icon: 'phone', tone: 'sky' },
+  organiser: { label: 'M\'organiser', desc: 'Tâches, calendrier, notes et tableau blanc', icon: 'checkSquare', tone: 'blue' },
+  etudes: { label: 'Mes études', desc: 'Emploi du temps, examens, moyennes, révisions', icon: 'book', tone: 'sky' },
+  clients: { label: 'Suivre mes clients', desc: 'Un CRM adapté à votre métier, devis', icon: 'users', tone: 'olive' },
+  prospecter: { label: 'Trouver des clients', desc: 'Scripts d\'appel et mode appel', icon: 'phone', tone: 'sand' },
   apprendre: { label: 'Apprendre et progresser', desc: 'Quiz et guides pratiques', icon: 'quiz', tone: 'navy' },
 };
 export const MODULE_IDS = Object.keys(MODULES);
+// Études seulement : aucune trace d'entrepreneuriat (clients, scripts, appels, académie commerciale)
+export const schoolOnly = () => on('etudes') && !on('clients') && !on('prospecter');
 
 // Étapes de base (utilisées par le mode appel). L'utilisateur peut les renommer
 // et ajouter ses propres étapes (CRM personnalisé) : voir computeStages().
@@ -87,6 +95,10 @@ const defaults = () => ({
   lock: null, baseline: null,
   lists: [{ id: 'perso', name: 'Personnel', tone: 'sky' }, { id: 'travail', name: 'Travail', tone: 'olive' }],
   pages: [], quiz: { results: {}, mine: [], days: [] }, quotes: [], notifSeen: {},
+  // Études : matières, emploi du temps, examens, notes (bulletin), révision espacée, concentration
+  subjects: [], courses: [], exams: [], grades: [], srs: {}, focus: { sessions: [], work: 25, pause: 5 }, studyGoal: 14,
+  // Tableaux blancs (dessin, formes, textes, graphiques)
+  boards: [],
   prospects: [], activities: [], tasks: [], projects: [],
   favorites: [], recent: [], myScripts: [], mySectors: [], training: {},
   catalogue: [
@@ -123,6 +135,10 @@ function sanitize(s) {
   if (!Array.isArray(s.profile.usages) || !s.profile.usages.length) s.profile.usages = [...MODULE_IDS];
   if (!Array.isArray(s.sub.history)) s.sub.history = [];
   if (!Array.isArray(s.quotes)) s.quotes = [];
+  for (const k of ['subjects', 'courses', 'exams', 'grades', 'boards']) if (!Array.isArray(s[k])) s[k] = [];
+  if (!s.srs || typeof s.srs !== 'object' || Array.isArray(s.srs)) s.srs = {};
+  if (!Array.isArray(s.focus?.sessions)) s.focus = { work: 25, pause: 5, ...(s.focus || {}), sessions: [] };
+  s.exams.forEach((x) => { x.date = n(x.date); });
   // Liens externes : seulement http(s), jamais javascript: ou data: (même depuis une sauvegarde importée)
   const safeLinks = (x) => { x.links = Array.isArray(x.links) ? x.links.filter((l) => l && typeof l.url === 'string' && /^https?:\/\//i.test(l.url)) : []; };
   s.projects.forEach(safeLinks); s.prospects.forEach(safeLinks);
@@ -523,6 +539,7 @@ export function pageFamily(id, list = state.pages) {
   return out;
 }
 export const canAddPage = () => can('notesUnlimited') || state.pages.length < LIMITS.freePages;
+export const canAddBoard = () => can('boardsUnlimited') || state.boards.length < LIMITS.freeBoards;
 
 // ---------- Quiz ----------
 // partial : partie limitée aux erreurs précédentes — le meilleur score n'est pas touché.

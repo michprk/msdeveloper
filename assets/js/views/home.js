@@ -6,7 +6,6 @@ import { ic, esc, num, dateLong, when, ring, bar, avatar, ago, register, toast, 
 import { logoMark } from '../icons.js';
 import { trialStrip } from './common.js';
 import { clearDemo } from '../data/demo.js';
-import { cluster } from './flowers.js';
 import { taskRow, quickAdd } from './tasks.js';
 import { dailyQuiz } from './quiz.js';
 import { kpiCard, metricIds, hasData, withSample } from './overview.js';
@@ -68,7 +67,7 @@ export function home() {
     <header class="ph ph-home">
       <p class="ph-k">${dateLong()}</p>
       <h1 class="ph-t">Bonjour${p.prenom ? ' ' + esc(p.prenom) : ''}</h1>
-      ${cluster('home-cl')}
+
     </header>
     ${trialStrip()}
     ${hasDemo ? `<div class="note-demo rise">${ic('note')}<span><b>Données de démonstration.</b> Les fiches, tâches et pages marquées « exemple » sont fictives.</span><button class="link" data-act="clear-demo">Effacer</button></div>` : ''}

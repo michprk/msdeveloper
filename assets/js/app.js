@@ -1,5 +1,5 @@
 // MindView — démarrage, coquille, routeur, navigation par modules, événements délégués.
-import { S, onChange, access, billing, trialLeft, PLANS, on, syncBilling, dayKey } from './store.js';
+import { S, onChange, access, billing, trialLeft, PLANS, on, schoolOnly, syncBilling, dayKey } from './store.js';
 import { ic, logoMark } from './icons.js';
 import { actions, forms, esc, toast, avatar, validateForm, fieldError, setFieldError, refreshNeeds, saveDraft } from './ui.js';
 import { home } from './views/home.js';
@@ -12,6 +12,7 @@ import { quotesView, quoteView } from './views/quotes.js';
 import { notificationsView, unreadCount } from './views/notifications.js';
 import { connectorsView } from './views/connect.js';
 import { privacyView } from './views/privacy.js';
+import { studiesView, timetableView, examsView, gradesView, revisionView, focusView } from './views/studies.js';
 import { tasksView } from './views/tasks.js';
 import { notesHome, noteView } from './views/notes.js';
 import { quizHome, quizPlay, quizCards, quizEdit } from './views/quiz.js';
@@ -52,6 +53,12 @@ const ROUTES = [
   [/^notifications$/, notificationsView],
   [/^connecteurs$/, connectorsView],
   [/^confidentialite$/, privacyView],
+  [/^etudes$/, studiesView],
+  [/^etudes\/emploi$/, timetableView],
+  [/^etudes\/examens$/, examsView],
+  [/^etudes\/moyennes$/, gradesView],
+  [/^etudes\/revision$/, revisionView],
+  [/^concentration$/, focusView],
   [/^outils$/, hub],
   [/^outils\/devis$/, quotesView],
   [/^outils\/messages$/, messages],
@@ -74,6 +81,7 @@ const ROUTES = [
 const noun = () => S().crm.noun || 'Clients';
 const TAB_DEFS = [
   ['taches', 'Tâches', 'checkSquare', '#/taches', 'organiser'],
+  ['etudes', 'Études', 'book', '#/etudes', 'etudes'],
   ['crm', noun, 'users', '#/crm', 'clients'],
   ['notes', 'Notes', 'page', '#/notes', 'organiser'],
   ['scripts', 'Scripts', 'script', '#/scripts', 'prospecter'],
@@ -83,7 +91,7 @@ const TAB_DEFS = [
 ];
 const label = (l) => (typeof l === 'function' ? l() : l);
 function tabs() {
-  const mid = TAB_DEFS.filter((t) => on(t[4])).slice(0, 3);
+  const mid = TAB_DEFS.filter((t) => on(t[4]) && !(t[0] === 'academie' && schoolOnly())).slice(0, 3);
   return [['accueil', 'Aujourd\'hui', 'home', '#/'], ...mid, ['plus', 'Plus', 'grid', '#/plus']];
 }
 function side() {
@@ -91,14 +99,20 @@ function side() {
   const favs = s.pages.filter((p) => p.fav).slice(0, 5);
   return [
     [null, [['accueil', 'Aujourd\'hui', 'home', '#/'], ['apercu', 'Vue d\'ensemble', 'chart', '#/apercu'], ['notifications', 'Notifications', 'bell', '#/notifications', '', unreadCount()]]],
-    on('organiser') ? ['S\'organiser', [['taches', 'Tâches', 'checkSquare', '#/taches'], ['projets', 'Projets', 'folder', '#/projets'], ['agenda', 'Agenda', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ...favs.map((p) => [`note:${p.id}`, p.title || 'Sans titre', p.icon || 'page', `#/note/${p.id}`, 'sub'])]]
+    on('organiser') ? ['S\'organiser', [['taches', 'Tâches', 'checkSquare', '#/taches'], ['projets', 'Projets', 'folder', '#/projets'], ['agenda', 'Calendrier', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ['tableaux', 'Tableau blanc', 'compose', '#/tableaux'], ...favs.map((p) => [`note:${p.id}`, p.title || 'Sans titre', p.icon || 'page', `#/note/${p.id}`, 'sub'])]]
       : ['Projets', [['projets', 'Projets', 'folder', '#/projets']]],
+    on('etudes') && ['Études', [['etudes', 'Mes études', 'book', '#/etudes'], ['emploi', 'Emploi du temps', 'calendar', '#/etudes/emploi'], ['examens', 'Examens', 'target', '#/etudes/examens'], ['moyennes', 'Moyennes', 'award', '#/etudes/moyennes'], ['revision', 'Révision espacée', 'cards', '#/etudes/revision'], ['concentration', 'Concentration', 'hourglass', '#/concentration']]],
     on('clients') && ['Clients', [['crm', noun(), 'users', '#/crm'], ['devis', 'Devis', 'invoice', '#/devis'], ['stats', 'Statistiques', 'chart', '#/outils/stats']]],
     on('prospecter') && ['Prospecter', [['scripts', 'Scripts', 'script', '#/scripts'], ['appel', 'Session d\'appels', 'headset', '#/appel'], ['outils', 'Outils', 'briefcase', '#/outils']]],
-    on('apprendre') && ['Progresser', [['quiz', 'Quiz', 'quiz', '#/quiz'], ['academie', 'Académie', 'book', '#/academie']]],
+    on('apprendre') && ['Progresser', [['quiz', 'Quiz', 'quiz', '#/quiz'], ...(schoolOnly() ? [] : [['academie', 'Académie', 'book', '#/academie']])]],
+    ['Connecteurs', [['connecteurs', 'Tous les connecteurs', 'plug', '#/connecteurs'], ['cx-notion', 'Notion', 'page', '#/connecteurs?c=notion'], ['cx-figma', 'Figma', 'compose', '#/connecteurs?c=figma'], ['cx-canva', 'Canva', 'layers', '#/connecteurs?c=canva'], ['cx-google', 'Google', 'globe', '#/connecteurs?c=google'], ['cx-agenda', 'Agendas', 'calendar', '#/connecteurs?c=agenda']]],
   ].filter(Boolean);
 }
-function navFor(path) {
+function navFor(path, q = {}) {
+  const STUDY = { etudes: 'etudes', 'etudes/emploi': 'emploi', 'etudes/examens': 'examens', 'etudes/moyennes': 'moyennes', 'etudes/revision': 'revision', concentration: 'concentration' };
+  if (STUDY[path]) return STUDY[path];
+  if (path === 'connecteurs') return q.c ? `cx-${q.c}` : 'connecteurs';
+  if (path.startsWith('tableau')) return 'tableaux';
   if (!path || path === 'accueil') return 'accueil';
   if (path === 'taches') return 'taches';
   if (path === 'agenda') return 'agenda';
@@ -183,9 +197,9 @@ function render({ keepScroll = false } = {}) {
   view.classList.toggle('view-in', changed);
   if (changed) { void view.offsetWidth; view.classList.add('view-anim'); setTimeout(() => view.classList.remove('view-anim'), 600); }
   drawNav();
-  const navId = navFor(path);
+  const navId = navFor(path, query);
   const tabIds = tabs().map((t) => t[0]);
-  const tabId = tabIds.includes(navId) ? navId : navId === 'agenda' && tabIds.includes('taches') ? 'taches' : navId.startsWith('note:') && tabIds.includes('notes') ? 'notes' : navId === 'accueil' ? 'accueil' : 'plus';
+  const tabId = tabIds.includes(navId) ? navId : ['emploi', 'examens', 'moyennes', 'revision', 'concentration'].includes(navId) && tabIds.includes('etudes') ? 'etudes' : navId === 'agenda' && tabIds.includes('taches') ? 'taches' : navId.startsWith('note:') && tabIds.includes('notes') ? 'notes' : navId === 'accueil' ? 'accueil' : 'plus';
   document.querySelectorAll('[data-nav]').forEach((a) => {
     const isOn = a.classList.contains('tab') ? a.dataset.nav === tabId : a.dataset.nav === navId || (navId.startsWith('note:') && a.dataset.nav === 'notes' && !document.querySelector(`.side [data-nav="${navId}"]`));
     a.classList.toggle('is-on', isOn);

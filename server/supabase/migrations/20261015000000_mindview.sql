@@ -82,7 +82,7 @@ revoke all on public.kpis_par_semaine from anon, authenticated;
 -- Vue d'ensemble : abonnés actifs et revenu mensuel récurrent (prix TTC affichés dans l'app)
 create or replace view public.abonnes_actifs with (security_invoker = true) as
 select plan, count(*) as abonnes,
-  round(count(*) * case plan when 'pro' then 17.99 when 'premium' then 31.99 else 0 end, 2) as revenu_mensuel_eur
+  round(count(*) * case plan when 'pro' then 11.99 when 'premium' then 21.99 else 0 end, 2) as revenu_mensuel_eur
 from public.subscriptions
 where status in ('active', 'trialing', 'past_due')
 group by plan;
