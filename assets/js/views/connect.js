@@ -230,11 +230,23 @@ async function unzip(buf) {
   }
   return out;
 }
+// Taille maximale décompressée par fichier : un .zip piégé ne peut pas saturer la mémoire
+const MAX_OUT = 25e6;
 async function inflate(e) {
   if (e.method === 0) return e.data;
   if (e.method !== 8 || typeof DecompressionStream === 'undefined') throw new Error('deflate');
-  const stream = new Blob([e.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = new Blob([e.data]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+  const chunks = []; let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.length;
+    if (n > MAX_OUT) { await reader.cancel(); throw new Error('trop-gros'); }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(n); let o = 0;
+  for (const c of chunks) { out.set(c, o); o += c.length; }
+  return out;
 }
 let CRC = null;
 function crc32(b) {
@@ -273,11 +285,12 @@ async function importNotionFiles(files) {
   for (const f of files) {
     if (stop) break;
     if (/\.zip$/i.test(f.name)) {
-      const queue = [await f.arrayBuffer()];
+      if (f.size > 2e8) { skipped++; continue; }
+      const queue = [await f.arrayBuffer()]; let nested = 0;
       while (queue.length && !stop) {
         for (const e of await unzip(queue.shift())) {
           if (stop) break;
-          if (/\.zip$/i.test(e.name)) { const d = await inflate(e); queue.push(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength)); }
+          if (/\.zip$/i.test(e.name)) { if (++nested > 40) { skipped++; continue; } const d = await inflate(e); queue.push(d.buffer.slice(d.byteOffset, d.byteOffset + d.byteLength)); }
           else if (/\.(md|markdown)$/i.test(e.name)) addMd(new TextDecoder().decode(await inflate(e)), e.name);
           else skipped++;
         }

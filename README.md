@@ -18,6 +18,17 @@
 
 **Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche appartient à un projet, une page de notes à une fiche, un devis accepté transforme le prospect en client et crée son projet : rien à recopier d'un outil à l'autre.
 
+## Nouveautés 1.6 (15/10/2026)
+
+- **Logo MindView** : un cerveau bleu clair avec deux yeux, dont un doré, qui cligne, regarde autour et lève un sourcil (écran de démarrage, barre latérale, icônes de l'application). Les animations suivent le réglage « Mouvement ».
+- **Mes études** (nouveau module) : matières, emploi du temps de la semaine, examens avec compte à rebours et projet de révision, moyennes avec coefficients et « note nécessaire », révision espacée (chaque carte revient au bon moment), mode concentration (minuteur Pomodoro, statistiques), planificateur de révisions automatique. Quand l'application sert seulement à l'école, les scripts, sessions d'appels, prospects, clients, devis et l'Académie disparaissent ; l'accueil, la vue d'ensemble, les exemples et la démonstration parlent d'études.
+- **Calendrier** (S'organiser) : vues mois, semaine, jour et liste, grands blocs lisibles ; tâches, examens, échéances de projets et cours au même endroit ; glisser-déposer pour déplacer une tâche (Pro).
+- **Tableau blanc** (S'organiser, `#/tableaux`) : stylo, surligneur, soulignement rouge, gomme, traits, flèches, carrés, cercles, textes mis en forme, post-it, bulles, cases à cocher, coches, graphiques (barres, courbe, camembert) et frises d'évolution. Zoom, sélection multiple, annuler / refaire, six modèles, export en image.
+- **Éditeur de notes** comme un traitement de texte, dans tous les modèles : gras, italique, souligné, barré, couleur du texte, surligneur, polices, tailles, soulignement rouge, encadrés, alignement, et dessin directement sur la page (mêmes outils que le tableau blanc).
+- **Connecteurs** dans la barre latérale : Notion (import et export .zip), Figma, Canva, Miro, Google Docs / Sheets / Slides, Drive, YouTube, Loom, GitHub, Trello (import JSON), Quizlet et Anki (import de cartes), agendas (.ics dans les deux sens), Excel / CSV (import et export des tâches).
+- **Se connecter / se déconnecter** dans la barre latérale et le Compte. Tant que les comptes en ligne sont éteints, le bouton l'explique et propose le code de verrouillage et la sauvegarde.
+- **Prix** : Pro 11,99 €, Premium 21,99 €. Les fleurs bleues ne restent que sur l'Abonnement (grande fleur sur Premium).
+
 ## Nouveautés 1.5 (15/10/2026)
 
 - **Nouveau nom : MindView**, monogramme MV (M crème, V bleu clair, Fraunces), même direction artistique bleu nuit, bleu clair, olive et crème. L'adresse et le dépôt `msdeveloper` ne changent pas encore, pour ne pas casser les applications déjà installées ; les données (`msdev:v1`) sont conservées.
@@ -42,7 +53,8 @@
 
 | Module | Contenu |
 |---|---|
-| M'organiser | Tâches (saisie en langage courant, listes, priorités, sous-tâches, tableau, agenda), Notes (pages, sous-pages, blocs, modèles, favoris) |
+| M'organiser | Tâches (saisie en langage courant, listes, priorités, sous-tâches, tableau), Projets, Calendrier, Notes (pages, sous-pages, éditeur mis en forme, dessin, modèles, favoris), Tableau blanc |
+| Mes études | Matières, emploi du temps, examens, moyennes, révision espacée, concentration, planificateur de révisions |
 | Suivre mes clients | CRM : pipeline, fiches, champs, équipe, étiquettes, dix modèles par métier, pages liées, projets, devis, statistiques |
 | Trouver des clients | 934 scripts (23 secteurs × 4 services × 10 formats + 14 situations), dont « Votre offre » pour tous les métiers ; mode appel, audit, import, entraînement |
 | Apprendre et progresser | 9 quiz (90 questions expliquées), quiz du jour, révision des notes en cartes, vos propres quiz, Académie (17 guides) |
@@ -76,12 +88,19 @@
 
 | | Gratuit | Pro 11,99 €/mois | Premium 21,99 €/mois |
 |---|---|---|---|
-| Tâches, listes, tableau, agenda | ✓ | ✓ | ✓ |
-| Projets reliés aux tâches | 3 en cours | Illimités | Illimités |
-| Notifications, recherche, connecteurs | ✓ | ✓ | ✓ |
-| Notes en pages | 10 pages | Illimitées | Illimitées |
-| Quiz intégrés, révision des notes | ✓ | ✓ | ✓ |
+| Tâches, listes, tableau, rappels | ✓ | ✓ | ✓ |
+| Calendrier | Mois | Mois, semaine, jour, glisser-déposer | Mois, semaine, jour, glisser-déposer |
+| Projets reliés aux tâches | 1 | Illimités | Illimités |
+| Notes en pages | 5 pages | Illimitées | Illimitées |
+| Éditeur complet (polices, couleurs, surligneur, encadrés, dessin) | Gras, italique, souligné | ✓ | ✓ |
+| Tableau blanc | 1 tableau | Illimités | Illimités + export PNG |
+| Connecteurs | Liens | Imports et aperçus | Imports et aperçus |
+| Notifications, recherche | ✓ | ✓ | ✓ |
+| Quiz intégrés, quiz du jour, révision des notes | ✓ | ✓ | ✓ |
 | Vos propres quiz | — | ✓ | ✓ |
+| Examens et compte à rebours | ✓ | ✓ | ✓ |
+| Emploi du temps, moyennes, concentration | — | ✓ | ✓ |
+| Planificateur de révisions, révision espacée, statistiques de concentration | — | — | ✓ |
 | CRM personnalisé | — | ✓ | ✓ |
 | Devis suivis, PDF, prospect → client | — | ✓ | ✓ |
 | Scripts d'appel à froid | ✓ | ✓ | ✓ |
@@ -114,7 +133,12 @@ assets/js/views/search.js recherche globale (avec filtres) et feuille « Créer 
 assets/js/views/projects.js projets et progression
 assets/js/views/quotes.js devis (brouillon → envoyé → accepté / refusé)
 assets/js/views/notifications.js centre de notifications
-assets/js/views/connect.js connecteurs, liens, import Notion, export .ics
+assets/js/views/connect.js connecteurs : liens, aperçus, Notion (.zip), agendas (.ics), CSV, Trello, Quizlet, Anki
+assets/js/views/studies.js études : matières, emploi du temps, examens, moyennes, révision espacée, concentration
+assets/js/views/agenda.js calendrier (mois, semaine, jour, liste, glisser-déposer)
+assets/js/views/boards.js tableaux blancs et modèles
+assets/js/draw.js         moteur de dessin partagé (tableau blanc et dessin sur les pages)
+assets/js/rich.js         texte mis en forme des notes : nettoyage du HTML par liste blanche
 assets/js/views/privacy.js confidentialité et RGPD
 assets/js/data/           secteurs, scripts, quiz, modèles de pages, modèles de CRM, guides
 ```

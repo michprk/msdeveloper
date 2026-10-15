@@ -1,6 +1,6 @@
 # Sécurité — MindView
 
-## Où on en est (version 1.5, 15 octobre 2026)
+## Où on en est (version 1.6, 15 octobre 2026)
 
 L'application n'a **ni serveur, ni base de données, ni compte en ligne**. Tout est enregistré dans le navigateur de l'appareil (localStorage) : tâches, pages de notes, fiches, quiz, réglages. C'est volontaire pour la première version, et c'est dit clairement dans l'application (Compte, Abonnement, accueil).
 
@@ -12,7 +12,7 @@ Ce qui est en place :
 |---|---|
 | Données d'un utilisateur visibles par un autre | Impossible : rien ne quitte l'appareil. |
 | Clés privées ou secrets dans le code | Aucun. Aucun service tiers appelé. |
-| Injection de code (XSS) | Toutes les saisies sont échappées à l'affichage ; politique CSP stricte (`script-src 'self'`). Testé avec une fiche au nom piégé (`<img onerror>`, `<script>`) sur 7 écrans : rien ne s'exécute. Les pages de notes sont éditées dans des champs texte (jamais de HTML enregistré) et réaffichées échappées. |
+| Injection de code (XSS) | Toutes les saisies sont échappées à l'affichage ; politique CSP stricte (`script-src 'self'`). Testé avec une fiche au nom piégé (`<img onerror>`, `<script>`) sur 7 écrans : rien ne s'exécute. Depuis la 1.6, le texte mis en forme des notes est enregistré en HTML **nettoyé par liste blanche** (`assets/js/rich.js` : gras, italique, souligné, barré, couleurs, surlignage, police, taille ; aucun attribut d'événement, aucun lien, aucune image), à l'enregistrement **et** à chaque affichage, donc aussi pour une sauvegarde importée. Testé avec `<script>` et `<img onerror>` collés dans une page : rien ne s'exécute. |
 | Retour en arrière sans perte | Les pages s'enregistrent à chaque frappe ; les formulaires de nouvelle tâche et de nouvelle fiche gardent un brouillon si on ferme ou change d'écran. Suppression de tâche, de page ou de bloc : bouton « Annuler ». |
 | Mise à jour du format | Les données de la version 1.2 sont migrées automatiquement (schéma v2), sans perte : testé avec un état v1 complet (fiches, étapes, champs, équipe, tâches). |
 | Liens externes | Ouverts dans un nouvel onglet avec `rel="noopener"`. |
@@ -27,6 +27,9 @@ Ce qui est en place :
 | Import Notion (1.4) | Les fichiers .md sont lus sur l'appareil et convertis en blocs de texte : aucun HTML n'est conservé. |
 | Passage à Stripe (1.5, éteint) | Clés secrètes uniquement dans les variables d'environnement Supabase. L'application lit son abonnement (RLS : `auth.uid() = user_id`), seul le webhook l'écrit, après vérification de la signature Stripe ; aucune règle d'écriture pour les comptes. Fonctions protégées par le jeton de session, CORS limité à l'adresse de l'app. Suppression du compte : abonnement arrêté puis compte effacé côté serveur. Code client testé contre un serveur simulé ; code serveur à tester avec la liste de TEST-PAIEMENTS.md. |
 | Mesures (1.5) | Deux événements sans contenu, seulement avec un compte, désactivables ; l'application ne peut que les ajouter, jamais les lire. |
+| Tableau blanc et dessin sur les pages (1.6) | Tout est dessiné en SVG à partir de données vérifiées : couleurs (codes couleur uniquement), nombres, polices et formes sont contrôlés juste avant l'affichage, les textes sont échappés. Une sauvegarde modifiée à la main ne peut rien injecter. |
+| Connecteurs (1.6) | Les fichiers (Notion .zip, .ics, .csv, Trello, Quizlet, Anki) sont lus sur l'appareil : rien n'est envoyé. Le .zip est décompressé par le navigateur, sans bibliothèque externe, avec des plafonds (200 Mo en entrée, 25 Mo décompressés par fichier, 40 archives imbriquées). Aperçus intégrés limités dans la CSP (`frame-src`) à Figma, Canva, Miro, Google Docs, YouTube (sans cookies) et Loom, chargés seulement au clic, dans un `iframe` isolé. |
+| Se connecter / se déconnecter (1.6) | Utilise le compte en ligne de la 1.5 (code par e-mail ; la déconnexion supprime le jeton de session). Tant que les comptes sont éteints, aucun identifiant n'est demandé : le bouton propose le code de verrouillage local et la sauvegarde. |
 | RGPD (1.4) | Page Confidentialité (`#/confidentialite`) : données, stockage, droits, contacts du CRM, tiers. À faire relire, et coordonnées du responsable du traitement à compléter avant le lancement. |
 
 ## Avant la commercialisation (comptes en ligne et paiement)

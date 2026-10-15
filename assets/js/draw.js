@@ -110,8 +110,24 @@ const STAMPS = {
   question: (s, c) => `<circle cx="${s / 2}" cy="${s / 2}" r="${s * 0.46}" fill="${c}"/><text x="${s / 2}" y="${s * 0.68}" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="${s * 0.56}" fill="#ffffff">?</text>`,
   important: (s, c) => `<circle cx="${s / 2}" cy="${s / 2}" r="${s * 0.46}" fill="${c}"/><text x="${s / 2}" y="${s * 0.7}" text-anchor="middle" font-family="system-ui, sans-serif" font-weight="800" font-size="${s * 0.6}" fill="#ffffff">!</text>`,
 };
-export function renderItem(it) {
-  const hit = (inner, w) => `<g class="dw-i" data-id="${it.id}">${inner}${w ? '' : ''}</g>`;
+// Un élément peut venir d'une sauvegarde importée : couleurs, nombres et choix sont vérifiés avant d'être écrits dans le SVG
+const SAFE_C = /^(#[0-9a-f]{3,8}|transparent|rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\))$/i;
+const NUMS = ['x', 'y', 'w', 'h', 'w2', 'x1', 'y1', 'x2', 'y2', 's', 'size', 'o', 'round', 'dash', 'arrow'];
+function safe(raw) {
+  const it = { ...raw };
+  for (const k of ['c', 'f', 'bg', 'tc', 'uc']) if (it[k] != null && it[k] !== '' && !SAFE_C.test(String(it[k]))) it[k] = k === 'f' || k === 'bg' ? '' : '#131a2a';
+  for (const k of NUMS) if (it[k] != null) it[k] = Number.isFinite(+it[k]) ? +it[k] : 0;
+  it.id = String(it.id || '').replace(/[^\w-]/g, '');
+  if (it.font && !FONTS[it.font]) it.font = 'sans';
+  if (it.al && !['left', 'center', 'right'].includes(it.al)) it.al = 'left';
+  if (it.kind != null && !/^[a-z]{2,12}$/.test(it.kind)) it.kind = '';
+  if (it.pts) it.pts = (Array.isArray(it.pts) ? it.pts : []).map((p) => [+p[0] || 0, +p[1] || 0]);
+  return it;
+}
+
+export function renderItem(raw) {
+  const it = safe(raw);
+  const hit =(inner, w) => `<g class="dw-i" data-id="${it.id}">${inner}${w ? '' : ''}</g>`;
   switch (it.t) {
     case 'pen': {
       const d = penPath(it.pts || []);
@@ -139,7 +155,7 @@ export function renderItem(it) {
       const s = it.s || 28;
       return hit(`<g transform="translate(${it.x} ${it.y})"><rect width="${s}" height="${s}" rx="${s * 0.22}" fill="${it.done ? it.c : '#ffffff'}" stroke="${it.c}" stroke-width="2.4"/>${it.done ? STAMPS.check(s, '#ffffff') : ''}</g>${it.txt ? fo({ ...it, c: '#131a2a', size: it.size || 18, frame: 0, bg: '', u: 0 }, it.x + s + 10, it.y - 2, it.w2 || 220, s + 8, `${it.done ? 'text-decoration:line-through;color:#676d7e;' : ''}`) : ''}`);
     }
-    case 'stamp': return hit(`<g transform="translate(${it.x} ${it.y})"><rect width="${it.s}" height="${it.s}" fill="transparent"/>${(STAMPS[it.kind] || STAMPS.check)(it.s, it.c)}</g>`);
+    case 'stamp': return hit(`<g transform="translate(${it.x} ${it.y})"><rect width="${it.s}" height="${it.s}" fill="transparent"/>${(Object.hasOwn(STAMPS, it.kind) ? STAMPS[it.kind] : STAMPS.check)(it.s, it.c)}</g>`);
     case 'chart': return hit(chartSvg({ ...it, w: it.w2 }));
     case 'timeline': return hit(`<rect x="${it.x}" y="${it.y}" width="${it.w2}" height="${it.h}" fill="transparent"/>${timelineSvg({ ...it, w: it.w2 })}`);
     default: return '';
@@ -188,7 +204,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
   const pointers = new Map();
   stage.innerHTML = `<svg class="dw-svg" xmlns="http://www.w3.org/2000/svg" tabindex="0" aria-label="${mode === 'board' ? 'Tableau blanc' : 'Annotations de la page'}">
     <defs><pattern id="dw-dots" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.3" fill="#d9d2c4"/></pattern><pattern id="dw-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#e6e0d4" stroke-width="1"/></pattern><pattern id="dw-lines" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M0 31.5H32" fill="none" stroke="#dbe4ff" stroke-width="1.2"/></pattern></defs>
-    <rect class="dw-bg" fill="${bg === 'blank' ? 'transparent' : `url(#dw-${bg})`}"/><g class="dw-items"></g><g class="dw-live"></g><g class="dw-selg"></g>
+    <rect class="dw-bg" fill="${bg === 'blank' ? 'transparent' : `url(#dw-${String(bg).replace(/[^a-z]/g, '')})`}"/><g class="dw-items"></g><g class="dw-live"></g><g class="dw-selg"></g>
   </svg>`;
   const svg = stage.querySelector('svg');
   const gItems = svg.querySelector('.dw-items'), gLive = svg.querySelector('.dw-live'), gSel = svg.querySelector('.dw-selg'), bgRect = svg.querySelector('.dw-bg');
