@@ -1,6 +1,6 @@
 // Service worker : l'application fonctionne hors ligne.
 // Changer VERSION à chaque mise en ligne pour proposer la mise à jour.
-const VERSION = 'msdev-1.6.0';
+const VERSION = 'msdev-1.6.1';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',

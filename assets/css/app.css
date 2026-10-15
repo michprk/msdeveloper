@@ -152,6 +152,7 @@ body[data-mode="full"] .main { max-width: 640px; padding: 0; }
   .main { max-width: 1200px; padding: 30px 40px 64px; }
   .m-top { display: none !important; }
   body[data-mode="full"] .main { padding: 24px 0; }
+  body[data-mode="full"] .shell { display: block; }
 }
 
 /* ---------- Animations d'entrée ---------- */
