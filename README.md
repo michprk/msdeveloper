@@ -1,69 +1,86 @@
 # M&S Developer
 
-**L'app de prospection des créateurs de sites web.** Le bon script pour chaque commerçant, vos prospects et vos relances au même endroit : vous décrochez des rendez-vous chaque semaine.
+**Vos tâches, vos notes et vos clients, au même endroit.** L'application d'organisation des indépendants : votre journée sur un écran, un CRM qui parle votre métier, des notes en pages, et des quiz pour progresser.
 
 - **En ligne :** https://michprk.github.io/msdeveloper/ (non indexée)
 - **Conçue par** M&S Design, Bruxelles.
 
-## Positionnement
+## Positionnement (version 1.3)
 
-**Pour qui (version 1).** Les créateurs de sites indépendants et les petites agences (1 à 5 personnes) qui prospectent les commerces et indépendants de leur ville, surtout par téléphone et en visite. L'automatisation et le référencement restent proposés, comme services complémentaires qu'ils vendent.
+**Pour qui.** Les indépendants et les petites équipes : freelances, commerçants, artisans, consultants, agences. Pas seulement les créateurs de sites : chacun choisit ce qu'il utilise.
 
-**Pourquoi une seule app plutôt que plusieurs outils.** Avec des scripts dans un document, un CRM d'un côté et un agenda de l'autre, il faut tout recopier après chaque appel. Ici, le script s'affiche rempli avec la fiche du prospect, et le résultat de l'appel met à jour la fiche et crée la relance en un seul geste.
+**La promesse en une phrase.** Vos tâches, vos notes et vos clients, au même endroit.
 
 **Trois bénéfices**
-1. **Savoir quoi dire à chaque commerçant** : un script prêt pour 23 métiers, rempli avec le nom du prospect.
-2. **Ne plus perdre un seul prospect** : le résultat de l'appel s'enregistre en un geste, la relance se crée toute seule.
-3. **Voir ce qui marche** : appels, rendez-vous et signatures de la semaine, face à vos objectifs.
+1. **Une journée claire** : les tâches du jour, les rendez-vous et les relances sur un seul écran. On écrit « Rappeler Marc demain 14h », la date se règle toute seule.
+2. **Des clients bien suivis** : un CRM qui s'adapte au métier (dix modèles), avec vos étapes, vos champs, votre équipe et une relance datée par fiche.
+3. **Tout ce que vous savez, rangé** : des pages et sous-pages comme dans un carnet, des modèles, et des quiz pour retenir.
 
-Ce qui n'est pas dans la version 1 : comptes en ligne, synchronisation entre appareils, paiement. C'est indiqué dans l'application.
+**Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche peut pointer vers un client, une page de notes vers sa fiche, un bloc de page devient une tâche, et le résultat d'un appel crée la relance tout seul : rien à recopier d'un outil à l'autre.
+
+**Un exemple concret** (affiché à l'accueil) : le matin, vous ouvrez l'application, vous voyez vos trois tâches du jour et le client à relancer, vous ouvrez le compte rendu du dernier rendez-vous, et vous cochez au fil de la journée.
+
+## Modules
+
+À l'accueil, l'utilisateur choisit ce qu'il veut faire ; tout se change dans Compte → Modules. La navigation n'affiche que les modules utilisés.
+
+| Module | Contenu |
+|---|---|
+| M'organiser | Tâches (saisie en langage courant, listes, priorités, sous-tâches, tableau, agenda), Notes (pages, sous-pages, blocs, modèles, favoris) |
+| Suivre mes clients | CRM : pipeline, fiches, champs, équipe, étiquettes, dix modèles par métier, pages liées, projets, devis, statistiques |
+| Trouver des clients | 934 scripts (23 secteurs × 4 services × 10 formats + 14 situations), dont « Votre offre » pour tous les métiers ; mode appel, audit, import, entraînement |
+| Apprendre et progresser | 9 quiz (90 questions expliquées), quiz du jour, révision des notes en cartes, vos propres quiz, Académie (17 guides) |
 
 ## Navigation
 
-| Téléphone (barre du bas) | Ordinateur (barre latérale) |
+| Téléphone | Ordinateur |
 |---|---|
-| Aujourd'hui · Prospects · **Appeler** · Scripts · Plus | Bouton « Lancer une session d'appels », puis Prospecter (Aujourd'hui, Prospects, Scripts, Agenda), Après la signature (Clients signés, Devis), Progresser (Académie, Statistiques, Tous les outils), Compte en bas |
+| Barre du bas : Aujourd'hui, jusqu'à trois modules, Plus. Bouton + flottant selon l'écran (nouvelle tâche, page, fiche). | Barre latérale : « Nouveau », « Rechercher » (Ctrl/⌘ K), puis un groupe par module, pages favorites sous Notes, compte en bas. |
 
-## Ce qui fonctionne (testé le 14/10/2026)
+## Ce qui fonctionne (testé le 15/10/2026)
 
-| Module | Parcours vérifié |
+| Parcours | Vérifié |
 |---|---|
-| Aujourd'hui | Objectif du jour, prochain appel, tâches du jour, semaine (appels, rendez-vous, signé), activité — uniquement les données de l'utilisateur. Liste « Pour bien démarrer » et états vides explicatifs pour un nouveau compte. |
-| Prospects (CRM) | Créer (validation avec messages clairs), modifier, chercher, filtrer, déplacer dans le pipeline, supprimer (avec confirmation). |
-| CRM personnalisé | Renommer les étapes, ajouter ses étapes (ex. Maquette prête, En production, En ligne), champs personnalisés (texte, nombre, date, lien, liste), équipe et responsable par fiche, étiquettes, import de ses propres données par fichier. |
-| Scripts | 704 scripts : 23 secteurs × 3 services × 10 formats + 14 situations délicates. Onglets Script, Préparer, Secteur, Objections. |
-| Mode appel | Le script étape par étape, objections, résultat en un geste, rappel ou rendez-vous daté. |
-| Académie | 14 guides, parcours selon le niveau, progression enregistrée (lu / non lu, reprendre là où on s'est arrêté). |
-| Abonnement | Statut réel (essai, date de fin, version gratuite), accès ouverts et verrouillés, formules. Paiement en ligne : pas encore ouvert, dit clairement. |
-| Compte | Profil, offre, objectifs, affichage (thème, taille du texte, animations), notifications, code de verrouillage, présentation (accueil rejoué, données de démonstration), sauvegarde, import, restauration, export CSV, suppression de toutes les données. |
-
-Hors ligne, installable sur iPhone (Safari → Partager → Sur l'écran d'accueil), Android, Mac et PC. Mise à jour automatique à l'ouverture.
+| Accueil | Choix des modules et du métier, modèle de CRM appliqué, essai ou version gratuite |
+| Tâches | « Appeler Marc demain 14h #travail ! » → demain 14 h, liste Travail, importante. Sous-tâches, notes, terminer avec Annuler, supprimer avec Annuler, tableau À faire / En cours / Fait, agenda |
+| Notes | Modèles, blocs, Entrée / Retour arrière, raccourcis Markdown, menu « / », cases à cocher, sous-pages, favoris, bloc → tâche, export Markdown, enregistrement à chaque frappe, reprise après rechargement |
+| Quiz | Réponse, explication, résultat, « Refaire mes erreurs », cartes de révision depuis une page, création de quiz avec validation |
+| CRM | Modèle par métier, brouillon conservé, validation, fiche, relance liée, compte rendu lié |
+| Abonnement (mode test) | Refus de carte, coupure réseau, souscription, passage à Premium au prorata, passage à Pro en fin de période, résiliation, reprise, renouvellement, renouvellement refusé, délai de grâce, régularisation, fin d'accès |
+| Compte existant | Les données de la version 1.2 sont reprises telles quelles (fiches, étapes, champs, équipe, tâches) |
 
 ## Formules
 
-| Formule | Prix | Contenu |
-|---|---|---|
-| Gratuit | 0 € | Scripts d'appel à froid (tous secteurs) |
-| Pro | 17,99 €/mois | Prospects et CRM personnalisé, tous les scripts, mode appel, agenda, clients signés, Académie, audit, messages, import |
-| Premium | 31,99 €/mois | Pro + devis PDF, scripts et secteurs personnels, entraînement, statistiques, export CSV |
+| | Gratuit | Pro 17,99 €/mois | Premium 31,99 €/mois |
+|---|---|---|---|
+| Tâches, listes, tableau, agenda | ✓ | ✓ | ✓ |
+| Notes en pages | 10 pages | Illimitées | Illimitées |
+| Quiz intégrés, révision des notes | ✓ | ✓ | ✓ |
+| Vos propres quiz | — | ✓ | ✓ |
+| CRM personnalisé | — | ✓ | ✓ |
+| Scripts d'appel à froid | ✓ | ✓ | ✓ |
+| Tous les scripts, mode appel | — | ✓ | ✓ |
+| Académie | 5 guides | 17 guides | 17 guides |
+| Devis, statistiques, export CSV, scripts personnels | — | — | ✓ |
 
-Essai gratuit de 7 jours avec toutes les fonctions. La répartition se règle dans `FEATURES` (`assets/js/store.js`).
+Essai de 7 jours sans carte, avec tout Premium. Mensuel, sans engagement. Changement de formule : vers le haut tout de suite (au prorata), vers le bas à la fin de la période payée. Paiement refusé : 7 jours de délai de grâce. La répartition se règle dans `FEATURES` et `LIMITS` (`assets/js/store.js`).
+
+**Paiement : mode test.** Tout le parcours fonctionne, sans carte et sans prélèvement. Pour encaisser réellement, il faut un compte Stripe et un petit serveur : voir [PAIEMENTS.md](PAIEMENTS.md).
 
 ## Technique
 
-HTML/CSS/JS sans dépendance ni compilation (modules ES). Polices auto-hébergées (licences OFL dans `licenses/`). Routage par ancre (`#/crm`, `#/script/site.appel.fleuriste`…).
+HTML/CSS/JS sans dépendance ni compilation (modules ES). Données dans le navigateur (localStorage, clé `msdev:v1`, schéma v2 avec migration automatique depuis la v1). Hors ligne grâce au service worker (changer `VERSION` dans `sw.js` à chaque mise en ligne).
 
 ```
-index.html            coquille + écran d'ouverture
-sw.js                 hors ligne — changer VERSION à chaque mise en ligne
-assets/js/app.js      routeur, navigation, événements, validation
-assets/js/store.js    données, étapes personnalisées, import par fusion, abonnement
-assets/js/lock.js     code de verrouillage
-assets/js/notify.js   rappels
-assets/js/data/       secteurs, fiches secteur, moteur de scripts, situations, guides, démonstration
-assets/js/views/      écrans
+assets/js/app.js          routeur, navigation par modules, recherche, brouillons, retour dans l'app
+assets/js/store.js        données, migration, modules, abonnement (états, prorata, renouvellement)
+assets/js/payments.js     prestataire de paiement (mode test ; aucune clé secrète)
+assets/js/views/tasks.js  tâches et saisie rapide
+assets/js/views/notes.js  pages et éditeur de blocs
+assets/js/views/quiz.js   quiz, cartes de révision, création
+assets/js/views/billing.js abonnement, paiement, reçus
+assets/js/views/search.js recherche globale et feuille « Créer »
+assets/js/data/           secteurs, scripts, quiz, modèles de pages, modèles de CRM, guides
 ```
 
-Système d'interface : rayons `--r-xs` 8, `--r-sm` 12, `--r-md` 16, `--r` 20, `--r-lg` 24 ; titres de page 31/38 px, titres de carte 16 px ; formulaires validés au fil de la saisie (`data-validate`, `data-needs`) ; indicateur de chargement (`busy()`) pour les opérations lentes.
-
-Sécurité et préparation des comptes en ligne : voir [SECURITE.md](SECURITE.md).
+Voir aussi [SECURITE.md](SECURITE.md) et [TEST-UTILISATEURS.md](TEST-UTILISATEURS.md).

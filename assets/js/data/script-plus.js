@@ -74,7 +74,7 @@ export const STEP_PLUS = {
     { why: 'La personne qui décroche est une alliée, pas un obstacle. Traitée avec respect, elle vous passera le décideur au bon moment.', avoid: 'Mentir sur l\'objet de l\'appel (« c\'est personnel ») : vous perdez toute crédibilité au rappel.',
       alt: [['Si on vous demande l\'objet', 'C\'est au sujet de la présence en ligne de {entreprise} : j\'ai une idée concrète à lui montrer, ça prend deux minutes.']] },
     { why: 'Une observation précise prouve que vous avez préparé l\'appel. Le prospect passe de « encore un démarcheur » à « tiens, il a regardé ».', avoid: 'Le compliment vague (« votre entreprise est super ») ou la critique (« votre site est mauvais »).',
-      alt: [['Si vous n\'avez rien trouvé', `En regardant les ${sec.plural} {de_ville} sur Google, j'ai remarqué que très peu permettent de ${solution(svc)}.`]] },
+      alt: [['Si vous n\'avez rien trouvé', svc.id === 'offre' ? `En parlant avec des ${sec.plural} {de_ville}, j'ai remarqué que beaucoup gèrent encore {offre} seuls, le soir ou le week-end.` : `En regardant les ${sec.plural} {de_ville} sur Google, j'ai remarqué que très peu permettent de ${solution(svc)}.`]] },
     { why: 'Les questions font dire au prospect son problème avec ses mots. Un problème formulé par lui vaut dix arguments de votre part.', avoid: 'Enchaîner les questions comme un interrogatoire : rebondissez sur chaque réponse.',
       alt: [['Pour creuser', 'Et concrètement, ça représente quoi pour vous sur une semaine ?'], ['Si la réponse est « tout va bien »', 'Tant mieux ! Et si vous pouviez améliorer une seule chose, ce serait laquelle ?']] },
     { why: 'Une proposition courte, reliée à ce qu\'il vient de dire, sonne comme une solution — pas comme une vente.', avoid: 'Réciter tout ce que vous savez faire.',
@@ -158,6 +158,12 @@ export const DISCOVERY = {
     'Problème': ['Où sortez-vous aujourd\'hui sur votre recherche principale ?', 'Vos avis Google reflètent votre travail ?', 'Vous payez de la publicité pour être visible ?'],
     Impact: ['Combien de clients par mois arrivent de Google aujourd\'hui ?', 'Que représenterait le fait d\'être dans les trois premiers sur la carte ?', 'Combien vous coûte un client obtenu par la publicité ?'],
     Besoin: ['Quel service voulez-vous mettre en avant en priorité ?', 'Sur quelles communes voulez-vous être la référence ?', 'Êtes-vous prêt à demander des avis à vos clients ?'],
+  },
+  offre: {
+    Situation: ['Comment gérez-vous ce sujet aujourd\'hui ?', 'Qui s\'en occupe chez vous, et combien de temps ça prend ?', 'Vous avez déjà fait appel à quelqu\'un pour ça ?'],
+    'Problème': ['Qu\'est-ce qui vous agace le plus dans la façon dont ça se passe ?', 'Qu\'est-ce qui vous empêche de le faire comme vous le voudriez ?', 'Qu\'est-ce qui a déjà mal tourné ?'],
+    Impact: ['Combien de temps ou d\'argent ça vous coûte chaque mois ?', 'Si ce problème était réglé, qu\'est-ce que vous feriez de ce temps ?', 'Qu\'est-ce que ça change pour vos clients ?'],
+    Besoin: ['Si vous pouviez changer une seule chose, ce serait laquelle ?', 'À quoi verriez-vous que c\'est une réussite ?', 'Pour quand aimeriez-vous que ce soit réglé ?'],
   },
 };
 export const SPIN_HELP = {

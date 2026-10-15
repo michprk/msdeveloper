@@ -1,28 +1,15 @@
-// Aujourd'hui : l'objectif d'appels et la prochaine action d'abord, puis la semaine.
-// Uniquement les données de l'utilisateur ; des états vides qui expliquent quoi faire.
-import { S, update, calls, signedValue, startOfDay, startOfWeek, startOfMonth, DAY, can } from '../store.js';
-import { ic, esc, eur, num, dateLong, when, ring, bar, stageChip, avatar, ago, register, toast, confirmSheet } from '../ui.js';
+// Aujourd'hui : d'abord la journée (tâches du jour, saisie rapide), puis des cartes plus
+// discrètes selon les modules utilisés (relances, appels, notes, quiz). Uniquement les
+// données de l'utilisateur ; des états vides qui expliquent quoi faire.
+import { S, update, on, can, calls, signedValue, startOfDay, startOfWeek, startOfMonth, DAY, stageOf } from '../store.js';
+import { ic, esc, eur, num, dateLong, when, ring, bar, avatar, ago, register, toast, confirmSheet } from '../ui.js';
 import { logoMark } from '../icons.js';
-import { SERVICES, getSector, buildScript } from '../data/scripts.js';
-import { stackedBars } from '../charts.js';
 import { trialStrip } from './common.js';
 import { clearDemo } from '../data/demo.js';
 import { cluster } from './flowers.js';
-
-const DAYS = ['di', 'lu', 'ma', 'me', 'je', 've', 'sa'];
-const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-
-function activityData() {
-  const t0 = startOfDay();
-  const out = [];
-  for (let d = 6; d >= 0; d--) {
-    const from = t0 - d * DAY, list = calls(from, from + DAY);
-    const pos = list.filter((a) => a.outcome === 'interesse' || a.outcome === 'rdv').length;
-    const dt = new Date(from);
-    out.push({ label: d === 0 ? 'auj.' : DAYS[dt.getDay()], full: d === 0 ? 'Aujourd\'hui' : `${DAYS_FULL[dt.getDay()]} ${dt.getDate()}`, values: [pos, list.length - pos] });
-  }
-  return out;
-}
+import { taskRow, quickAdd } from './tasks.js';
+import { dailyQuiz } from './quiz.js';
+import { noun } from './crm.js';
 
 export function nextToCall(s) {
   const t1 = startOfDay() + DAY;
@@ -34,34 +21,45 @@ export function nextToCall(s) {
 
 export function home() {
   const s = S(), p = s.profile, g = s.goals;
-  const t0 = startOfDay(), w0 = startOfWeek(), m0 = startOfMonth();
-  const today = calls(t0).length;
-  const week = calls(w0);
+  const t0 = startOfDay(), t1 = t0 + DAY;
+  const org = on('organiser'), cli = on('clients'), pro = on('prospecter'), app = on('apprendre');
+  const today = s.tasks.filter((t) => !t.done && t.due && t.due < t1).sort((a, b) => (b.prio || 0) - (a.prio || 0) || a.due - b.due);
+  const doneToday = s.tasks.filter((t) => t.done && t.doneAt >= t0 && t.due && t.due < t1).length;
+  const late = today.filter((t) => t.due < t0).length;
+  const total = today.length + doneToday;
+  const nextTimed = today.find((t) => t.due >= Date.now() && (new Date(t.due).getHours() || new Date(t.due).getMinutes()));
+  const followUps = s.prospects.filter((x) => x.next?.due && x.next.due < t1 && !['signe', 'perdu'].includes(x.stage)).sort((a, b) => a.next.due - b.next.due);
+  const openDeals = s.prospects.filter((x) => !['signe', 'perdu'].includes(x.stage)).length;
+  const callsToday = calls(t0).length;
+  const { queue } = nextToCall(s);
+  const week = calls(startOfWeek());
   const weekRdv = week.filter((a) => a.outcome === 'rdv').length;
-  const signedMonth = signedValue(m0);
-  const left = Math.max(0, g.appelsJour - today);
+  const signedMonth = signedValue(startOfMonth());
+  const pages = [...s.pages].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 3);
+  const quiz = dailyQuiz();
+  const qr = s.quiz.results[quiz.id];
+  const qDone = qr && qr.at >= t0;
   const hasDemo = s.prospects.some((x) => x.demo);
-  const { queue, next } = nextToCall(s);
-  const nextSec = next ? getSector(next.secteur) || getSector('toute') : null;
-  const sc = next ? buildScript(next.service || p.service || 'site', 'appel', nextSec.id) : null;
-  const todo = s.tasks.filter((t) => !t.done && t.due && t.due < t0 + DAY).sort((a, b) => a.due - b.due).slice(0, 5);
-  const recent = [...s.prospects].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
-  const any7 = activityData().some((d) => d.values[0] + d.values[1] > 0);
 
-  // Premiers pas : disparaît une fois tout fait
+  // Premiers pas, selon les modules choisis ; disparaît une fois tout fait
   const steps = [
-    ['Compléter votre profil', 'Votre prénom et votre société remplissent les scripts.', !!(p.prenom && p.societe), '#/reglages'],
-    ['Ajouter vos premiers prospects', 'Un par un, ou en collant une liste depuis un tableur.', s.prospects.length > 0, '#/crm?new=1'],
-    ['Lire le script de votre secteur', 'Le bon discours, adapté au métier de vos prospects.', s.recent.length > 0, '#/scripts'],
-    ['Faire votre première session d\'appels', 'Le script s\'affiche, le résultat s\'enregistre en un geste.', s.activities.some((a) => a.type === 'appel'), '#/appel'],
-  ];
+    ...(org ? [['Ajouter votre première tâche', 'Écrivez-la comme vous la diriez : « Envoyer le devis vendredi ».', s.tasks.length > 0, '#/taches'], ['Créer votre première page', 'Un compte rendu, un projet, une liste d\'idées : partez d\'un modèle.', s.pages.length > 0, '#/notes']] : []),
+    ...(cli ? [['Adapter le CRM à votre métier', 'Des étapes et des champs prêts pour votre activité.', !!s.crm.preset || s.crm.extra.length > 0, '#/crm/personnaliser'], ['Ajouter votre première fiche', 'Un client, un prospect : une par une, ou en collant une liste.', s.prospects.length > 0, '#/crm?new=1']] : []),
+    ...(pro ? [['Lire le script de votre secteur', 'Le bon discours, adapté au métier de la personne appelée.', s.recent.length > 0, '#/scripts']] : []),
+    ...(app ? [['Faire votre premier quiz', 'Dix questions, chacune expliquée.', Object.keys(s.quiz.results).length > 0, `#/quiz/${quiz.id}?restart=1`]] : []),
+  ].slice(0, 5);
   const doneSteps = steps.filter((x) => x[2]).length;
+
+  const heroTitle = !total ? 'Journée libre' : today.length ? `${num(today.length)} chose${today.length > 1 ? 's' : ''} à faire` : 'Tout est fait';
+  const heroSub = !total ? 'Rien n\'est prévu aujourd\'hui. Ajoutez une tâche, ou avancez sur un projet.'
+    : today.length ? [late ? `dont ${late} en retard` : '', nextTimed ? `prochaine : ${esc(nextTimed.title)} à ${when(nextTimed.due).split('· ')[1] || ''}` : ''].filter(Boolean).join(' · ') || 'Cochez au fil de la journée.'
+      : `${doneToday} tâche${doneToday > 1 ? 's' : ''} terminée${doneToday > 1 ? 's' : ''} aujourd'hui. Bravo.`;
 
   const html = `
   <div class="home">
     <div class="m-top">
       <a class="m-brand" href="#/" aria-label="M&amp;S Developer">${logoMark('sm')}<span><b>M&amp;S</b> Developer</span></a>
-      <a class="m-avatar" href="#/reglages" aria-label="Compte et réglages">${avatar(p.prenom || 'M S')}</a>
+      <div class="m-acts"><button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button><a class="m-avatar" href="#/reglages" aria-label="Compte et réglages">${avatar(p.prenom || 'M S')}</a></div>
     </div>
     <header class="ph ph-home">
       <p class="ph-k">${dateLong()}</p>
@@ -69,89 +67,61 @@ export function home() {
       ${cluster('home-cl')}
     </header>
     ${trialStrip()}
-    ${hasDemo ? `<div class="note-demo rise">${ic('note')}<span><b>Données de démonstration.</b> Ces entreprises sont fictives.</span><button class="link" data-act="clear-demo">Effacer</button></div>` : ''}
-    ${doneSteps < steps.length && !s.prefs.hideStart ? `<section class="card start rise">
-      <header class="card-h"><div><h2>Pour bien démarrer</h2><p>${doneSteps} sur ${steps.length} · environ 10 minutes · <button class="link" data-act="hide-start">Masquer</button></p></div><span class="start-n">${Math.round((doneSteps / steps.length) * 100)} %</span></header>
-      ${bar(doneSteps, steps.length, 'olive')}
-      <ol class="start-l">${steps.map(([t, d, ok, href]) => `<li class="${ok ? 'is-done' : ''}"><a href="${href}"><span class="tick ${ok ? 'is-done' : ''}"></span><span><b>${t}</b><em>${d}</em></span>${ok ? '' : ic('chevR', 'chev')}</a></li>`).join('')}</ol>
-    </section>` : ''}
-
+    ${hasDemo ? `<div class="note-demo rise">${ic('note')}<span><b>Données de démonstration.</b> Ces fiches sont fictives.</span><button class="link" data-act="clear-demo">Effacer</button></div>` : ''}
     <div class="dash">
-      <section class="card today rise" style="--i:1" aria-label="Aujourd'hui">
-        <div class="today-top">
-          <div class="hero-ring">${ring(today, g.appelsJour, { size: 128, stroke: 11, cls: 'on-navy' })}<div class="hero-ring-v"><b>${num(today)}</b><span>sur ${num(g.appelsJour)} appels</span></div></div>
-          <div class="today-txt">
-            <p class="hero-k">Aujourd'hui</p>
-            <h2>${today === 0 ? 'Prêt pour la première session ?' : left ? `Encore ${num(left)} appel${left > 1 ? 's' : ''}` : 'Objectif atteint'}</h2>
-            <p>${queue.length ? `${num(queue.length)} prospect${queue.length > 1 ? 's' : ''} à appeler${queue.filter((x) => x.stage === 'rappeler').length ? `, dont ${queue.filter((x) => x.stage === 'rappeler').length} à rappeler` : ''}.` : 'Aucun prospect à appeler pour l\'instant.'}</p>
-          </div>
+      <section class="card day-card rise" style="--i:1" aria-label="Aujourd'hui">
+        <div class="day-top">
+          <div><p class="day-k">Aujourd'hui</p><h2>${heroTitle}</h2><p class="day-sub">${heroSub}</p></div>
+          ${total ? `<div class="hero-ring sm">${ring(doneToday, total, { size: 74, stroke: 7 })}<div class="hero-ring-v"><b>${doneToday}</b><span>/${total}</span></div></div>` : ''}
         </div>
-        ${next ? `<a class="today-next" href="#/fiche/${next.id}"><span class="today-next-k">Prochain appel</span><b>${esc(next.entreprise)}</b><span>${esc(nextSec.name)}${next.ville ? ' · ' + esc(next.ville) : ''}${next.next?.label ? ' · ' + esc(next.next.label) : ''}</span></a>` : ''}
-        <div class="today-a">
-          ${queue.length && can('callMode') ? `<a class="btn btn-sky btn-lg" href="#/appel">${ic('phone')}<span>Appeler maintenant</span></a>`
-            : queue.length ? `<a class="btn btn-sky btn-lg" href="#/script/${sc.id}">${ic('script')}<span>Lire le script</span></a>`
-            : `<a class="btn btn-sky btn-lg" href="#/crm?new=1">${ic('plus')}<span>Ajouter des prospects</span></a>`}
-          ${sc ? `<a class="today-sc" href="#/script/${sc.id}?p=${next.id}">${ic('script')}<span>Script prêt : ${esc(sc.title.toLowerCase())}, ${esc(nextSec.name.toLowerCase())}</span></a>` : `<a class="today-sc" href="#/outils/import">${ic('upload')}<span>Ou importer une liste d'entreprises</span></a>`}
-        </div>
+        ${quickAdd({ due: String(t0), placeholder: 'Ajouter une tâche' })}
+        ${today.length ? `<ul class="tasks">${today.slice(0, 7).map((t) => taskRow(t)).join('')}</ul>${today.length > 7 ? `<a class="link" href="#/taches">Et ${today.length - 7} autre${today.length - 7 > 1 ? 's' : ''}…</a>` : ''}` : ''}
+        <footer class="day-f"><a class="link" href="#/taches">${ic('tasks')}Toutes les tâches</a><a class="link" href="#/agenda">${ic('calendar')}Agenda</a></footer>
       </section>
 
-      <section class="card todo rise" style="--i:2">
-        <header class="card-h"><div><h2>À faire aujourd'hui</h2><p>${todo.length ? `${todo.length} tâche${todo.length > 1 ? 's' : ''}` : 'Rien d\'urgent'}</p></div><a class="link" href="#/agenda">Agenda</a></header>
-        ${todo.length ? `<ul class="tasks">${todo.map((t) => {
-          const late = t.due < t0;
-          const pr = t.prospectId && s.prospects.find((x) => x.id === t.prospectId);
-          return `<li class="task"><button class="tick" data-act="task-toggle" data-id="${t.id}" aria-label="Marquer « ${esc(t.title)} » comme fait"></button>
-            <div class="task-b"><p class="task-t">${esc(t.title)}</p><p class="task-m ${late ? 'is-late' : ''}">${late ? 'En retard · ' : ''}${when(t.due)}${pr ? ` · <a href="#/fiche/${pr.id}">${esc(pr.entreprise)}</a>` : ''}</p></div></li>`;
-        }).join('')}</ul>` : `<div class="mini-empty">${ic('calendar')}<p>Les rappels et rendez-vous que vous fixez pendant vos appels apparaîtront ici, avec une notification avant chaque échéance.</p></div>`}
-      </section>
+      ${steps.length && doneSteps < steps.length && !s.prefs.hideStart ? `<section class="card start rise" style="--i:2">
+        <header class="card-h"><div><h2>Pour bien démarrer</h2><p>${doneSteps} sur ${steps.length} · <button class="link" data-act="hide-start">Masquer</button></p></div><span class="start-n">${Math.round((doneSteps / steps.length) * 100)} %</span></header>
+        ${bar(doneSteps, steps.length, 'olive')}
+        <ol class="start-l">${steps.map(([t, d, ok, href]) => `<li class="${ok ? 'is-done' : ''}"><a href="${href}"><span class="tick ${ok ? 'is-done' : ''}"></span><span><b>${t}</b><em>${d}</em></span>${ok ? '' : ic('chevR', 'chev')}</a></li>`).join('')}</ol>
+      </section>` : ''}
 
-      <section class="week rise" style="--i:3" aria-label="Votre semaine">
-        <a class="kpi big" href="#/outils/stats"><p class="kpi-l">Appels cette semaine</p><p class="kpi-v">${num(week.length)}</p>${bar(week.length, g.appelsJour * 5)}<p class="kpi-d">objectif ${num(g.appelsJour * 5)}</p></a>
-        <a class="kpi big" href="#/crm?v=list&f=rdv"><p class="kpi-l">Rendez-vous fixés</p><p class="kpi-v">${num(weekRdv)}</p>${bar(weekRdv, g.rdvSemaine, 'navy')}<p class="kpi-d">cette semaine · objectif ${num(g.rdvSemaine)}</p></a>
-        <a class="kpi big" href="#/crm?v=list&f=signe"><p class="kpi-l">Signé ce mois</p><p class="kpi-v">${eur(signedMonth)}</p>${bar(signedMonth, g.caMois, 'olive')}<p class="kpi-d">objectif ${eur(g.caMois)}</p></a>
-      </section>
+      <div class="dash-side">
+        ${cli ? `<section class="card side-card rise" style="--i:2">
+          <header class="card-h"><div><h2>À relancer</h2><p>${followUps.length ? `${followUps.length} aujourd'hui` : `${num(openDeals)} fiche${openDeals > 1 ? 's' : ''} en cours`}</p></div><a class="link" href="#/crm">${esc(noun())}</a></header>
+          ${followUps.length ? `<ul class="rows">${followUps.slice(0, 4).map((x) => `<li><a class="row" href="#/fiche/${x.id}">${avatar(x.entreprise)}<span class="row-b"><b>${esc(x.entreprise)}</b><span class="${x.next.due < t0 ? 'is-late' : ''}">${esc(x.next.label || stageOf(x.stage).label)} · ${when(x.next.due)}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`
+            : `<div class="mini-empty">${ic('users')}<p>${s.prospects.length ? 'Aucune relance prévue aujourd\'hui. Chaque fiche peut avoir sa prochaine action datée.' : 'Vos clients et prospects apparaîtront ici le jour où il faut les relancer.'}</p></div>${s.prospects.length ? '' : `<div class="act-row"><a class="btn btn-ghost btn-sm" href="#/crm?new=1">${ic('plus')}<span>Ajouter une fiche</span></a></div>`}`}
+        </section>` : ''}
+        ${pro ? `<section class="card side-card calls-card rise" style="--i:3">
+          <div class="calls-top"><div class="hero-ring sm">${ring(callsToday, g.appelsJour, { size: 64, stroke: 6 })}<div class="hero-ring-v"><b>${callsToday}</b></div></div>
+            <div><h2>Appels</h2><p>${callsToday ? `${callsToday} sur ${g.appelsJour} aujourd'hui` : `Objectif : ${g.appelsJour} par jour`} · ${queue.length} à appeler</p></div></div>
+          <a class="btn ${queue.length ? 'btn-primary' : 'btn-ghost'} btn-block" href="${queue.length && can('callMode') ? '#/appel' : queue.length ? '#/scripts' : '#/crm?new=1'}">${ic(queue.length ? 'phone' : 'plus')}<span>${queue.length && can('callMode') ? 'Lancer une session d\'appels' : queue.length ? 'Lire les scripts' : 'Ajouter des fiches à appeler'}</span></a>
+        </section>` : ''}
+        ${org ? `<section class="card side-card rise" style="--i:4">
+          <header class="card-h"><div><h2>Notes récentes</h2><p>${s.pages.length ? `${s.pages.length} page${s.pages.length > 1 ? 's' : ''}` : 'Aucune page pour l\'instant'}</p></div><button class="link" data-act="page-new" data-tpl="vierge">${ic('plus')}Page</button></header>
+          ${pages.length ? `<ul class="rows">${pages.map((x) => `<li><a class="row" href="#/note/${x.id}"><span class="menu-ic">${ic(x.icon || 'page')}</span><span class="row-b"><b>${esc(x.title || 'Sans titre')}</b><span>${ago(x.updatedAt)}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`
+            : `<div class="mini-empty">${ic('page')}<p>Comptes rendus, projets, idées : vos pages se rangent ici, avec des sous-pages si besoin.</p></div><div class="act-row"><button class="btn btn-ghost btn-sm" data-act="page-new" data-tpl="journal">${ic('sun')}<span>Journal du jour</span></button><button class="btn btn-ghost btn-sm" data-act="page-templates">${ic('layers')}<span>Modèles</span></button></div>`}
+        </section>` : ''}
+        ${app ? `<a class="card side-card quiz-card rise" style="--i:5" href="#/quiz/${quiz.id}?restart=1">
+          <span class="qz-ic">${ic(quiz.icon)}</span>
+          <span class="row-b"><span class="day-k">Quiz du jour</span><b>${esc(quiz.title)}</b><span>${qDone ? `Fait : ${qr.last} %` : `${quiz.qs.length} questions · 4 min`}</span></span>${ic('chevR', 'chev')}
+        </a>` : ''}
+      </div>
 
-      <section class="card chart-card rise" style="--i:4">
-        <header class="card-h"><div><h2>Activité</h2><p>Appels des 7 derniers jours</p></div>${any7 ? '<button class="chip-btn" data-act="toggle-table" aria-pressed="false">Tableau</button>' : ''}</header>
-        ${any7 ? `<ul class="legend"><li><i class="sw s-pos"></i>Réponses positives</li><li><i class="sw s-oth"></i>Autres appels</li></ul>
-        <div class="chart" id="chart-activity" data-label="Appels par jour sur 7 jours"></div>
-        <table class="ch-table tbl" hidden><thead><tr><th>Jour</th><th>Positives</th><th>Autres</th><th>Total</th></tr></thead><tbody>
-          ${activityData().map((d) => `<tr><td data-l="Jour">${d.full}</td><td data-l="Positives">${d.values[0]}</td><td data-l="Autres">${d.values[1]}</td><td data-l="Total">${d.values[0] + d.values[1]}</td></tr>`).join('')}
-        </tbody></table>` : `<div class="mini-empty">${ic('chart')}<p>Chaque appel enregistré dans le mode appel s'affiche ici, jour par jour, avec les réponses positives en olive.</p></div>`}
-      </section>
-
-      <section class="card recent rise" style="--i:5">
-        <header class="card-h"><div><h2>Prospects récents</h2><p>${s.prospects.length ? `${num(s.prospects.length)} au total` : 'Aucun pour l\'instant'}</p></div>${s.prospects.length ? '<a class="link" href="#/crm?v=list">Tout voir</a>' : ''}</header>
-        ${recent.length ? `<ul class="rows">${recent.map((x) => {
-          const sec = getSector(x.secteur);
-          return `<li><a class="row" href="#/fiche/${x.id}">${avatar(x.entreprise)}<span class="row-b"><b>${esc(x.entreprise)}</b><span>${esc(sec?.name || '')}${x.ville ? ' · ' + esc(x.ville) : ''} · ${ago(x.updatedAt)}</span></span>${stageChip(x.stage)}</a></li>`;
-        }).join('')}</ul>` : `<div class="mini-empty">${ic('users')}<p>Vos fiches prospects apparaîtront ici. Commencez par en ajouter une, ou collez une liste.</p></div><div class="act-row"><a class="btn btn-ghost" href="#/crm?new=1">${ic('plus')}<span>Ajouter</span></a><a class="btn btn-ghost" href="#/outils/import">${ic('upload')}<span>Importer</span></a></div>`}
-      </section>
+      ${(cli || pro) && (week.length || signedMonth || s.prospects.length) ? `<section class="week rise" style="--i:6" aria-label="Votre semaine">
+        ${pro ? `<a class="kpi" href="#/outils/stats"><p class="kpi-l">Appels cette semaine</p><p class="kpi-v">${num(week.length)}</p>${bar(week.length, g.appelsJour * 5)}<p class="kpi-d">objectif ${num(g.appelsJour * 5)}</p></a>
+        <a class="kpi" href="#/crm?v=list&f=rdv"><p class="kpi-l">${esc(stageOf('rdv').label)}</p><p class="kpi-v">${num(weekRdv)}</p>${bar(weekRdv, g.rdvSemaine, 'navy')}<p class="kpi-d">cette semaine · objectif ${num(g.rdvSemaine)}</p></a>` : `<a class="kpi" href="#/crm"><p class="kpi-l">Fiches en cours</p><p class="kpi-v">${num(openDeals)}</p><p class="kpi-d">${esc(noun().toLowerCase())}</p></a>`}
+        <a class="kpi" href="#/crm?v=list&f=signe"><p class="kpi-l">${esc(stageOf('signe').label)} ce mois</p><p class="kpi-v">${eur(signedMonth)}</p>${bar(signedMonth, g.caMois, 'olive')}<p class="kpi-d">objectif ${eur(g.caMois)}</p></a>
+      </section>` : ''}
     </div>
   </div>`;
 
-  return {
-    title: 'Aujourd\'hui', tab: 'accueil', html,
-    after(root) {
-      const host = root.querySelector('#chart-activity');
-      if (host) return stackedBars(host, { data: activityData(), series: [{ name: 'Réponses positives', cls: 's-pos' }, { name: 'Autres appels', cls: 's-oth' }], highlight: 6, fmt: (v) => num(Math.round(v)) });
-    },
-  };
+  return { title: 'Aujourd\'hui', tab: 'accueil', html };
 }
 
 register({
-  'toggle-table': (b) => {
-    const card = b.closest('.card');
-    const on = b.getAttribute('aria-pressed') !== 'true';
-    b.setAttribute('aria-pressed', on);
-    b.textContent = on ? 'Graphique' : 'Tableau';
-    card.querySelector('.ch-table').hidden = !on;
-    card.querySelector('.chart').hidden = on;
-    card.querySelector('.legend').hidden = on;
-  },
   'hide-start': () => { update((s) => { s.prefs.hideStart = true; }); toast('« Pour bien démarrer » n\'apparaîtra plus.', { title: 'Liste masquée', action: 'Annuler', onAction: () => update((s) => { s.prefs.hideStart = false; }) }); },
   'clear-demo': async () => {
-    const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: 'Les entreprises, appels et tâches fictifs seront supprimés. Ce que vous avez ajouté vous-même est conservé.', ok: 'Effacer', danger: true });
+    const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: 'Les fiches, appels et tâches fictifs seront supprimés. Ce que vous avez ajouté vous-même est conservé.', ok: 'Effacer', danger: true });
     if (!ok) return;
     update((s) => clearDemo(s));
     toast('Données de démonstration effacées');

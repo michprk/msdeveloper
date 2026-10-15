@@ -6,17 +6,28 @@ export const DAY = 864e5;
 export const TRIAL_DAYS = 7;
 
 export const PLANS = {
-  free: { id: 'free', name: 'Découverte', price: 0 },
+  free: { id: 'free', name: 'Gratuit', price: 0 },
   pro: { id: 'pro', name: 'Pro', price: 17.99 },
   premium: { id: 'premium', name: 'Premium', price: 31.99 },
 };
-const RANK = { free: 0, pro: 1, premium: 2 };
+export const RANK = { free: 0, pro: 1, premium: 2 };
 // Fonction → formule minimale. L'essai gratuit donne accès à tout (Premium).
+// Tâches, agenda, notes (10 pages) et quiz intégrés restent gratuits.
 export const FEATURES = {
-  crm: 'pro', scriptsAll: 'pro', callMode: 'pro', agenda: 'pro', projects: 'pro', academy: 'pro',
+  crm: 'pro', notesUnlimited: 'pro', myQuiz: 'pro', scriptsAll: 'pro', callMode: 'pro', projects: 'pro', academy: 'pro',
   messages: 'pro', audit: 'pro', import: 'pro',
   quote: 'premium', myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium',
 };
+export const LIMITS = { freePages: 10 };
+
+// Modules : chacun choisit ce qu'il utilise (accueil, puis Compte → Modules).
+export const MODULES = {
+  organiser: { label: 'M\'organiser', desc: 'Tâches, agenda et notes en pages', icon: 'checkSquare', tone: 'blue' },
+  clients: { label: 'Suivre mes clients', desc: 'Un CRM adapté à votre métier', icon: 'users', tone: 'olive' },
+  prospecter: { label: 'Trouver des clients', desc: 'Scripts d\'appel et mode appel', icon: 'phone', tone: 'sky' },
+  apprendre: { label: 'Apprendre et progresser', desc: 'Quiz et guides pratiques', icon: 'quiz', tone: 'navy' },
+};
+export const MODULE_IDS = Object.keys(MODULES);
 
 // Étapes de base (utilisées par le mode appel). L'utilisateur peut les renommer
 // et ajouter ses propres étapes (CRM personnalisé) : voir computeStages().
@@ -58,19 +69,24 @@ export const SOURCES = ['Appel', 'Visite', 'Recommandation', 'Instagram', 'Site 
 export const PROJECT_STEPS = ['Acompte reçu', 'Contenus reçus', 'Maquette validée', 'Développement', 'Relecture client', 'Mise en ligne'];
 
 const defaults = () => ({
-  v: 1, onboarded: false, createdAt: Date.now(),
+  v: 2, onboarded: false, createdAt: Date.now(),
   profile: {
     prenom: '', societe: '', ville: 'Bruxelles', tel: '', email: '', adresse: '', tva: '', iban: '',
-    service: 'site', prix: { site: '500 €', auto: '290 €', seo: '490 €' }, secteurs: [], niveau: 'debut',
+    usages: [...MODULE_IDS], metier: '',
+    service: 'site', prix: { site: '500 €', auto: '290 €', seo: '490 €', offre: '' }, secteurs: [], niveau: 'debut',
+    offre: { quoi: '', resultat: '', exemple: '' },
     promesse: 'Prix fixe, délais tenus, et un seul interlocuteur du début à la fin.',
   },
   goals: { appelsJour: 40, rdvSemaine: 5, caMois: 1000 },
   prefs: { theme: 'light', motion: 'full', notifs: true, replayIntro: false, textSize: 'm' },
-  sub: { plan: 'free', trialStart: null, demo: null },
-  // CRM personnalisé : noms d'étapes, étapes ajoutées, champs, équipe
-  crm: { labels: {}, extra: [], fields: [], team: [] },
+  // Abonnement : formule, essai, période en cours, résiliation, échec de paiement, historique
+  sub: { plan: 'free', trialStart: null, demo: null, status: 'none', periodStart: null, periodEnd: null, cancelAt: false, pending: null, graceEnd: null, failNext: false, history: [] },
+  // CRM personnalisé : noms d'étapes, étapes ajoutées, champs, équipe, nom des fiches
+  crm: { labels: {}, extra: [], fields: [], team: [], noun: 'Clients', preset: '' },
   academy: { read: {}, last: null },
   lock: null, baseline: null,
+  lists: [{ id: 'perso', name: 'Personnel', tone: 'sky' }, { id: 'travail', name: 'Travail', tone: 'olive' }],
+  pages: [], quiz: { results: {}, mine: [], days: [] },
   prospects: [], activities: [], tasks: [], projects: [],
   favorites: [], recent: [], myScripts: [], mySectors: [], training: {},
   catalogue: [
@@ -103,12 +119,25 @@ function sanitize(s) {
   s.tasks.forEach((t) => { t.due = n(t.due); t.doneAt = n(t.doneAt); });
   s.activities.forEach((a) => { a.at = n(a.at) || Date.now(); });
   s.prospects.forEach((p) => { p.createdAt = n(p.createdAt) || Date.now(); p.updatedAt = n(p.updatedAt) || p.createdAt; if (p.next) p.next.due = n(p.next.due); });
+  s.pages.forEach((p) => { p.blocks = Array.isArray(p.blocks) ? p.blocks : []; p.updatedAt = n(p.updatedAt) || Date.now(); p.createdAt = n(p.createdAt) || p.updatedAt; });
+  if (!Array.isArray(s.profile.usages) || !s.profile.usages.length) s.profile.usages = [...MODULE_IDS];
+  if (!Array.isArray(s.sub.history)) s.sub.history = [];
   return s;
+}
+// Version 1 → 2 : l'application devient aussi une application d'organisation.
+// Les comptes existants gardent tout et retrouvent leurs « Prospects ».
+function migrate(saved) {
+  if (saved && typeof saved === 'object' && (saved.v || 1) < 2) {
+    saved.crm = { ...(saved.crm || {}) };
+    if (!saved.crm.noun) saved.crm.noun = 'Prospects';
+    saved.v = 2;
+  }
+  return saved;
 }
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return sanitize(merge(defaults(), JSON.parse(raw)));
+    if (raw) return sanitize(merge(defaults(), migrate(JSON.parse(raw))));
   } catch (e) { /* stockage indisponible : on repart d'un état vide */ }
   return defaults();
 }
@@ -135,7 +164,7 @@ export function update(fn, { silent = false } = {}) {
   if (!silent) listeners.forEach((l) => l());
 }
 export function replaceState(next) {
-  state = sanitize(merge(defaults(), next));
+  state = sanitize(merge(defaults(), migrate(next)));
   setCustomSectors(state.mySectors);
   computeStages(state);
   persist();
@@ -190,7 +219,14 @@ export const resetState = () => replaceState(defaults());
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+// ---------- Modules ----------
+export const on = (m) => (state.profile.usages || MODULE_IDS).includes(m);
+
 // ---------- Abonnement ----------
+// États : gratuit → essai (7 jours) → gratuit, ou abonné (actif) → résiliation programmée
+// → fin de période ; paiement refusé → délai de grâce de 7 jours → gratuit.
+// Les paiements passent par assets/js/payments.js (mode test tant que Stripe n'est pas branché).
+export const GRACE_DAYS = 7;
 export const trialEnd = () => (state.sub.trialStart ? state.sub.trialStart + TRIAL_DAYS * DAY : 0);
 export const trialActive = () => !!state.sub.trialStart && Date.now() < trialEnd();
 export const trialLeft = () => Math.max(0, Math.ceil((trialEnd() - Date.now()) / DAY));
@@ -202,6 +238,113 @@ export function access() {
 }
 export const can = (f) => RANK[access()] >= RANK[FEATURES[f] || 'free'];
 export const need = (f) => FEATURES[f] || 'free';
+export const addMonth = (t) => { const d = new Date(t); const day = d.getDate(); d.setMonth(d.getMonth() + 1); if (d.getDate() < day) d.setDate(0); return d.getTime(); };
+export const round2 = (n) => Math.round(n * 100) / 100;
+// Statut lisible par l'interface
+export function billing() {
+  const s = state.sub;
+  if (s.plan !== 'free') {
+    if (s.status === 'past_due') return 'past_due';
+    if (s.cancelAt) return 'canceling';
+    return 'active';
+  }
+  if (trialActive()) return 'trial';
+  if (s.status === 'ended') return 'ended';
+  if (s.trialStart) return 'trial_ended';
+  return 'free';
+}
+const ref = () => 'MSD-' + Date.now().toString(36).toUpperCase().slice(-6) + Math.random().toString(36).slice(2, 4).toUpperCase();
+const log = (s, type, extra = {}) => { const r = { id: ref(), at: Date.now(), type, ...extra }; s.sub.history.unshift(r); s.sub.history = s.sub.history.slice(0, 60); return r; };
+// Montant dû pour passer tout de suite à une formule supérieure (au prorata des jours restants)
+export function prorata(plan) {
+  const s = state.sub, now = Date.now();
+  if (s.plan === 'free' || !s.periodEnd) return PLANS[plan].price;
+  const left = Math.max(0, Math.min(1, (s.periodEnd - now) / (s.periodEnd - s.periodStart)));
+  return round2(Math.max(0, (PLANS[plan].price - PLANS[s.plan].price) * left));
+}
+export function subscribe(plan) {
+  let r;
+  update((s) => {
+    const now = Date.now();
+    s.sub.plan = plan; s.sub.status = 'active'; s.sub.periodStart = now; s.sub.periodEnd = addMonth(now);
+    s.sub.cancelAt = false; s.sub.pending = null; s.sub.graceEnd = null; s.sub.demo = null;
+    r = log(s, 'paiement', { plan, amount: PLANS[plan].price, label: `Abonnement ${PLANS[plan].name} — premier mois` });
+  });
+  return r;
+}
+// Formule supérieure : immédiate, au prorata. Formule inférieure : à la fin de la période payée.
+export function changePlan(plan) {
+  let r = null;
+  update((s) => {
+    if (RANK[plan] > RANK[s.sub.plan]) {
+      const amount = prorata(plan);
+      s.sub.plan = plan; s.sub.pending = null; s.sub.cancelAt = false;
+      r = log(s, 'paiement', { plan, amount, label: `Passage à ${PLANS[plan].name} (au prorata)` });
+    } else {
+      s.sub.pending = plan === s.sub.plan ? null : plan; s.sub.cancelAt = false;
+      r = log(s, 'changement', { plan, amount: 0, label: `Passage à ${PLANS[plan].name} prévu à la fin de la période` });
+    }
+  });
+  return r;
+}
+export function cancelSub() { update((s) => { s.sub.cancelAt = true; s.sub.pending = null; log(s, 'resiliation', { plan: s.sub.plan, amount: 0, label: 'Résiliation à la fin de la période' }); }); }
+export function resumeSub() { update((s) => { s.sub.cancelAt = false; log(s, 'reprise', { plan: s.sub.plan, amount: 0, label: 'Abonnement repris' }); }); }
+// Nouvel essai de paiement après un refus
+export function settleDue(ok) {
+  let r;
+  update((s) => {
+    if (ok) {
+      const now = Date.now();
+      s.sub.status = 'active'; s.sub.graceEnd = null; s.sub.periodStart = now; s.sub.periodEnd = addMonth(now);
+      r = log(s, 'paiement', { plan: s.sub.plan, amount: PLANS[s.sub.plan].price, label: `Abonnement ${PLANS[s.sub.plan].name} — paiement régularisé` });
+    } else r = log(s, 'echec', { plan: s.sub.plan, amount: PLANS[s.sub.plan].price, label: 'Paiement refusé' });
+  });
+  return r;
+}
+// Passage du temps : renouvellements, fin de résiliation, fin du délai de grâce.
+// Appelé à l'ouverture et au retour dans l'application.
+export function syncBilling(now = Date.now()) {
+  const s = state.sub;
+  if (s.plan === 'free' || !s.periodEnd) return false;
+  const due = (s.status === 'past_due' && s.graceEnd && now >= s.graceEnd) || (s.status !== 'past_due' && now >= s.periodEnd);
+  if (!due) return false;
+  update((st) => {
+    const b = st.sub;
+    let guard = 0;
+    while (b.plan !== 'free' && b.status !== 'past_due' && now >= b.periodEnd && guard++ < 36) {
+      if (b.cancelAt) { log(st, 'fin', { plan: b.plan, amount: 0, label: `Fin de l'abonnement ${PLANS[b.plan].name}` }); b.plan = 'free'; b.status = 'ended'; b.cancelAt = false; break; }
+      if (b.pending) { b.plan = b.pending; b.pending = null; }
+      if (b.failNext) {
+        b.failNext = false; b.status = 'past_due'; b.graceEnd = b.periodEnd + GRACE_DAYS * DAY;
+        log(st, 'echec', { plan: b.plan, amount: PLANS[b.plan].price, label: 'Renouvellement refusé par la banque' });
+        break;
+      }
+      b.periodStart = b.periodEnd; b.periodEnd = addMonth(b.periodEnd);
+      log(st, 'paiement', { plan: b.plan, amount: PLANS[b.plan].price, label: `Abonnement ${PLANS[b.plan].name} — renouvellement` });
+    }
+    if (b.status === 'past_due' && b.graceEnd && now >= b.graceEnd) {
+      log(st, 'fin', { plan: b.plan, amount: 0, label: 'Fin de l\'abonnement : paiement non régularisé' });
+      b.plan = 'free'; b.status = 'ended'; b.graceEnd = null;
+    }
+  });
+  return true;
+}
+// Outil de test : fait comme si du temps avait passé (décale les dates de l'abonnement).
+// « next » : juste après la prochaine échéance (prélèvement, fin d'essai ou fin du délai de grâce).
+export function nextBillingEvent() {
+  const b = state.sub;
+  if (b.plan !== 'free') return b.status === 'past_due' ? b.graceEnd : b.periodEnd;
+  return trialActive() ? trialEnd() : null;
+}
+export function simulateDays(days) {
+  const d = days === 'next' ? Math.max(0, (nextBillingEvent() || Date.now()) - Date.now() + 60e3) : days * DAY;
+  update((s) => {
+    const b = s.sub;
+    for (const k of ['trialStart', 'periodStart', 'periodEnd', 'graceEnd']) if (b[k]) b[k] -= d;
+  }, { silent: true });
+  syncBilling();
+  listeners.forEach((l) => l());
+}
 
 // ---------- Dates ----------
 export const dayKey = (t = Date.now()) => {
@@ -273,7 +416,7 @@ export function recordCall(prospectId, outcome, note = '') {
 
 // ---------- Tâches ----------
 export function addTask(t) {
-  const task = { id: uid(), title: '', due: null, prospectId: null, kind: 'tache', done: false, createdAt: Date.now(), ...t };
+  const task = { id: uid(), title: '', due: null, prospectId: null, kind: 'tache', done: false, list: null, prio: 0, notes: '', sub: [], status: 'todo', createdAt: Date.now(), ...t };
   update((s) => {
     s.tasks.push(task);
     if (task.prospectId && task.due) {
@@ -288,6 +431,7 @@ export function toggleTask(id) {
     const t = s.tasks.find((x) => x.id === id);
     if (!t) return;
     t.done = !t.done; t.doneAt = t.done ? Date.now() : null;
+    t.status = t.done ? 'done' : 'todo';
     if (t.prospectId) refreshNext(s, t.prospectId);
   });
 }
@@ -318,4 +462,42 @@ export function toggleFav(id) {
 }
 export function pushRecent(id) {
   update((s) => { s.recent = [id, ...s.recent.filter((x) => x !== id)].slice(0, 8); }, { silent: true });
+}
+
+// ---------- Notes (pages) ----------
+export const getPage = (id) => state.pages.find((p) => p.id === id);
+export const bid = () => 'b' + Math.random().toString(36).slice(2, 9);
+export function addPage(data = {}) {
+  const now = Date.now();
+  const page = { id: 'pg-' + uid(), title: '', icon: 'note', parent: null, fav: false, prospectId: null, blocks: [{ id: bid(), t: 'p', x: '' }], createdAt: now, updatedAt: now, ...data };
+  update((s) => { s.pages.unshift(page); });
+  return page;
+}
+// Une page et toutes ses sous-pages
+export function pageFamily(id, list = state.pages) {
+  const out = [id];
+  for (let i = 0; i < out.length; i++) list.filter((p) => p.parent === out[i]).forEach((p) => out.push(p.id));
+  return out;
+}
+export const canAddPage = () => can('notesUnlimited') || state.pages.length < LIMITS.freePages;
+
+// ---------- Quiz ----------
+// partial : partie limitée aux erreurs précédentes — le meilleur score n'est pas touché.
+export function saveQuizResult(id, score, total, wrong, partial = false) {
+  update((s) => {
+    const pct = total ? Math.round((score / total) * 100) : 0;
+    const r = s.quiz.results[id] || { best: 0, tries: 0 };
+    s.quiz.results[id] = partial ? { ...r, tries: (r.tries || 0) + 1, at: Date.now(), wrong }
+      : { best: Math.max(r.best || 0, pct), last: pct, tries: (r.tries || 0) + 1, at: Date.now(), wrong };
+    const k = dayKey();
+    if (!s.quiz.days.includes(k)) s.quiz.days = [...s.quiz.days, k].slice(-60);
+  });
+}
+// Jours consécutifs avec au moins un quiz terminé
+export function quizStreak() {
+  const set = new Set(state.quiz.days);
+  let n = 0, t = startOfDay();
+  if (!set.has(dayKey(t))) t -= DAY;
+  while (set.has(dayKey(t))) { n++; t -= DAY; }
+  return n;
 }

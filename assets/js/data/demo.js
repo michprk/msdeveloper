@@ -75,8 +75,24 @@ export function demoData(now = Date.now()) {
     const p = prospects.find((x) => x.id === t.prospectId);
     if (p && (!p.next || p.next.due > t.due)) p.next = { taskId: t.id, label: t.title, due: t.due };
   }
+  // Organisation : tâches personnelles et pages
+  const own = [
+    { title: 'Faire la déclaration TVA', due: today + 3 * DAY, list: 'travail', prio: 2 },
+    { title: 'Mettre à jour le portfolio', due: today, list: 'travail', prio: 1, sub: [{ id: 's1', x: 'Choisir 6 projets', done: true }, { id: 's2', x: 'Écrire les légendes', done: false }] },
+    { title: 'Réserver le train pour Gand', due: null, list: 'perso', prio: 0 },
+    { title: 'Commander des cartes de visite', due: today + DAY, list: 'travail', prio: 0, done: true },
+  ].map((t, i) => ({ id: uid() + 'o' + i, demo: true, kind: 'tache', prospectId: null, notes: '', sub: [], status: 'todo', done: false, createdAt: now - i * 3600e3, ...t, doneAt: t.done ? now - 3600e3 : null }));
+  const b = (t, x, extra = {}) => ({ id: uid() + Math.random().toString(36).slice(2, 5), t, x, ...extra });
+  const pages = [
+    { id: 'pg-demo1', demo: true, title: 'Plan de la semaine', icon: 'calendar', fav: true, parent: null, prospectId: null, createdAt: now - 2 * DAY, updatedAt: now - 3600e3,
+      blocks: [b('h2', 'Objectifs de la semaine'), b('todo', 'Deux rendez-vous signés', { c: true }), b('todo', 'Portfolio en ligne', { c: false }), b('todo', 'Déclaration TVA', { c: false }), b('h2', 'Idées'), b('ul', 'Proposer un forfait entretien mensuel'), b('ul', 'Partenariat avec le Salon Céleste')] },
+    { id: 'pg-demo2', demo: true, title: 'Rendez-vous — Maison Lemaire', icon: 'briefcase', fav: false, parent: null, prospectId: P['Maison Lemaire'].id, createdAt: now - DAY, updatedAt: now - 5 * 3600e3,
+      blocks: [b('h2', 'Contexte'), b('p', 'Boulangerie familiale, deux boutiques. Commandes de gâteaux notées sur papier.'), b('h2', 'Besoins exprimés'), b('ul', 'Précommandes en ligne pour les week-ends'), b('ul', 'Horaires toujours à jour sur Google'), b('h2', 'Prochaine étape'), b('todo', 'Envoyer la proposition avant jeudi', { c: false })] },
+    { id: 'pg-demo3', demo: true, title: 'Révision — méthodes d\'organisation', icon: 'cards', fav: false, parent: 'pg-demo1', prospectId: null, createdAt: now - 3 * DAY, updatedAt: now - 2 * DAY,
+      blocks: [b('callout', 'Bouton « Réviser » en haut de la page : chaque question devient une carte.'), b('qa', 'Durée d\'un cycle Pomodoro ?', { a: '25 minutes, puis 5 minutes de pause.' }), b('qa', 'La règle des deux minutes ?', { a: 'Si une tâche prend moins de deux minutes, la faire tout de suite.' }), b('qa', 'Les deux critères de la matrice d\'Eisenhower ?', { a: 'L\'urgence et l\'importance.' })] },
+  ];
   const projects = [{ id: uid(), demo: true, prospectId: P['Salon Céleste'].id, name: 'Salon Céleste', service: 'site', start: now - 5 * DAY, days: 21, done: [0, 1], createdAt: now - 5 * DAY }];
-  return { prospects, activities, tasks, projects };
+  return { prospects, activities, tasks: [...tasks, ...own], projects, pages };
 }
 
 export function clearDemo(s) {
@@ -84,4 +100,5 @@ export function clearDemo(s) {
   s.activities = s.activities.filter((x) => !x.demo);
   s.tasks = s.tasks.filter((x) => !x.demo);
   s.projects = s.projects.filter((x) => !x.demo);
+  s.pages = s.pages.filter((x) => !x.demo);
 }

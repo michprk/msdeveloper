@@ -76,7 +76,7 @@ export const register = (a = {}, f = {}) => { Object.assign(actions, a); Object.
 
 // ---------- Feuilles (dialog) ----------
 export function sheet(html, { cls = '', onClose } = {}) {
-  closeSheet(null, true);
+  document.querySelectorAll('dialog.sheet').forEach((x) => closeSheet(x, true));
   const d = document.createElement('dialog');
   d.className = `sheet ${cls}`;
   d.innerHTML = `<div class="sheet-in" role="document"><span class="sheet-grab" aria-hidden="true"></span>${html}</div>`;
@@ -88,11 +88,13 @@ export function sheet(html, { cls = '', onClose } = {}) {
   let ended = false;
   d._finish = () => { if (ended) return; ended = true; d.remove(); onClose?.(); };
   d.addEventListener('close', d._finish);
+  d.querySelectorAll('form[data-draft]').forEach(restoreDraft);
   const f = d.querySelector('[autofocus]');
   if (f && matchMedia('(pointer:fine)').matches) f.focus();
   return d;
 }
-export function closeSheet(d = document.querySelector('dialog.sheet[open]'), now = false) {
+export function closeSheet(d = null, now = false) {
+  d = d || document.querySelector('dialog.sheet[open]');
   if (!d) return;
   if (now) { if (d.open) d.close(); d._finish?.(); return; }
   d.classList.remove('open');
@@ -196,6 +198,102 @@ export async function busy(btn, label, fn) {
   try { return await fn(); } finally { btn.classList.remove('is-loading'); btn.removeAttribute('aria-busy'); if (btn.tagName === 'BUTTON') btn.disabled = false; btn.innerHTML = html; }
 }
 export const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---------- Glisser-déposer (pipeline, tableau des tâches) ----------
+// Souris : on glisse la carte d'une colonne à l'autre. Toucher : appui long → onLong (menu « Déplacer vers »).
+export function enableDnD(boardEl, { onDrop, onLong, key = 'stage' }) {
+  if (!boardEl) return null;
+  let suppress = false;
+  const onClick = (e) => { if (suppress) { e.preventDefault(); e.stopPropagation(); suppress = false; } };
+  boardEl.addEventListener('click', onClick, true);
+  const onDown = (e) => {
+    const cardEl = e.target.closest('.kcard');
+    if (!cardEl || e.button > 0 || e.target.closest('button:not(.kcard)')) return;
+    const id = cardEl.dataset.id;
+    const sx = e.clientX, sy = e.clientY;
+    if (e.pointerType !== 'mouse') {
+      const t = setTimeout(() => { suppress = true; navigator.vibrate?.(12); onLong?.(id); }, 450);
+      const cancel = () => { clearTimeout(t); window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', cancel); window.removeEventListener('pointercancel', cancel); };
+      const mv = (ev) => { if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 8) cancel(); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', cancel); window.addEventListener('pointercancel', cancel);
+      return;
+    }
+    let ghost = null, over = null, ox = 0, oy = 0, raf = 0, lastX = sx;
+    const move = (ev) => {
+      if (!ghost) {
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+        const r = cardEl.getBoundingClientRect();
+        ox = sx - r.left; oy = sy - r.top;
+        ghost = cardEl.cloneNode(true); ghost.classList.add('kcard-ghost'); ghost.style.width = `${r.width}px`;
+        document.body.append(ghost); cardEl.classList.add('is-dragging'); document.body.classList.add('is-dragging');
+      }
+      ev.preventDefault();
+      lastX = ev.clientX;
+      ghost.style.transform = `translate(${ev.clientX - ox}px, ${ev.clientY - oy}px) rotate(1.5deg)`;
+      ghost.hidden = true;
+      const col = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('.kcol');
+      ghost.hidden = false;
+      if (col !== over) { over?.classList.remove('is-over'); over = col; over?.classList.add('is-over'); }
+      if (!raf) {
+        const scroll = () => {
+          const br = boardEl.getBoundingClientRect();
+          const dx = lastX < br.left + 60 ? -12 : lastX > br.right - 60 ? 12 : 0;
+          if (dx && ghost) { boardEl.scrollLeft += dx; raf = requestAnimationFrame(scroll); } else raf = 0;
+        };
+        raf = requestAnimationFrame(scroll);
+      }
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      cancelAnimationFrame(raf); raf = 0;
+      if (!ghost) return;
+      suppress = true;
+      ghost.remove(); cardEl.classList.remove('is-dragging'); document.body.classList.remove('is-dragging');
+      over?.classList.remove('is-over');
+      const value = over?.dataset[key];
+      if (value) onDrop(id, value);
+      setTimeout(() => { suppress = false; }, 50);
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointercancel', up, { once: true });
+    window.addEventListener('pointerup', up);
+  };
+  boardEl.addEventListener('pointerdown', onDown);
+  boardEl.addEventListener('dragstart', (e) => e.preventDefault());
+  const noMenu = (e) => { if (e.target.closest('.kcard') && !matchMedia('(pointer:fine)').matches) e.preventDefault(); };
+  boardEl.addEventListener('contextmenu', noMenu);
+  return () => { boardEl.removeEventListener('pointerdown', onDown); boardEl.removeEventListener('click', onClick, true); boardEl.removeEventListener('contextmenu', noMenu); };
+}
+
+// ---------- Brouillons ----------
+// Un formulaire avec data-draft="clé" garde sa saisie si on ferme la feuille ou change d'écran.
+const DRAFT = 'msdev:draft:';
+export function saveDraft(form) {
+  const k = form.dataset.draft; if (!k) return;
+  const data = {};
+  for (const el of form.elements) if (el.name && el.type !== 'file' && el.type !== 'hidden') data[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+  try { sessionStorage.setItem(DRAFT + k, JSON.stringify(data)); } catch (e) { /* rien */ }
+}
+export function clearDraft(k) { try { sessionStorage.removeItem(DRAFT + k); } catch (e) { /* rien */ } }
+export function restoreDraft(form) {
+  const k = form.dataset.draft; if (!k) return false;
+  let data = null;
+  try { data = JSON.parse(sessionStorage.getItem(DRAFT + k) || 'null'); } catch (e) { /* rien */ }
+  if (!data || !Object.values(data).some((v) => v && v !== true)) return false;
+  for (const el of form.elements) {
+    if (!el.name || !(el.name in data)) continue;
+    if (el.type === 'checkbox') el.checked = !!data[el.name];
+    else if (el.type === 'radio') el.checked = el.value === data[el.name];
+    else el.value = data[el.name];
+  }
+  const note = document.createElement('p');
+  note.className = 'draft-note';
+  note.innerHTML = `${ic('refresh')}<span>Brouillon restauré.</span><button type="button" class="link">Effacer</button>`;
+  note.querySelector('button').addEventListener('click', () => { clearDraft(k); form.reset(); note.remove(); refreshNeeds(form); });
+  form.prepend(note);
+  refreshNeeds(form);
+  return true;
+}
 
 // Champs de formulaire
 export const field = (label, input, hint = '') => `<label class="field"><span class="field-l">${label}</span>${input}${hint ? `<span class="field-h">${hint}</span>` : ''}</label>`;

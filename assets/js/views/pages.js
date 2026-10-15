@@ -1,31 +1,33 @@
 // Académie, abonnement, compte et réglages, menu « Plus ».
-import { S, update, can, access, PLANS, FEATURES, TRIAL_DAYS, trialActive, trialLeft, trialEnd, replaceState, resetState, mergeImport, uid } from '../store.js';
+import { S, update, can, on, PLANS, FEATURES, MODULES, MODULE_IDS, replaceState, resetState, mergeImport, uid } from '../store.js';
 import { ic, esc, eur, register, toast, confirmSheet, download, field, input, select, sheet, sheetHead, closeSheet, planBadge, avatar, busy, pause, dateLong } from '../ui.js';
 import { GUIDES } from '../data/guides.js';
 import { SECTORS } from '../data/sectors.js';
 import { SERVICES, SERVICE_IDS, scriptCount, typo, CHANNELS, getSector, allSectors } from '../data/scripts.js';
 import { demoData, clearDemo } from '../data/demo.js';
-import { pageHead, paywall, subscribeSheet, accessLabel, PROMISE, PITCH, AUDIENCE, BENEFITS } from './common.js';
+import { pageHead, paywall, accessLabel, PROMISE, PITCH, AUDIENCE, BENEFITS } from './common.js';
+import { preset } from '../data/presets.js';
+import { QUIZZES } from '../data/quizzes.js';
 import { startOnboarding, notifSheet } from './onboarding.js';
 import { flower } from './flowers.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
 import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow } from '../lock.js';
 
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
-const PATHS = { debut: ['prendre-rdv', 'etre-attrayant', 'preparer-appel', 'objections'], regulier: ['session', 'horaires', 'relances', 'prix'], expert: ['entonnoir', 'offre', 'avis-google', 'premier-rdv'] };
+const PATHS = { debut: ['prendre-rdv', 'etre-attrayant', 'preparer-appel', 'objections'], regulier: ['session', 'horaires', 'relances', 'prix'], expert: ['entonnoir', 'offre', 'avis-google', 'premier-rdv'], organiser: ['semaine', 'priorites', 'suivi-client', 'relances'] };
 const isRead = (id) => !!S().academy?.read?.[id];
 
 export function academy() {
   const s = S();
   const read = GUIDES.filter((g) => isRead(g.id)).length;
-  const lv = s.profile.niveau || 'debut';
+  const lv = on('prospecter') ? s.profile.niveau || 'debut' : 'organiser';
   const path = (PATHS[lv] || []).map((id) => GUIDES.find((g) => g.id === id)).filter(Boolean);
   const last = s.academy?.last && GUIDES.find((g) => g.id === s.academy.last && !isRead(g.id));
   const resume = last || path.find((g) => !isRead(g.id)) || GUIDES.find((g) => !isRead(g.id));
-  const label = { debut: 'Pour bien démarrer', regulier: 'Pour passer à la vitesse supérieure', expert: 'Pour affiner votre méthode' }[lv];
+  const label = { debut: 'Pour bien démarrer', regulier: 'Pour passer à la vitesse supérieure', expert: 'Pour affiner votre méthode', organiser: 'Pour s\'organiser' }[lv];
   const html = `${pageHead('Académie', { kicker: `${GUIDES.length} guides pratiques` })}
     <section class="card progress-card rise">
       <div class="pg-top"><div><p class="pg-n"><b>${read}</b> / ${GUIDES.length}</p><p class="muted-s">guides lus</p></div>
@@ -33,7 +35,7 @@ export function academy() {
       <span class="bar olive"><i style="width:${(read / GUIDES.length) * 100}%"></i></span>
       ${resume ? `<p class="pg-next">${last ? 'En cours' : 'Prochain'} : <a href="#/academie/${resume.id}">${T(resume.title)}</a></p>` : ''}
     </section>
-    <section class="card parcours rise"><header class="card-h"><div><h2>Votre parcours</h2><p>${label} · ${path.filter((g) => isRead(g.id)).length} / ${path.length} lus</p></div><a class="link" href="#/reglages?s=offre">Changer de niveau</a></header>
+    <section class="card parcours rise"><header class="card-h"><div><h2>Votre parcours</h2><p>${label} · ${path.filter((g) => isRead(g.id)).length} / ${path.length} lus</p></div>${on('prospecter') ? '<a class="link" href="#/reglages?s=offre">Changer de niveau</a>' : ''}</header>
       <ol class="pc">${path.map((g) => `<li class="${isRead(g.id) ? 'is-read' : ''}"><a href="#/academie/${g.id}"><b>${T(g.title)}</b><span>${g.cat} · ${g.min} min${isRead(g.id) ? ' · lu' : !g.free && !can('academy') ? ' · Pro' : ''}</span></a></li>`).join('')}</ol></section>
     <h2 class="sec-title">Tous les guides</h2>
     <div class="guide-grid">${GUIDES.map((g, i) => {
@@ -85,67 +87,6 @@ export function guide([id]) {
   };
 }
 
-// ---------- Abonnement : statut réel et limites ----------
-const FEATURE_LABELS = [
-  ['scriptsFree', 'Scripts d\'appel à froid (23 secteurs, 3 services)', 'free'],
-  ['crm', 'Prospects : pipeline, fiches, historique, CRM personnalisé', 'pro'],
-  ['scriptsAll', `Les ${scriptCount()} scripts et les situations délicates`, 'pro'],
-  ['callMode', 'Mode appel avec enregistrement du résultat', 'pro'],
-  ['agenda', 'Agenda, relances et rappels', 'pro'],
-  ['projects', 'Suivi des clients signés', 'pro'],
-  ['academy', 'Académie complète (14 guides)', 'pro'],
-  ['audit', 'Audit express, messages, import de listes', 'pro'],
-  ['quote', 'Devis imprimables en PDF', 'premium'],
-  ['myScripts', 'Vos scripts et vos propres secteurs', 'premium'],
-  ['training', 'Entraînement aux objections', 'premium'],
-  ['stats', 'Statistiques détaillées', 'premium'],
-  ['export', 'Export CSV des fiches', 'premium'],
-];
-const price = (n) => n.toFixed(2).replace('.', ',');
-const RANK = { free: 0, pro: 1, premium: 2 };
-
-export function plans() {
-  const s = S(), cur = access();
-  const trialUsed = !!s.sub.trialStart, inTrial = s.sub.plan === 'free' && trialActive();
-  const status = s.sub.demo ? ['Mode démonstration', `Affichage ${PLANS[s.sub.demo].name}, activé depuis le compte. Ce n'est pas un abonnement.`]
-    : inTrial ? ['Essai gratuit', `Toutes les fonctions jusqu'au ${dateLong(trialEnd()).toLowerCase()} (encore ${trialLeft()} jour${trialLeft() > 1 ? 's' : ''}).`]
-      : trialUsed && s.sub.plan === 'free' ? ['Version gratuite', `Votre essai s'est terminé le ${dateLong(trialEnd()).toLowerCase()}. Vos fiches sont conservées.`]
-        : s.sub.plan !== 'free' ? [PLANS[s.sub.plan].name, 'Abonnement actif.'] : ['Version gratuite', 'Les scripts d\'appel à froid et trois guides sont inclus.'];
-  const card = (id) => {
-    const p = PLANS[id];
-    const isCur = cur === id && !inTrial && !s.sub.demo;
-    return `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''}">${id === 'premium' ? flower(2, 'plan-fl') : ''}
-      <header><h2>${id === 'free' ? 'Gratuit' : p.name}</h2><p class="plan-p">${p.price ? `<b>${price(p.price)} €</b><span>par mois</span>` : '<b>0 €</b>'}</p></header>
-      <ul class="plan-f">${FEATURE_LABELS.filter(([, , need]) => need === id).map(([, l]) => `<li>${ic('check')}<span>${l}</span></li>`).join('')}</ul>
-      ${id !== 'free' ? `<p class="plan-plus">${id === 'pro' ? 'En plus de la version gratuite' : 'En plus de tout Pro'}</p>` : ''}
-      ${isCur ? '<p class="plan-cur">Votre formule</p>' : id === 'free' ? '' : `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="subscribe" data-plan="${id}">Choisir ${p.name}</button>`}
-    </section>`;
-  };
-  const html = `${pageHead('Abonnement', { kicker: 'Votre formule et ce qu\'elle comprend', back: '#/reglages' })}
-    <section class="card status-card rise">
-      <div class="status-top"><span class="status-ic">${ic(inTrial ? 'hourglass' : 'diamond')}</span><div><p class="muted-s">Statut actuel</p><h2>${status[0]}</h2><p>${status[1]}</p></div></div>
-      <div class="status-pay">${ic('lock')}<p><b>Paiement en ligne : pas encore ouvert.</b> Aucune carte n'est demandée et aucun prélèvement n'est fait. Les abonnements payants ouvriront au lancement officiel.</p></div>
-      ${!trialUsed ? `<button class="btn btn-primary btn-block" data-act="start-trial">Commencer l'essai gratuit de ${TRIAL_DAYS} jours</button>` : ''}
-    </section>
-    <section class="card rise">
-      <header class="card-h"><div><h2>Vos accès aujourd'hui</h2><p>${cur === 'premium' ? 'Toutes les fonctions sont ouvertes' : 'Ce qui est ouvert, et ce qui demande une formule'}</p></div></header>
-      <ul class="access">${FEATURE_LABELS.map(([, l, need]) => { const ok = RANK[cur] >= RANK[need]; return `<li class="${ok ? 'is-ok' : ''}"><span class="acc-ic">${ic(ok ? 'check' : 'lock')}</span><span>${l}</span>${ok ? '' : `<span class="badge b-${need}">${PLANS[need].name}</span>`}</li>`; }).join('')}</ul>
-    </section>
-    <h2 class="sec-title">Les formules</h2>
-    <div class="plans">${['free', 'pro', 'premium'].map(card).join('')}</div>
-    <section class="faq">
-      <h2 class="sec-title">Questions fréquentes</h2>
-      ${[
-        ['L\'essai est-il vraiment gratuit ?', `Oui : ${TRIAL_DAYS} jours, toutes les fonctions, sans carte bancaire. À la fin, l'application passe en version gratuite si vous ne choisissez rien.`],
-        ['Que deviennent mes fiches après l\'essai ?', 'Elles restent sur votre appareil. Les prospects se verrouillent mais rien n\'est effacé : vous les retrouvez dès que vous vous abonnez.'],
-        ['Puis-je arrêter quand je veux ?', 'Les abonnements seront mensuels, sans engagement de durée. Vous pourrez passer de Pro à Premium, ou l\'inverse, à tout moment.'],
-        ['Où sont stockées mes données ?', 'Sur votre appareil uniquement, pour l\'instant. Pensez à faire une sauvegarde depuis votre compte. Les comptes en ligne et la synchronisation arriveront avec le paiement.'],
-        ['Et sur l\'App Store ?', 'La version App Store suivra les règles d\'Apple pour les abonnements vendus dans une application. En attendant, l\'application s\'installe depuis Safari, sur l\'écran d\'accueil.'],
-      ].map(([q, a]) => `<details class="obj"><summary><span>${q}</span>${ic('chevD', 'chev')}</summary><p>${a}</p></details>`).join('')}
-    </section>`;
-  return { title: 'Abonnement', tab: 'plus', html };
-}
-
 // ---------- Compte et réglages ----------
 export function settings(params, q = {}) {
   const s = S(), p = s.profile, g = s.goals;
@@ -158,6 +99,13 @@ export function settings(params, q = {}) {
       <div class="acc-note">${ic('globe')}<p><b>Compte en ligne : bientôt.</b> Aujourd'hui, vos données sont enregistrées uniquement sur cet appareil. La connexion et la synchronisation entre téléphone et ordinateur arriveront avec le lancement.</p></div>
     </section>
 
+    <h2 class="sec-title">Votre application</h2>
+    <section class="card rise" id="modules">
+      <header class="card-h"><div><h2>Modules</h2><p>Ce que vous utilisez apparaît dans la navigation ; le reste se cache</p></div></header>
+      <div class="ios-list">${MODULE_IDS.map((m) => `<label class="ios-row"><span class="mod-r"><span class="feat-ic f-${MODULES[m].tone}">${ic(MODULES[m].icon)}</span><span><b>${MODULES[m].label}</b><em>${MODULES[m].desc}</em></span></span><input type="checkbox" class="switch" ${on(m) ? 'checked' : ''} data-act-change="module" data-m="${m}" aria-label="${MODULES[m].label}"></label>`).join('')}</div>
+      ${p.metier && preset(p.metier) ? `<p class="field-h">Métier : ${esc(preset(p.metier).label)} · <a href="#/crm/personnaliser">changer le modèle du CRM</a></p>` : ''}
+    </section>
+
     <h2 class="sec-title">Votre activité</h2>
     <form class="card form rise" data-form="profile" data-autosave data-validate novalidate>
       <header class="card-h"><div><h2>Profil</h2><p>Repris dans les scripts, les messages et les devis</p></div></header>
@@ -166,19 +114,24 @@ export function settings(params, q = {}) {
       <div class="form-2">${field('E-mail', input('email', p.email, 'type="email" autocomplete="email"'))}${field('Adresse', input('adresse', p.adresse, 'autocomplete="street-address"'))}</div>
       <div class="form-2">${field('N° d\'entreprise / TVA', input('tva', p.tva, 'placeholder="BE0123.456.789"'))}${field('IBAN (devis)', input('iban', p.iban, 'placeholder="BE.."'))}</div>
     </form>
-    <form class="card form rise" id="offre" data-form="offer" data-autosave>
-      <header class="card-h"><div><h2>Votre offre</h2><p>Les prix « à partir de » cités dans les scripts</p></div></header>
+    ${on('prospecter') ? `<form class="card form rise" id="offre" data-form="offer" data-autosave>
+      <header class="card-h"><div><h2>Votre offre</h2><p>Reprise dans les scripts de prospection</p></div></header>
       <div class="form-2">${field('Service principal', select('service', SERVICE_IDS.map((x) => [x, SERVICES[x].label]), p.service))}${field('Votre expérience', select('niveau', [['debut', 'Je débute'], ['regulier', 'J\'ai déjà prospecté'], ['expert', 'C\'est mon quotidien']], p.niveau || 'debut'))}</div>
+      <fieldset class="offer-box"><legend class="field-l">Votre propre offre (scripts « Votre offre »)</legend>
+        ${field('Ce que vous proposez', input('o_quoi', p.offre?.quoi || '', 'maxlength="90" placeholder="la comptabilité et la TVA"'), 'Complète la phrase « on s\'occupe de … pour les fleuristes de Bruxelles ».')}
+        ${field('Le résultat pour le client', input('o_resultat', p.offre?.resultat || '', 'maxlength="140" placeholder="vous ne passez plus vos soirées sur la paperasse"'), 'Complète « C\'est exactement ce qu\'on fait : … ».')}
+        ${field('Un exemple concret', input('o_exemple', p.offre?.exemple || '', 'maxlength="140" placeholder="un tableau clair chaque mois avec ce que vous devez payer"'))}
+      </fieldset>
       <div class="field"><span class="field-l">Vos secteurs</span><div class="chips-wrap my-secs">${(p.secteurs || []).map((id) => getSector(id)).filter(Boolean).map((x) => `<span class="chip t-olive">${ic(x.icon)}${esc(x.name)}</span>`).join('') || '<span class="muted-s">Aucun secteur choisi</span>'}<button type="button" class="chip-btn" data-act="sectors-edit">${ic('edit')}Modifier</button></div></div>
-      <div class="form-3">${SERVICE_IDS.map((x) => field(SERVICES[x].short, input(`prix_${x}`, p.prix[x]))).join('')}</div>
+      <div class="form-3">${SERVICE_IDS.map((x) => field(`Prix — ${SERVICES[x].short}`, input(`prix_${x}`, p.prix[x] || '', 'placeholder="à partir de …"'))).join('')}</div>
       ${field('Votre promesse', `<textarea class="inp" name="promesse" rows="2">${esc(p.promesse)}</textarea>`, 'Une phrase qui rassure : prix fixe, délai garanti, interlocuteur unique…')}
-    </form>
-    <form class="card form rise" data-form="goals" data-autosave>
+    </form>` : ''}
+    ${on('prospecter') || on('clients') ? `<form class="card form rise" data-form="goals" data-autosave>
       <header class="card-h"><div><h2>Objectifs</h2><p>Affichés sur l'écran Aujourd'hui</p></div></header>
-      <div class="form-3">${field('Appels par jour', input('appelsJour', g.appelsJour, 'type="number" min="1" inputmode="numeric"'))}${field('RDV par semaine', input('rdvSemaine', g.rdvSemaine, 'type="number" min="0" inputmode="numeric"'))}${field('Signé par mois (€)', input('caMois', g.caMois, 'type="number" min="0" step="50" inputmode="numeric"'))}</div>
-    </form>
-    <a class="card wide-tile rise" href="#/crm/personnaliser"><span class="sec-ic lg t-olive">${ic('sliders')}</span><span class="wide-b"><b>Personnaliser le CRM</b><span>Étapes du pipeline, champs, équipe, import de vos données.</span></span>${ic('chevR', 'chev')}</a>
-    <section class="card rise" id="catalogue">
+      <div class="form-3">${on('prospecter') ? `${field('Appels par jour', input('appelsJour', g.appelsJour, 'type="number" min="1" inputmode="numeric"'))}${field('RDV par semaine', input('rdvSemaine', g.rdvSemaine, 'type="number" min="0" inputmode="numeric"'))}` : ''}${field('Signé par mois (€)', input('caMois', g.caMois, 'type="number" min="0" step="50" inputmode="numeric"'))}</div>
+    </form>` : ''}
+    ${on('clients') ? `<a class="card wide-tile rise" href="#/crm/personnaliser"><span class="sec-ic lg t-olive">${ic('sliders')}</span><span class="wide-b"><b>Personnaliser le CRM</b><span>Votre métier, les étapes du pipeline, les champs, l'équipe, l'import de vos données.</span></span>${ic('chevR', 'chev')}</a>` : ''}
+    ${on('clients') ? `<section class="card rise" id="catalogue">` : '<section class="card rise" id="catalogue" hidden>'}
       <header class="card-h"><div><h2>Catalogue de prestations</h2><p>Utilisé par l'outil Devis</p></div><button class="link" data-act="cat-add">${ic('plus')}Ajouter</button></header>
       <ul class="cat">${s.catalogue.map((c) => `<li><input class="inp" value="${esc(c.label)}" aria-label="Prestation" data-act-change="cat-edit" data-id="${c.id}" data-k="label"><input class="inp price" type="number" min="0" value="${c.price}" aria-label="Prix" data-act-change="cat-edit" data-id="${c.id}" data-k="price"><label class="mini-check"><input type="checkbox" ${c.monthly ? 'checked' : ''} data-act-change="cat-edit" data-id="${c.id}" data-k="monthly"><span>/mois</span></label><button class="icon-btn sm" data-act="cat-del" data-id="${c.id}" aria-label="Supprimer ${esc(c.label)}">${ic('x')}</button></li>`).join('')}</ul>
     </section>
@@ -224,9 +177,9 @@ export function settings(params, q = {}) {
       <label class="field"><span class="field-l">Mode démonstration</span>${select('demo', [['', 'Désactivé'], ['pro', 'Afficher comme Pro'], ['premium', 'Afficher comme Premium']], s.sub.demo || '', 'data-act-change="demo-mode"')}<span class="field-h">Ouvre toutes les fonctions le temps d'une présentation. Ce n'est pas un abonnement.</span></label>
     </section>
 
-    <h2 class="sec-title">Vos données</h2>
+    <h2 class="sec-title" id="donnees">Vos données</h2>
     <section class="card rise">
-      <header class="card-h"><div><h2>Sauvegarde et import</h2><p>${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · ${s.activities.length} échange${s.activities.length > 1 ? 's' : ''} sur cet appareil</p></div></header>
+      <header class="card-h"><div><h2>Sauvegarde et import</h2><p>${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''} · ${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} sur cet appareil</p></div></header>
       <div class="btn-list">
         <button class="btn btn-ghost" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde</span></button>
         <label class="btn btn-ghost">${ic('upload')}<span>Importer un fichier (ajoute sans rien effacer)</span><input type="file" accept="application/json,.json" hidden data-act-change="import-merge"></label>
@@ -235,7 +188,7 @@ export function settings(params, q = {}) {
       </div>
     </section>
     <section class="card danger-zone rise">
-      <header class="card-h"><div><h2>Supprimer toutes mes données</h2><p>Fiches, historique, réglages : tout est effacé de cet appareil</p></div></header>
+      <header class="card-h"><div><h2>Supprimer toutes mes données</h2><p>Tâches, pages, fiches, historique, réglages : tout est effacé de cet appareil</p></div></header>
       <button class="btn btn-danger-ghost" data-act="wipe">${ic('trash')}<span>Supprimer toutes mes données</span></button>
     </section>
 
@@ -250,16 +203,21 @@ export function settings(params, q = {}) {
 export function more() {
   const s = S(), p = s.profile;
   const read = GUIDES.filter((g) => isRead(g.id)).length;
+  const N = s.crm.noun || 'Clients';
   const groups = [
-    ['Suivi', [['#/agenda', 'calendar', 'Agenda', 'Rappels, rendez-vous, relances'], ['#/projets', 'folder', 'Clients signés', 'Projets en cours, délais, étapes']]],
-    ['Outils', [['#/outils/devis', 'invoice', 'Devis', 'Calculé et imprimable en PDF', 'quote'], ['#/outils/messages', 'message', 'Messages prêts à envoyer', 'Confirmation, relance, avis', 'messages'], ['#/outils/audit', 'clipboard', 'Audit express', 'La présence en ligne notée sur 10', 'audit'], ['#/outils/import', 'upload', 'Importer une liste', 'Depuis un tableur', 'import'], ['#/outils/stats', 'chart', 'Statistiques', 'Vos taux, étape par étape', 'stats'], ['#/outils/entrainement', 'target', 'Entraînement', 'Répondre aux objections', 'training'], ['#/outils/mes-scripts', 'edit', 'Mes scripts et secteurs', 'Vos propres versions', 'myScripts']]],
-    ['Progresser', [['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`]]],
-    ['Compte', [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Profil, sécurité, données'], ['#/crm/personnaliser', 'crm', 'Personnaliser le CRM', 'Étapes, champs, équipe']]],
-  ];
-  const html = `${pageHead('Plus')}
+    ['S\'organiser', 'organiser', [['#/taches', 'checkSquare', 'Tâches', `${s.tasks.filter((t) => !t.done).length} à faire · listes, tableau`], ['#/agenda', 'calendar', 'Agenda', 'Vos tâches jour par jour'], ['#/notes', 'page', 'Notes', `${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · modèles, sous-pages`]]],
+    ['Clients', 'clients', [['#/crm', 'users', N, `${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · pipeline`, 'crm'], ['#/projets', 'folder', 'Projets clients', 'Après la signature : étapes et délais', 'projects'], ['#/outils/devis', 'invoice', 'Devis', 'Calculé et imprimable en PDF', 'quote'], ['#/outils/messages', 'message', 'Messages prêts à envoyer', 'Confirmation, relance, avis', 'messages'], ['#/outils/stats', 'chart', 'Statistiques', 'Vos taux, étape par étape', 'stats']]],
+    ['Prospecter', 'prospecter', [['#/scripts', 'script', 'Scripts', `${scriptCount()} scripts prêts à l'emploi`], ['#/appel', 'headset', 'Session d\'appels', 'Le script pas à pas, le résultat en un geste', 'callMode'], ['#/outils/audit', 'clipboard', 'Audit express', 'La présence en ligne notée sur 10', 'audit'], ['#/outils/import', 'upload', 'Importer une liste', 'Depuis un tableur', 'import'], ['#/outils/entrainement', 'target', 'Entraînement', 'Répondre aux objections', 'training'], ['#/outils/mes-scripts', 'edit', 'Mes scripts et secteurs', 'Vos propres versions', 'myScripts']]],
+    ['Progresser', 'apprendre', [['#/quiz', 'quiz', 'Quiz', `${QUIZZES.length} quiz · quiz du jour, révision des notes`], ['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`]]],
+  ].filter(([, m]) => on(m));
+  const account = [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Modules, profil, sécurité, données']];
+  const rows = (items) => `<ul class="menu card rise">${items.map(([h, i, t, d, f]) => `<li><a class="row" href="${h}"><span class="menu-ic">${ic(i)}</span><span class="row-b"><b>${esc(t)}</b><span>${esc(d)}</span></span>${f && !can(f) ? `<span class="badge b-${FEATURES[f]}">${PLANS[FEATURES[f]].name}</span>` : ''}${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`;
+  const html = `${pageHead('Plus', { actions: `<button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button>` })}
     <a class="card me rise" href="#/reglages">${avatar(p.prenom || 'M S', 'lg')}<span class="row-b"><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(p.societe || 'Ajoutez votre société')}</span></span>${planBadge()}</a>
-    ${groups.map(([gname, items]) => `<h2 class="sec-title">${gname}</h2><ul class="menu card rise">${items.map(([h, i, t, d, f]) => `<li><a class="row" href="${h}"><span class="menu-ic">${ic(i)}</span><span class="row-b"><b>${t}</b><span>${esc(d)}</span></span>${f && !can(f) ? `<span class="badge b-${FEATURES[f]}">${PLANS[FEATURES[f]].name}</span>` : ''}${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`).join('')}
-    <ul class="menu card rise"><li><button class="row" data-act="install"><span class="menu-ic">${ic('install')}</span><span class="row-b"><b>Installer l'application</b><span>Sur l'écran d'accueil</span></span>${ic('chevR', 'chev')}</button></li></ul>`;
+    ${groups.map(([gname, , items]) => `<h2 class="sec-title">${gname}</h2>${rows(items)}`).join('')}
+    <h2 class="sec-title">Compte</h2>${rows(account)}
+    <ul class="menu card rise"><li><a class="row" href="#/reglages?s=modules"><span class="menu-ic">${ic('grid')}</span><span class="row-b"><b>Afficher d'autres modules</b><span>${MODULE_IDS.filter((m) => !on(m)).map((m) => MODULES[m].label).join(', ') || 'Tous les modules sont affichés'}</span></span>${ic('chevR', 'chev')}</a></li>
+      <li><button class="row" data-act="install"><span class="menu-ic">${ic('install')}</span><span class="row-b"><b>Installer l'application</b><span>Sur l'écran d'accueil</span></span>${ic('chevR', 'chev')}</button></li></ul>`;
   return { title: 'Plus', tab: 'plus', html };
 }
 
@@ -296,11 +254,18 @@ export { sectorsSheet };
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 const readJSON = async (file) => { const t = await file.text(); try { return JSON.parse(t); } catch (e) { throw new Error('json'); } };
 register({
-  subscribe: (b) => subscribeSheet(b.dataset.plan),
   'guide-read': (b) => {
     const id = b.dataset.id;
     update((s) => { if (s.academy.read[id]) delete s.academy.read[id]; else s.academy.read[id] = Date.now(); });
     toast(isRead(id) ? 'Guide marqué comme lu' : 'Guide marqué comme non lu', { ms: 1400 });
+  },
+  module: (el) => {
+    const m = el.dataset.m;
+    const cur = S().profile.usages || MODULE_IDS;
+    const next = el.checked ? [...new Set([...cur, m])] : cur.filter((x) => x !== m);
+    if (!next.length) { el.checked = true; toast('Gardez au moins un module.', { title: 'Impossible' }); return; }
+    update((s) => { s.profile.usages = MODULE_IDS.filter((x) => next.includes(x)); });
+    toast(el.checked ? `${MODULES[m].label} : affiché dans la navigation` : `${MODULES[m].label} : masqué. Vos données sont conservées.`, { ms: 2200 });
   },
   'pref-switch': (el) => { update((s) => { s.prefs[el.dataset.k] = el.checked; }, { silent: true }); toast(el.checked ? 'Activé' : 'Désactivé', { ms: 1200 }); },
   'replay-intro': () => { startOnboarding(true); location.hash = '#/bienvenue'; },
@@ -361,8 +326,8 @@ register({
     toast(`${s.prospects.length} fiches exportées`, { title: 'Export CSV' });
   },
   'load-demo': async () => {
-    if (!await confirmSheet({ title: 'Charger des données de démonstration ?', text: 'Seize entreprises fictives, avec appels et tâches, pour présenter l\'application. Elles sont marquées « démonstration » et s\'effacent en un geste.', ok: 'Charger' })) return;
-    update((s) => { const d = demoData(); s.prospects.push(...d.prospects); s.activities.push(...d.activities); s.tasks.push(...d.tasks); s.projects.push(...d.projects); });
+    if (!await confirmSheet({ title: 'Charger des données de démonstration ?', text: 'Seize entreprises fictives avec leurs appels, des tâches et trois pages de notes, pour présenter l\'application. Tout est marqué « démonstration » et s\'efface en un geste.', ok: 'Charger' })) return;
+    update((s) => { const d = demoData(); s.prospects.push(...d.prospects); s.activities.push(...d.activities); s.tasks.push(...d.tasks); s.projects.push(...d.projects); s.pages.push(...d.pages.filter((p) => !s.pages.some((x) => x.id === p.id))); });
     toast('Données de démonstration chargées');
   },
   wipe: () => wipeSheet(),
@@ -376,12 +341,16 @@ register({
 }, {
   profile: (d) => { if (!(d.prenom || '').trim()) return; update((s) => { Object.assign(s.profile, d); }, { silent: true }); toast('Profil enregistré', { ms: 1200 }); },
   offer: (d) => {
-    update((s) => { s.profile.service = d.service; s.profile.promesse = d.promesse; s.profile.niveau = d.niveau || s.profile.niveau; SERVICE_IDS.forEach((x) => { s.profile.prix[x] = d[`prix_${x}`]; }); }, { silent: true });
+    update((s) => {
+      s.profile.service = d.service; s.profile.promesse = d.promesse; s.profile.niveau = d.niveau || s.profile.niveau;
+      SERVICE_IDS.forEach((x) => { s.profile.prix[x] = d[`prix_${x}`] ?? s.profile.prix[x]; });
+      s.profile.offre = { quoi: (d.o_quoi || '').trim(), resultat: (d.o_resultat || '').trim(), exemple: (d.o_exemple || '').trim() };
+    }, { silent: true });
     toast('Offre enregistrée', { ms: 1200 });
   },
   goals: (d) => {
-    const n = (v, min) => Math.max(min, Math.round(Number(v) || 0));
-    update((s) => { s.goals = { appelsJour: n(d.appelsJour, 1), rdvSemaine: n(d.rdvSemaine, 0), caMois: n(d.caMois, 0) }; }, { silent: true });
+    const n = (v, min, cur) => (v === undefined ? cur : Math.max(min, Math.round(Number(v) || 0)));
+    update((s) => { const g = s.goals; s.goals = { appelsJour: n(d.appelsJour, 1, g.appelsJour), rdvSemaine: n(d.rdvSemaine, 0, g.rdvSemaine), caMois: n(d.caMois, 0, g.caMois) }; }, { silent: true });
     toast('Objectifs enregistrés', { ms: 1200 });
   },
   lock: async (d, f) => {

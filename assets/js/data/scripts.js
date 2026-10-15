@@ -25,8 +25,32 @@ export const SERVICES = {
     sujet: 'votre visibilité sur Google', theme: 'leur visibilité sur Google',
     emailSubjects: ['{entreprise} sur Google Maps', 'Une idée pour {entreprise}', 'Question rapide'],
   },
+  // Pour tous les autres métiers : les textes reprennent l'offre décrite dans le profil.
+  offre: {
+    id: 'offre', label: 'Votre propre offre', short: 'Votre offre', icon: 'briefcase',
+    what: (p) => `on s'occupe de {offre} pour les ${p} {de_ville}`,
+    sujet: '{offre}', theme: '{offre}',
+    emailSubjects: ['Une idée pour {entreprise}', 'Question rapide', '{entreprise} : {offre}'],
+  },
 };
-export const SERVICE_IDS = ['site', 'auto', 'seo'];
+export const SERVICE_IDS = ['site', 'auto', 'seo', 'offre'];
+// Services dont les textes sont écrits secteur par secteur (les autres sont générés)
+export const WEB_SERVICES = ['site', 'auto', 'seo'];
+
+// Arguments génériques pour « Votre offre », tirés de la fiche secteur
+const low = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
+function offerData(sec) {
+  const P = PLUS[sec.id] || {};
+  const irr = P.irritants?.[0] || 'le manque de temps pour tout gérer';
+  const pr = P.priorites || ['gagner du temps', 'trouver de nouveaux clients'];
+  return {
+    hook: `Je travaille avec plusieurs ${sec.plural} {de_ville}, et un sujet revient souvent : ${low(irr)}.`,
+    q: [`Chez {entreprise}, comment ça se passe de ce côté-là ?`, `Et aujourd'hui, qu'est-ce qui compte le plus pour vous : ${low(pr[0])} ou ${low(pr[1] || pr[0])} ?`],
+    value: '{resultat}',
+    ex: '{exemple}',
+  };
+}
+export const serviceData = (sec, svcId) => (svcId === 'offre' ? offerData(sec) : sec[svcId] || offerData(sec));
 
 export const CHANNELS = [
   { id: 'appel', label: 'Appel à froid', short: 'Appel', icon: 'phone', dur: '2 – 3 min', goal: 'Décrocher un rendez-vous de vingt minutes.' },
@@ -68,11 +92,17 @@ const SVC_OBJ = {
     { q: 'Le référencement, c\'est flou et ça prend trop de temps.', a: 'Je comprends la méfiance. C\'est pour ça qu\'on commence par le concret : votre fiche Google, vos avis, vos photos — des changements visibles rapidement, et un rapport clair chaque mois.' },
     { q: 'Je paie déjà de la publicité Google.', a: 'Très bien, ça marche tant que vous payez. Le référencement naturel, c\'est la visibilité qui reste quand vous coupez la publicité. Les deux se complètent.' },
   ],
+  offre: () => [
+    { q: 'On fait ça nous-mêmes.', a: 'C\'est souvent le cas, et ça marche. La vraie question : combien de temps ça vous prend chaque semaine, et est-ce le meilleur usage de votre temps ? Je peux vous montrer en vingt minutes ce que ça changerait.' },
+    { q: 'Ce n\'est pas une priorité en ce moment.', a: 'Je comprends. Qu\'est-ce qui est prioritaire pour vous ce trimestre ? … Si ce que je propose ne vous aide pas là-dessus, je vous le dirai franchement.' },
+    { q: 'On a déjà essayé, ça n\'a pas marché.', a: 'Merci de me le dire. Qu\'est-ce qui n\'a pas fonctionné exactement ? … C\'est justement ce qu\'on vérifie avant de commencer : on fixe ensemble un résultat concret à atteindre.' },
+  ],
 };
 const ROI = {
   site: 'Je comprends. Si le site vous amène deux nouveaux clients par mois, il faut combien de temps pour le rembourser ? On peut aussi commencer plus simple et le faire évoluer ensuite.',
   auto: 'Je comprends. Si on vous fait gagner trois heures par semaine, combien valent ces heures pour vous ? On peut aussi commencer par une seule automatisation.',
   seo: 'Je comprends. Combien vous rapporte un nouveau client ? Il en faut combien par mois pour que ce soit rentable ? On peut aussi commencer par la fiche Google seule.',
+  offre: 'Je comprends. Comparons avec ce que ça vous coûte aujourd\'hui, en temps ou en clients perdus : si le calcul n\'est pas bon, je vous le dirai. On peut aussi commencer plus petit.',
 };
 function objections(sec, svcId, d) {
   const common = [
@@ -87,7 +117,7 @@ function objections(sec, svcId, d) {
     { q: 'J\'ai déjà été déçu par une agence.', a: 'Malheureusement, ça arrive souvent. Qu\'est-ce qui s\'est mal passé ? … {promesse} Et on avance étape par étape : vous validez chaque étape avant la suivante.' },
     { q: 'Comment avez-vous eu mon numéro ?', a: `Il est affiché sur votre fiche Google : c'est en cherchant ${searchQ(sec)} que j'ai vu votre entreprise. Je suis {prenom}, de {societe}, on travaille avec des ${sec.plural} de la région.` },
   ];
-  return [sec.obj, ...(PLUS[sec.id]?.objs || []), ...SVC_OBJ[svcId](sec), ...common];
+  return [sec.obj, ...(PLUS[sec.id]?.objs || []), ...(SVC_OBJ[svcId] || SVC_OBJ.offre)(sec), ...common].filter(Boolean);
 }
 
 // ---------- Formats ----------
@@ -165,7 +195,7 @@ export function buildScript(svcId, chId, secId) {
   if (svcId === 'sit') return situation(chId);
   const sec = getSector(secId), svc = SERVICES[svcId], ch = CH[chId];
   if (!sec || !svc || !ch) return null;
-  const d = sec[svcId];
+  const d = serviceData(sec, svcId);
   const plus = STEP_PLUS[chId]?.(sec, svc, d) || [];
   const steps = T[chId](sec, svc, d).map((st, i) => ({ ...plus[i], ...st }));
   return {
@@ -194,6 +224,7 @@ export const scriptCount = () => SERVICE_IDS.length * CHANNELS.length * allSecto
 export const VAR_LABELS = {
   prenom: 'votre prénom', societe: 'votre société', ville: 'ville', entreprise: 'entreprise', contact: 'prénom du contact',
   tel: 'votre numéro', jour: 'jour et heure', prix: 'votre prix', montant: 'montant', probleme: 'son problème', objectif: 'son objectif',
+  offre: 'ce que vous proposez', resultat: 'le résultat pour le client', exemple: 'un exemple concret',
 };
 const VOWEL = /^[aeiouyhéèêëàâîïôöûüœ]/i;
 const escHTML = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

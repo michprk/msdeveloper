@@ -5,22 +5,29 @@ import { GROUPS } from '../data/sectors.js';
 import { PLUS, MONTHS, MONTHS_FULL, bestMonths } from '../data/sector-plus.js';
 import { DISCOVERY, SPIN_HELP, QUALIF } from '../data/script-plus.js';
 import { SITUATIONS, FREE_SITUATIONS } from '../data/situations.js';
-import { SERVICES, SERVICE_IDS, CHANNELS, FREE_CHANNELS, allSectors, getSector, buildScript, fill, scriptToText, scriptCount, typo } from '../data/scripts.js';
+import { SERVICES, SERVICE_IDS, CHANNELS, FREE_CHANNELS, allSectors, getSector, buildScript, fill, scriptToText, scriptCount, typo, serviceData } from '../data/scripts.js';
 import { pageHead, paywall, sectorTile } from './common.js';
 import { flower } from './flowers.js';
 
-const svcSeg = (cur, base) => `<nav class="seg" aria-label="Service vendu">${SERVICE_IDS.map((id) => `<a class="seg-i ${id === cur ? 'is-on' : ''}" href="${base}${base.includes('?') ? '&' : '?'}s=${id}" ${id === cur ? 'aria-current="true"' : ''}>${ic(SERVICES[id].icon)}<span>${SERVICES[id].short}</span></a>`).join('')}</nav>`;
+const svcSeg = (cur, base) => `<nav class="seg svc-seg" aria-label="Service vendu">${SERVICE_IDS.map((id) => `<a class="seg-i ${id === cur ? 'is-on' : ''}" href="${base}${base.includes('?') ? '&' : '?'}s=${id}" ${id === cur ? 'aria-current="true"' : ''}>${ic(SERVICES[id].icon)}<span>${SERVICES[id].short}</span></a>`).join('')}</nav>`;
 const isFree = (chId) => FREE_CHANNELS.includes(chId);
 const T = (s) => esc(typo(s));
 
 export function ctxFor(svcId, prospect) {
   const p = S().profile;
+  const o = p.offre || {};
   return {
     prenom: p.prenom, societe: p.societe, tel: p.tel, promesse: p.promesse,
     prix: p.prix?.[svcId] || '', ville: prospect?.ville || p.ville,
     entreprise: prospect?.entreprise || '', contact: prospect?.contact || '',
+    offre: o.quoi, resultat: o.resultat, exemple: o.exemple,
   };
 }
+// Rappel affiché quand les scripts « Votre offre » attendent la description de l'offre
+export const offerHint = (svcId) => {
+  const o = S().profile.offre || {};
+  return svcId === 'offre' && !(o.quoi && o.resultat) ? `<a class="strip is-soft" href="#/reglages?s=offre">${ic('edit')}<span>Décrivez votre offre en trois phrases : vos scripts se remplissent tout seuls.</span><span class="strip-a">Compléter ${ic('chevR')}</span></a>` : '';
+};
 
 const tileFor = (sec, svc) => sectorTile(sec, `#/scripts/${sec.id}?s=${svc}`, sec.custom ? '<span class="tag">Perso</span>' : '')
   .replace('class="sec-tile"', `class="sec-tile g-${sec.group}" data-group="${sec.group}" data-name="${esc((sec.name + ' ' + sec.plural + ' ' + sec.search).toLowerCase())}"`);
@@ -37,6 +44,7 @@ export function library(params, q) {
     <div class="ph-flower" aria-hidden="true">${flower(2, 'xs drift')}</div>
     ${pageHead('Scripts', { kicker: `${scriptCount()} scripts prêts à l'emploi` })}
     ${svcSeg(svc, '#/scripts')}
+    ${offerHint(svc)}
     ${!mine.length ? `<section class="card notif-cta rise"><span class="feat-ic f-olive">${ic('target')}</span><div><b>Quels métiers prospectez-vous ?</b><p>Choisissez vos secteurs : leurs scripts s'afficheront en premier.</p></div><button class="btn btn-primary btn-sm" data-act="sectors-edit">Choisir</button></section>` : ''}
     <div class="search rise"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Fleuriste, garage, avocat…" data-filter=".sec-grid-all .sec-tile" aria-label="Chercher un secteur"></div>
     ${mine.length ? `<h2 class="sec-title">Vos secteurs</h2><div class="sec-grid sec-grid-mine">${mine.map((sec) => tileFor(sec, svc)).join('')}</div>` : ''}
@@ -77,7 +85,11 @@ function seasonBlock(saison) {
 
 export function sectorSheet(sec, svcId) {
   const P = PLUS[sec.id];
-  const svcBlock = (k) => `<div class="arg ${k === svcId ? 'is-on' : ''}"><p class="arg-k">${ic(SERVICES[k].icon)}${SERVICES[k].label}</p><p>${T(sec[k].value.charAt(0).toUpperCase() + sec[k].value.slice(1))}.</p><p class="arg-ex">Exemple : ${T(sec[k].ex)}.</p></div>`;
+  const svcBlock = (k) => {
+    const d = serviceData(sec, k), ctx = ctxFor(k, null);
+    const val = fill(d.value, ctx);
+    return `<div class="arg ${k === svcId ? 'is-on' : ''}"><p class="arg-k">${ic(SERVICES[k].icon)}${SERVICES[k].label}</p><p>${val.charAt(0).toUpperCase() + val.slice(1)}.</p><p class="arg-ex">Exemple : ${fill(d.ex, ctx)}.</p></div>`;
+  };
   return `
     ${P ? `<section class="card rise"><header class="card-h"><div><h2>Qui décide</h2></div><span class="sec-ic">${ic(sec.icon)}</span></header><p class="body">${T(P.decideur)}</p></section>
     <div class="two">
@@ -112,6 +124,7 @@ export function sectorPage([id], q) {
   const html = `
     ${pageHead(esc(sec.name), { kicker: `${CHANNELS.length * SERVICE_IDS.length} scripts${GROUPS.find((g) => g.id === sec.group) ? ' · ' + GROUPS.find((g) => g.id === sec.group).label : ''}`, back: '#/scripts' })}
     ${svcSeg(svc, `#/scripts/${id}${view === 'fiche' ? '?v=fiche' : ''}`)}
+    ${offerHint(svc)}
     <nav class="tabs" aria-label="Sections"><a class="tab-i ${view === 'scripts' ? 'is-on' : ''}" href="#/scripts/${id}?s=${svc}">Les 10 scripts</a><a class="tab-i ${view === 'fiche' ? 'is-on' : ''}" href="#/scripts/${id}?s=${svc}&v=fiche">Fiche secteur</a></nav>
     ${view === 'fiche' ? sectorSheet(sec, svc) : `
     <section class="card info rise">
@@ -256,6 +269,7 @@ export function reader([id], q) {
         ${prospects.map((x) => `<option value="${x.id}" ${pr?.id === x.id ? 'selected' : ''}>${esc(x.entreprise)}${x.ville ? ' — ' + esc(x.ville) : ''}</option>`).join('')}
       </select></label>` : ''}
     ${missing ? `<a class="strip is-soft" href="#/reglages">${ic('user')}<span>Ajoutez votre prénom et votre société pour remplir les scripts automatiquement.</span><span class="strip-a">${ic('chevR')}</span></a>` : ''}
+    ${offerHint(sc.service)}
     ${full && !locked ? `<nav class="tabs" aria-label="Sections du script">
       ${[['script', 'Script'], ['preparer', 'Préparer'], ['secteur', 'Secteur'], ['objections', `Objections${nObj || sc.channel === 'objections' ? ` <b>${nObj || sc.steps.length}</b>` : ''}`]].map(([k, l]) => `<a class="tab-i ${tab === k ? 'is-on' : ''}" href="${base}tab=${k}" ${tab === k ? 'aria-current="page"' : ''}>${l}</a>`).join('')}
     </nav>` : ''}

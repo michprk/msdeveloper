@@ -1,17 +1,19 @@
 // Éléments partagés entre les écrans.
-import { S, can, need, PLANS, access, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
-import { ic, esc, register, toast, sheet, sheetHead, closeSheet } from '../ui.js';
+import { S, can, need, PLANS, access, billing, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
+import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
 import { flower } from './flowers.js';
 
-// Positionnement : une phrase, un public, trois bénéfices. Repris partout.
-export const PROMISE = 'L\'app de prospection des créateurs de sites web.';
-export const PITCH = 'Le bon script pour chaque commerçant, vos prospects et vos relances au même endroit : vous décrochez des rendez-vous chaque semaine.';
-export const AUDIENCE = 'Pour les créateurs de sites indépendants et les petites agences qui prospectent les commerces de leur ville.';
+// Positionnement : une phrase, un public, trois bénéfices, un exemple. Repris partout.
+export const PROMISE = 'Vos tâches, vos notes et vos clients, au même endroit.';
+export const PITCH = 'L\'application d\'organisation des indépendants : votre journée sur un écran, un CRM qui parle votre métier, des notes en pages, et des quiz pour progresser.';
+export const AUDIENCE = 'Pour les indépendants et les petites équipes : freelances, commerçants, artisans, consultants, agences.';
 export const BENEFITS = [
-  ['script', 'blue', 'Savoir quoi dire à chaque commerçant', 'Un script prêt pour 23 métiers, rempli avec le nom du prospect.'],
-  ['phone', 'olive', 'Ne plus perdre un seul prospect', 'Le résultat de l\'appel s\'enregistre en un geste, la relance se crée toute seule.'],
-  ['chart', 'navy', 'Voir ce qui marche', 'Appels, rendez-vous et signatures de la semaine, face à vos objectifs.'],
+  ['checkSquare', 'blue', 'Une journée claire', 'Les tâches du jour, les rendez-vous et les relances sur un seul écran. On écrit « Rappeler Marc demain 14h », la date se règle toute seule.'],
+  ['users', 'olive', 'Des clients bien suivis', 'Un CRM qui s\'adapte à votre métier : vos étapes, vos champs, votre équipe, et une relance datée pour chaque fiche.'],
+  ['page', 'navy', 'Tout ce que vous savez, rangé', 'Des pages et sous-pages comme dans un carnet, des modèles, et des quiz pour retenir l\'essentiel.'],
 ];
+export const EXAMPLE = 'Un matin type : vous ouvrez l\'application, vous voyez vos trois tâches du jour et le client à relancer, vous ouvrez le compte rendu de votre dernier rendez-vous, et vous cochez au fil de la journée.';
+export const WHY_ONE = 'Une tâche peut pointer vers un client, une page de notes vers sa fiche, et le résultat d\'un appel crée la relance tout seul : rien à recopier d\'un outil à l\'autre.';
 
 export function pageHead(title, { kicker = '', actions = '', back = '' } = {}) {
   return `<header class="ph">
@@ -22,20 +24,21 @@ export function pageHead(title, { kicker = '', actions = '', back = '' } = {}) {
 }
 
 const FEATURE_TEXT = {
-  crm: ['Le CRM est inclus dans Pro', 'Pipeline, fiches clients illimitées, historique des appels et relances : tout votre suivi commercial dans la poche.'],
+  crm: ['Le CRM est inclus dans Pro', 'Vos fiches clients, un pipeline à vos étapes, l\'historique des échanges et une relance datée pour chacun.'],
+  notesUnlimited: ['Pages illimitées avec Pro', 'La version gratuite garde dix pages. Avec Pro, créez autant de pages et de sous-pages que vous voulez.'],
+  myQuiz: ['Vos propres quiz avec Pro', 'Créez des quiz sur votre métier, vos tarifs ou vos procédures, pour vous entraîner ou former votre équipe.'],
   scriptsAll: ['Tous les formats sont inclus dans Pro', 'Répondeur, visite, e-mail, SMS, Instagram, relances, rendez-vous, objections et signature — pour chaque secteur.'],
-  callMode: ['Le mode appel est inclus dans Pro', 'Le script s\'affiche étape par étape pendant l\'appel, et le résultat s\'enregistre dans le CRM en un geste.'],
-  agenda: ['L\'agenda est inclus dans Pro', 'Rappels, rendez-vous et relances, reliés à chaque fiche.'],
+  callMode: ['Le mode appel est inclus dans Pro', 'Le script s\'affiche étape par étape pendant l\'appel, et le résultat s\'enregistre dans la fiche en un geste.'],
   projects: ['Le suivi de projets est inclus dans Pro', 'Chaque client signé devient un projet, avec ses étapes et son délai.'],
-  academy: ['L\'Académie complète est incluse dans Pro', 'Quatorze guides pratiques : rendez-vous, voix, prix, relances, horaires par secteur…'],
-  messages: ['Le générateur de messages est inclus dans Pro', 'Des e-mails et SMS prêts à envoyer, remplis avec la fiche du prospect.'],
-  audit: ['L\'audit express est inclus dans Pro', 'Une note sur 10 de la présence en ligne d\'un prospect, et les points à aborder.'],
-  import: ['L\'import est inclus dans Pro', 'Collez une liste d\'entreprises, elles deviennent des fiches prêtes à appeler.'],
+  academy: ['L\'Académie complète est incluse dans Pro', 'Tous les guides pratiques : organisation, rendez-vous, voix, prix, relances, horaires par secteur…'],
+  messages: ['Le générateur de messages est inclus dans Pro', 'Des e-mails et SMS prêts à envoyer, remplis avec la fiche.'],
+  audit: ['L\'audit express est inclus dans Pro', 'Une note sur 10 de la présence en ligne d\'une entreprise, et les points à aborder.'],
+  import: ['L\'import est inclus dans Pro', 'Collez une liste depuis un tableur : elle devient des fiches prêtes à suivre.'],
   quote: ['Les devis sont inclus dans Premium', 'Un devis propre, calculé et imprimable en PDF en deux minutes.'],
   myScripts: ['Les scripts sur mesure sont inclus dans Premium', 'Écrivez vos propres scripts et créez vos secteurs : l\'application génère tous les formats.'],
   training: ['L\'entraînement est inclus dans Premium', 'Des objections tirées au hasard pour répondre du tac au tac.'],
   stats: ['Les statistiques sont incluses dans Premium', 'Vos vrais taux, étape par étape, et vos objectifs du mois.'],
-  export: ['L\'export est inclus dans Premium', 'Sauvegardez et exportez vos fiches en CSV.'],
+  export: ['L\'export est inclus dans Premium', 'Exportez vos fiches en CSV pour un tableur ou un comptable.'],
 };
 
 export function paywall(feature, { compact = false } = {}) {
@@ -50,20 +53,23 @@ export function paywall(feature, { compact = false } = {}) {
       ${trialUsed ? '' : `<button class="btn btn-primary" data-act="start-trial">Essayer gratuitement ${TRIAL_DAYS} jours</button>`}
       <a class="btn ${trialUsed ? 'btn-primary' : 'btn-ghost'}" href="#/abonnement">${trialUsed ? `Passer à ${plan.name}` : 'Voir les formules'}</a>
     </div>
-    <p class="paywall-n">${plan.name} : ${plan.price.toFixed(2).replace('.', ',')} € par mois${trialUsed ? '' : ' · sans carte pour l\'essai'}</p>
+    <p class="paywall-n">${plan.name} : ${plan.price.toFixed(2).replace('.', ',')} € par mois, sans engagement${trialUsed ? '' : ' · sans carte pour l\'essai'}</p>
   </section>`;
 }
 
 export const gate = (feature, html, opts) => (can(feature) ? html : paywall(feature, opts));
 
+// Bandeau d'état de l'abonnement (accueil et écrans principaux)
 export function trialStrip() {
   const s = S();
-  if (s.sub.demo || s.sub.plan !== 'free') return '';
-  if (trialActive()) {
+  if (s.sub.demo) return '';
+  const st = billing();
+  if (st === 'trial') {
     const n = trialLeft();
     return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>Essai gratuit : <b>${n} jour${n > 1 ? 's' : ''}</b> restant${n > 1 ? 's' : ''}</span><span class="strip-a">Formules ${ic('chevR')}</span></a>`;
   }
-  if (s.sub.trialStart) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>Votre essai est terminé — vos données sont conservées.</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
+  if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>Paiement refusé : vous gardez l'accès jusqu'au ${dateLong(s.sub.graceEnd).toLowerCase()}.</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
+  if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>Votre essai est terminé — vos données sont conservées.</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
   return '';
 }
 
@@ -72,25 +78,17 @@ register({
     if (S().sub.trialStart) return;
     update((s) => { s.sub.trialStart = Date.now(); });
     closeSheet();
-    toast(`Essai gratuit activé : ${TRIAL_DAYS} jours, toutes les fonctions.`);
+    toast(`${TRIAL_DAYS} jours, toutes les fonctions, sans carte.`, { title: 'Essai gratuit activé' });
   },
   'close-sheet': () => closeSheet(),
 });
 
-export function subscribeSheet(planId) {
-  const plan = PLANS[planId];
-  sheet(`${sheetHead(`S'abonner à ${plan.name}`, `${plan.price.toFixed(2).replace('.', ',')} € par mois`)}
-    <div class="sheet-body">
-      <p class="sheet-p">Le paiement en ligne ouvrira avec le lancement officiel de M&amp;S Developer. D'ici là, toutes les fonctions restent accessibles avec l'essai gratuit.</p>
-      ${S().sub.trialStart ? '' : `<button class="btn btn-primary btn-block" data-act="start-trial">Activer l'essai gratuit de ${TRIAL_DAYS} jours</button>`}
-      <p class="sheet-note">Paiement prévu par carte via un prestataire sécurisé. Aucune donnée bancaire n'est demandée dans l'application.</p>
-    </div>`, { cls: 'sheet-sm' });
-}
-
 export const accessLabel = () => {
-  const a = access();
-  if (S().sub.demo) return `${PLANS[a].name} (démonstration)`;
-  if (S().sub.plan === 'free' && trialActive()) return `Essai gratuit — ${trialLeft()} j restants`;
+  const a = access(), st = billing(), s = S().sub;
+  if (s.demo) return `${PLANS[a].name} (démonstration)`;
+  if (st === 'trial') return `Essai gratuit — ${trialLeft()} j restants`;
+  if (st === 'canceling') return `${PLANS[a].name} jusqu'au ${dateLong(s.periodEnd).toLowerCase()}`;
+  if (st === 'past_due') return `${PLANS[a].name} — paiement à régler`;
   return PLANS[a].name;
 };
 

@@ -1,26 +1,14 @@
-// Agenda (tâches, rappels, rendez-vous) et suivi des projets signés.
-import { S, can, startOfDay, DAY, update, getProspect, PROJECT_STEPS, toggleTask, deleteTask } from '../store.js';
-import { ic, esc, register, when, time, dateDay, bar, toast, confirmSheet, sheet, sheetHead, closeSheet, field, input, select, dateShort } from '../ui.js';
+// Agenda (vue calendrier des tâches) et suivi des projets signés.
+import { S, can, on, startOfDay, DAY, update, getProspect, PROJECT_STEPS, toggleTask, deleteTask } from '../store.js';
+import { ic, esc, register, time, dateDay, bar, confirmSheet, sheet, sheetHead, closeSheet, field, input, dateShort } from '../ui.js';
 import { SERVICES } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
-import { taskSheet } from './crm.js';
+import { taskRow, viewSeg, quickAdd } from './tasks.js';
 
-const KIND = { appel: ['phone', 'Appel'], relance: ['refresh', 'Relance'], rdv: ['calendar', 'Rendez-vous'], tache: ['check', 'Tâche'] };
 let selDay = null;
-
-const taskItem = (t, s) => {
-  const p = t.prospectId && s.prospects.find((x) => x.id === t.prospectId);
-  const late = !t.done && t.due && t.due < Date.now();
-  return `<li class="task ${t.done ? 'is-done' : ''}">
-    <button class="tick ${t.done ? 'is-done' : ''}" data-act="task-toggle" data-id="${t.id}" aria-label="${t.done ? 'Marquer à faire' : 'Marquer comme fait'}"></button>
-    <div class="task-b"><p class="task-t">${esc(t.title)}</p>
-      <p class="task-m ${late ? 'is-late' : ''}"><span class="kind">${ic(KIND[t.kind]?.[0] || 'check')}${KIND[t.kind]?.[1] || ''}</span>${t.due ? ` · ${when(t.due)}` : ''}${p ? ` · <a href="#/fiche/${p.id}">${esc(p.entreprise)}</a>` : ''}</p></div>
-    <button class="icon-btn sm" data-act="task-edit" data-id="${t.id}" aria-label="Modifier">${ic('edit')}</button>
-  </li>`;
-};
+const taskItem = (t) => taskRow(t);
 
 export function agenda(params, q) {
-  if (!can('agenda')) return { title: 'Agenda', tab: 'agenda', html: `${pageHead('Agenda', { kicker: 'Rappels, rendez-vous et relances' })}${paywall('agenda')}` };
   const s = S();
   const t0 = startOfDay();
   if (selDay === null || q.reset) selDay = t0;
@@ -35,20 +23,22 @@ export function agenda(params, q) {
   const done = s.tasks.filter((t) => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0)).slice(0, 12);
   const selLabel = selDay === t0 ? 'Aujourd\'hui' : selDay === t0 + DAY ? 'Demain' : dateDay(selDay);
   const html = `
-    ${pageHead('Agenda', { kicker: `${open.length} tâche${open.length > 1 ? 's' : ''} ouverte${open.length > 1 ? 's' : ''}`, actions: `<button class="btn btn-primary" data-act="task-new">${ic('plus')}<span>Tâche</span></button>` })}
-    ${open.length && 'Notification' in window && Notification.permission === 'default' && s.prefs.notifs !== false ? `<section class="card notif-cta rise"><span class="feat-ic f-blue">${ic('bell')}</span><div><b>Recevoir un rappel avant chaque tâche ?</b><p>Une notification 10 minutes avant, avec le script prêt.</p></div><button class="btn btn-primary btn-sm" data-act="notif-ask-sheet">Activer</button></section>` : ''}
-    ${!s.tasks.length ? `<div class="empty card"><span class="empty-ic">${ic('calendar')}</span><p class="empty-t">Votre agenda est vide</p><p class="empty-p">Quand un prospect dit « rappelez-moi » ou accepte un rendez-vous, le mode appel crée la tâche ici, avec la date et le prospect. Vous pouvez aussi en ajouter une à la main.</p><div class="end-a"><button class="btn btn-primary" data-act="task-new">${ic('plus')}<span>Ajouter une tâche</span></button><a class="btn btn-ghost" href="#/appel">${ic('phone')}<span>Lancer des appels</span></a></div></div>` : ''}
+    ${pageHead('Tâches', { kicker: `${open.length} à faire · vue agenda`, actions: `<button class="btn btn-primary fab-dup" data-act="task-new">${ic('plus')}<span>Tâche</span></button>` })}
+    ${viewSeg('agenda')}
+    ${open.length && 'Notification' in window && Notification.permission === 'default' && s.prefs.notifs !== false ? `<section class="card notif-cta rise"><span class="feat-ic f-blue">${ic('bell')}</span><div><b>Recevoir un rappel avant chaque tâche ?</b><p>Une notification 10 minutes avant chaque tâche à heure fixe.</p></div><button class="btn btn-primary btn-sm" data-act="notif-ask-sheet">Activer</button></section>` : ''}
+    ${!s.tasks.length ? `<div class="empty card"><span class="empty-ic">${ic('calendar')}</span><p class="empty-t">Votre agenda est vide</p><p class="empty-p">Chaque tâche datée apparaît ici, jour par jour.${on('prospecter') ? ' Quand quelqu\'un dit « rappelez-moi » pendant un appel, la tâche se crée toute seule.' : ''}</p>${quickAdd({ due: String(startOfDay()), placeholder: 'Ajouter une tâche… ex. « Dentiste jeudi 9h »' })}</div>` : ''}
     <div class="days" role="tablist" aria-label="Jours">${days.map((d) => {
       const dt = new Date(d), n = countOn(d);
       return `<button class="day ${d === selDay ? 'is-on' : ''} ${d === t0 ? 'is-today' : ''}" role="tab" aria-selected="${d === selDay}" data-act="day" data-d="${d}">
         <span>${['di', 'lu', 'ma', 'me', 'je', 've', 'sa'][dt.getDay()]}</span><b>${dt.getDate()}</b><i class="${n ? 'has' : ''}">${n > 1 ? n : ''}</i></button>`;
     }).join('')}</div>
-    ${late.length ? `<section class="card rise"><header class="card-h"><div><h2 class="is-late">En retard</h2><p>${late.length} tâche${late.length > 1 ? 's' : ''}</p></div></header><ul class="tasks">${late.map((t) => taskItem(t, s)).join('')}</ul></section>` : ''}
+    ${late.length ? `<section class="card rise"><header class="card-h"><div><h2 class="is-late">En retard</h2><p>${late.length} tâche${late.length > 1 ? 's' : ''}</p></div></header><ul class="tasks">${late.map(taskItem).join('')}</ul></section>` : ''}
     <section class="card rise"><header class="card-h"><div><h2>${selLabel}</h2><p>${dayTasks.length ? `${dayTasks.length} prévue${dayTasks.length > 1 ? 's' : ''}` : 'Rien de prévu'}</p></div></header>
-      ${dayTasks.length ? `<ul class="tasks">${dayTasks.map((t) => taskItem(t, s)).join('')}</ul>` : '<p class="muted pad">Journée libre : c\'est le moment d\'une session d\'appels.</p>'}</section>
-    ${later.length ? `<section class="card rise"><header class="card-h"><div><h2>Ensuite</h2></div></header><ul class="tasks">${later.map((t) => taskItem(t, s)).join('')}</ul></section>` : ''}
-    ${done.length ? `<details class="card rise done-box"><summary><h2>Terminées</h2>${ic('chevD', 'chev')}</summary><ul class="tasks">${done.map((t) => taskItem(t, s)).join('')}</ul></details>` : ''}`;
-  return { title: 'Agenda', tab: 'agenda', html };
+      ${dayTasks.length ? `<ul class="tasks">${dayTasks.map(taskItem).join('')}</ul>` : `<p class="muted pad">${selDay === t0 ? 'Journée libre.' : 'Rien de prévu ce jour-là.'}</p>`}
+      ${quickAdd({ due: String(selDay), placeholder: `Ajouter pour ${selLabel.toLowerCase()}…`, cls: 'qadd-sm' })}</section>
+    ${later.length ? `<section class="card rise"><header class="card-h"><div><h2>Ensuite</h2></div></header><ul class="tasks">${later.map(taskItem).join('')}</ul></section>` : ''}
+    ${done.length ? `<details class="card rise done-box"><summary><h2>Terminées</h2>${ic('chevD', 'chev')}</summary><ul class="tasks">${done.map(taskItem).join('')}</ul></details>` : ''}`;
+  return { title: 'Agenda', tab: 'taches', fab: 'task-new', html };
 }
 
 // ---------- Projets ----------
@@ -77,7 +67,6 @@ export function projects() {
 
 register({
   day: (b) => { selDay = +b.dataset.d; window.dispatchEvent(new Event('ms:rerender')); },
-  'task-edit': (b) => taskSheet({ task: S().tasks.find((t) => t.id === b.dataset.id) }),
   pstep: (b) => update((s) => {
     const pr = s.projects.find((x) => x.id === b.dataset.id); const k = +b.dataset.k;
     pr.done = pr.done.includes(k) ? pr.done.filter((x) => x !== k) : [...pr.done, k];

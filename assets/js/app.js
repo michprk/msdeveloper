@@ -1,15 +1,20 @@
-// M&S Developer — démarrage, coquille, routeur, événements délégués.
-import { S, onChange, access, trialActive, trialLeft, PLANS } from './store.js';
+// M&S Developer — démarrage, coquille, routeur, navigation par modules, événements délégués.
+import { S, onChange, access, billing, trialLeft, PLANS, on, syncBilling, dayKey } from './store.js';
 import { ic, logoMark } from './icons.js';
-import { actions, forms, esc, toast, planBadge, avatar, validateForm, fieldError, setFieldError, refreshNeeds } from './ui.js';
+import { actions, forms, esc, toast, avatar, validateForm, fieldError, setFieldError, refreshNeeds, saveDraft } from './ui.js';
 import { home } from './views/home.js';
 import { library, sectorPage, reader } from './views/scripts.js';
 import { callView, setCallRerender, resetCall } from './views/call.js';
 import { crmView, fiche, crmSettings } from './views/crm.js';
 import { agenda, projects } from './views/agenda.js';
+import { tasksView } from './views/tasks.js';
+import { notesHome, noteView } from './views/notes.js';
+import { quizHome, quizPlay, quizCards, quizEdit } from './views/quiz.js';
+import { searchSheet } from './views/search.js';
+import { plans } from './views/billing.js';
 import { hub, devis, messages, audit, importView, quoteLive } from './views/tools.js';
 import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
-import { academy, guide, plans, settings, more } from './views/pages.js';
+import { academy, guide, settings, more } from './views/pages.js';
 import { onboarding, startOnboarding, isReplay } from './views/onboarding.js';
 import { startReminders } from './notify.js';
 import { bootLock } from './lock.js';
@@ -17,6 +22,14 @@ import { accessLabel } from './views/common.js';
 
 const ROUTES = [
   [/^(accueil)?$/, home],
+  [/^taches$/, tasksView],
+  [/^agenda$/, agenda],
+  [/^notes$/, notesHome],
+  [/^note\/([\w-]+)$/, noteView],
+  [/^quiz$/, quizHome],
+  [/^quiz\/note\/([\w-]+)$/, quizCards],
+  [/^quiz\/edit\/([\w-]+)$/, quizEdit],
+  [/^quiz\/([\w-]+)$/, quizPlay],
   [/^scripts$/, library],
   [/^scripts\/([\w-]+)$/, sectorPage],
   [/^script\/([\w.-]+)$/, reader],
@@ -24,7 +37,6 @@ const ROUTES = [
   [/^crm$/, crmView],
   [/^crm\/personnaliser$/, crmSettings],
   [/^fiche\/([\w-]+)$/, fiche],
-  [/^agenda$/, agenda],
   [/^projets$/, projects],
   [/^outils$/, hub],
   [/^outils\/devis$/, devis],
@@ -44,21 +56,40 @@ const ROUTES = [
   [/^bienvenue$/, onboarding],
 ];
 
-// Navigation : l'essentiel visible (prospecter), le reste regroupé.
-const TABS = [
-  ['accueil', 'Aujourd\'hui', 'home', '#/'],
-  ['crm', 'Prospects', 'users', '#/crm'],
-  ['appel', 'Appeler', 'phone', '#/appel'],
-  ['scripts', 'Scripts', 'script', '#/scripts'],
-  ['plus', 'Plus', 'grid', '#/plus'],
+// ---------- Navigation : seulement les modules utilisés ----------
+const noun = () => S().crm.noun || 'Clients';
+const TAB_DEFS = [
+  ['taches', 'Tâches', 'checkSquare', '#/taches', 'organiser'],
+  ['crm', noun, 'users', '#/crm', 'clients'],
+  ['notes', 'Notes', 'page', '#/notes', 'organiser'],
+  ['scripts', 'Scripts', 'script', '#/scripts', 'prospecter'],
+  ['appel', 'Appeler', 'phone', '#/appel', 'prospecter'],
+  ['quiz', 'Quiz', 'quiz', '#/quiz', 'apprendre'],
+  ['academie', 'Académie', 'book', '#/academie', 'apprendre'],
 ];
-const SIDE = [
-  ['Prospecter', [['accueil', 'Aujourd\'hui', 'home', '#/'], ['crm', 'Prospects', 'users', '#/crm'], ['scripts', 'Scripts', 'script', '#/scripts'], ['agenda', 'Agenda', 'calendar', '#/agenda']]],
-  ['Après la signature', [['projets', 'Clients signés', 'folder', '#/projets'], ['devis', 'Devis', 'invoice', '#/outils/devis']]],
-  ['Progresser', [['academie', 'Académie', 'book', '#/academie'], ['stats', 'Statistiques', 'chart', '#/outils/stats'], ['outils', 'Tous les outils', 'briefcase', '#/outils']]],
-];
+const label = (l) => (typeof l === 'function' ? l() : l);
+function tabs() {
+  const mid = TAB_DEFS.filter((t) => on(t[4])).slice(0, 3);
+  return [['accueil', 'Aujourd\'hui', 'home', '#/'], ...mid, ['plus', 'Plus', 'grid', '#/plus']];
+}
+function side() {
+  const s = S();
+  const favs = s.pages.filter((p) => p.fav).slice(0, 5);
+  return [
+    [null, [['accueil', 'Aujourd\'hui', 'home', '#/']]],
+    on('organiser') && ['S\'organiser', [['taches', 'Tâches', 'checkSquare', '#/taches'], ['agenda', 'Agenda', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ...favs.map((p) => [`note:${p.id}`, p.title || 'Sans titre', p.icon || 'page', `#/note/${p.id}`, 'sub'])]],
+    on('clients') && ['Clients', [['crm', noun(), 'users', '#/crm'], ['projets', 'Projets clients', 'folder', '#/projets'], ['devis', 'Devis', 'invoice', '#/outils/devis'], ['stats', 'Statistiques', 'chart', '#/outils/stats']]],
+    on('prospecter') && ['Prospecter', [['scripts', 'Scripts', 'script', '#/scripts'], ['appel', 'Session d\'appels', 'headset', '#/appel'], ['outils', 'Outils', 'briefcase', '#/outils']]],
+    on('apprendre') && ['Progresser', [['quiz', 'Quiz', 'quiz', '#/quiz'], ['academie', 'Académie', 'book', '#/academie']]],
+  ].filter(Boolean);
+}
 function navFor(path) {
   if (!path || path === 'accueil') return 'accueil';
+  if (path === 'taches') return 'taches';
+  if (path === 'agenda') return 'agenda';
+  if (path === 'notes') return 'notes';
+  if (path.startsWith('note/')) return `note:${path.slice(5)}`;
+  if (path.startsWith('quiz')) return 'quiz';
   if (path.startsWith('crm') || path.startsWith('fiche')) return 'crm';
   if (path.startsWith('script')) return 'scripts';
   if (path === 'outils/devis') return 'devis';
@@ -76,14 +107,17 @@ root.innerHTML = `
   <div class="shell">
     <aside class="side" aria-label="Navigation principale">
       <a class="side-brand" href="#/">${logoMark()}<span><b>M&amp;S</b> Developer</span></a>
-      <a class="side-cta" data-nav="appel" href="#/appel">${ic('phone')}<span>Lancer une session d'appels</span></a>
-      ${SIDE.map(([g, items]) => `<p class="side-g">${g}</p><nav class="side-nav" aria-label="${g}">${items.map(([id, l, i, h]) => `<a class="side-i" data-nav="${id}" href="${h}">${ic(i)}<span>${l}</span></a>`).join('')}</nav>`).join('')}
+      <div class="side-top"><button class="side-cta" data-act="create">${ic('plus')}<span>Nouveau</span></button><button class="side-search" data-act="search" aria-label="Rechercher (Ctrl K)">${ic('search')}<span>Rechercher</span><kbd>${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'} K</kbd></button></div>
+      <div class="side-groups"></div>
       <div class="side-foot"></div>
     </aside>
     <main class="main" id="view" tabindex="-1"></main>
-    <nav class="tabbar" aria-label="Navigation">${TABS.map(([id, l, i, h]) => `<a class="tab ${id === 'appel' ? 'tab-call' : ''}" data-nav="${id}" href="${h}"><span class="tab-ic">${ic(i)}</span><span>${l}</span></a>`).join('')}</nav>
+    <button class="fab" data-act="create" aria-label="Créer : tâche, page, fiche">${ic('plus')}</button>
+    <nav class="tabbar" aria-label="Navigation"></nav>
   </div>`;
 const view = document.getElementById('view');
+const sideGroups = root.querySelector('.side-groups');
+const tabbar = root.querySelector('.tabbar');
 
 function parseHash() {
   const raw = decodeURIComponent(location.hash.replace(/^#\/?/, ''));
@@ -91,14 +125,24 @@ function parseHash() {
   return { path: path.replace(/\/$/, ''), query: Object.fromEntries(new URLSearchParams(qs || '')) };
 }
 
-let cleanup = null, lastPath = null, lastHash = null;
+let cleanup = null, lastPath = null, lastHash = null, lastDay = dayKey(), navSig = '';
 
 function sideFoot() {
-  const s = S(), p = s.profile, a = access();
-  const trial = s.sub.plan === 'free' && !s.sub.demo && trialActive();
-  return `${trial ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}Essai gratuit</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
-    : a === 'free' ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}Passez à Pro</span><b>CRM, mode appel, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
+  const s = S(), p = s.profile, a = access(), st = billing();
+  return `${st === 'trial' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}Essai gratuit</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
+    : st === 'past_due' ? `<a class="side-trial is-warn" href="#/abonnement"><span>${ic('bell')}Paiement refusé</span><b>Régler pour garder ${PLANS[a].name}</b></a>`
+      : a === 'free' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}Passez à Pro</span><b>CRM, pages illimitées, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
     <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>`;
+}
+function drawNav() {
+  const t = tabs();
+  const sig = JSON.stringify([t.map((x) => [x[0], label(x[1])]), side(), sideFoot()]);
+  if (sig === navSig) return;
+  navSig = sig;
+  tabbar.style.gridTemplateColumns = `repeat(${t.length}, 1fr)`;
+  tabbar.innerHTML = t.map(([id, l, i, h]) => `<a class="tab" data-nav="${id}" href="${h}"><span class="tab-ic">${ic(i)}</span><span>${esc(label(l))}</span></a>`).join('');
+  sideGroups.innerHTML = side().map(([g, items]) => `${g ? `<p class="side-g">${esc(g)}</p>` : ''}<nav class="side-nav" aria-label="${esc(g || 'Accueil')}">${items.map(([id, l, i, h, sub]) => `<a class="side-i ${sub ? 'side-sub-i' : ''}" data-nav="${id}" href="${h}">${ic(i)}<span>${esc(l)}</span></a>`).join('')}</nav>`).join('');
+  root.querySelector('.side-foot').innerHTML = sideFoot();
 }
 
 function render({ keepScroll = false } = {}) {
@@ -106,34 +150,41 @@ function render({ keepScroll = false } = {}) {
   if (!S().onboarded && path !== 'bienvenue') { location.replace('#/bienvenue'); return; }
   if (S().onboarded && path === 'bienvenue' && !isReplay()) { location.replace('#/'); return; }
   if (path === 'appel' && lastPath !== 'appel') resetCall();
-  let v = null, fn = null;
-  for (const [re, f] of ROUTES) { const m = path.match(re); if (m) { fn = f; v = f(m.slice(1), query); break; } }
+  let v = null;
+  for (const [re, f] of ROUTES) { const m = path.match(re); if (m) { v = f(m.slice(1), query); break; } }
   if (!v) { location.replace('#/'); return; }
   cleanup?.(); cleanup = null;
   const changed = location.hash !== lastHash;
   const y = window.scrollY;
   document.body.dataset.mode = v.full ? 'full' : '';
+  document.body.dataset.fab = v.fab ? '1' : '';
+  const fab = root.querySelector('.fab');
+  fab.dataset.act = typeof v.fab === 'string' ? v.fab : 'create';
+  if (query.l) fab.dataset.list = query.l; else delete fab.dataset.list;
+  fab.setAttribute('aria-label', { 'task-new': 'Nouvelle tâche', 'prospect-new': 'Nouvelle fiche', 'page-templates': 'Nouvelle page' }[fab.dataset.act] || 'Créer : tâche, page, fiche');
   document.title = v.title === 'Aujourd\'hui' ? 'M&S Developer' : `${v.title} · M&S Developer`;
   view.innerHTML = v.html;
   view.classList.toggle('view-in', changed);
   if (changed) { void view.offsetWidth; view.classList.add('view-anim'); setTimeout(() => view.classList.remove('view-anim'), 600); }
+  drawNav();
   const navId = navFor(path);
-  const tabId = ['accueil', 'crm', 'appel', 'scripts'].includes(navId) ? navId : 'plus';
+  const tabIds = tabs().map((t) => t[0]);
+  const tabId = tabIds.includes(navId) ? navId : navId === 'agenda' && tabIds.includes('taches') ? 'taches' : navId.startsWith('note:') && tabIds.includes('notes') ? 'notes' : navId === 'accueil' ? 'accueil' : 'plus';
   document.querySelectorAll('[data-nav]').forEach((a) => {
-    const on = a.classList.contains('tab') ? a.dataset.nav === tabId : a.dataset.nav === navId;
-    a.classList.toggle('is-on', on);
-    if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    const isOn = a.classList.contains('tab') ? a.dataset.nav === tabId : a.dataset.nav === navId || (navId.startsWith('note:') && a.dataset.nav === 'notes' && !document.querySelector(`.side [data-nav="${navId}"]`));
+    a.classList.toggle('is-on', isOn);
+    if (isOn) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
   });
-  document.querySelector('.side-foot').innerHTML = sideFoot();
-  document.querySelectorAll('.side-foot [data-nav]').forEach((a) => a.classList.toggle('is-on', a.dataset.nav === navId));
   if (v.after) cleanup = v.after(view) || null;
   if (changed && !keepScroll) { window.scrollTo(0, 0); if (lastHash !== null) view.focus({ preventScroll: true }); }
   else window.scrollTo(0, y);
-  lastPath = path; lastHash = location.hash;
+  lastPath = path; lastHash = location.hash; lastDay = dayKey();
 }
 
+// Pendant la frappe dans une page de notes, on ne redessine pas l'écran (le curseur resterait perdu).
+const editing = () => !!document.activeElement?.closest?.('.note');
 let queued = false;
-const rerender = () => { if (queued) return; queued = true; queueMicrotask(() => { queued = false; render({ keepScroll: true }); }); };
+const rerender = () => { if (queued) return; queued = true; queueMicrotask(() => { queued = false; if (editing()) { drawNav(); return; } render({ keepScroll: true }); }); };
 setCallRerender(rerender);
 onChange(rerender);
 window.addEventListener('ms:rerender', rerender);
@@ -142,7 +193,7 @@ window.addEventListener('hashchange', () => render());
 // ---------- Événements délégués ----------
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
-  if (el && el.dataset.act && actions[el.dataset.act] && !el.disabled) { e.preventDefault(); actions[el.dataset.act](el, e); return; }
+  if (el && el.dataset.act && actions[el.dataset.act] && !el.disabled) { e.preventDefault(); actions[el.dataset.act](el, e); }
 });
 
 document.addEventListener('submit', (e) => {
@@ -162,12 +213,16 @@ document.addEventListener('change', (e) => {
   if (el) { actions[el.dataset.actChange]?.(el, e); return; }
   const f = e.target.closest('form[data-autosave]');
   if (f) forms[f.dataset.form]?.(Object.fromEntries(new FormData(f)), f, e);
+  const d = e.target.closest('form[data-draft]');
+  if (d) saveDraft(d);
 });
 document.addEventListener('input', (e) => {
   const el = e.target.closest('[data-act-input]');
   if (el) actions[el.dataset.actInput]?.(el, e);
   const vf = e.target.closest('form[data-validate]');
   if (vf) { refreshNeeds(vf); if (e.target.getAttribute('aria-invalid')) setFieldError(e.target, fieldError(e.target)); }
+  const d = e.target.closest('form[data-draft]');
+  if (d) saveDraft(d);
   const live = e.target.closest('form[data-live]');
   if (live && live.dataset.form === 'quote-meta') quoteLive(live);
   const flt = e.target.closest('[data-filter]');
@@ -183,6 +238,10 @@ document.addEventListener('input', (e) => {
     });
     document.querySelector('.filter-empty')?.toggleAttribute('hidden', any || !items.length);
   }
+});
+// Ctrl/⌘ K : recherche partout
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && S().onboarded) { e.preventDefault(); searchSheet(); }
 });
 
 // ---------- Thème et animations ----------
@@ -216,8 +275,16 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
     });
   }).catch(() => {});
   let reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && !editing()) { reloaded = true; location.reload(); } });
 }
+
+// ---------- Retour dans l'application ----------
+// Abonnement à jour (renouvellement, fin d'essai), nouveau jour → écran Aujourd'hui recalculé.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !S().onboarded) return;
+  const billed = syncBilling();
+  if (!billed && dayKey() !== lastDay && !editing()) render({ keepScroll: true });
+});
 
 // ---------- Écran d'ouverture ----------
 // Accueil rejoué : demandé par ?accueil, ou réglage « Rejouer l'accueil à chaque ouverture ».
@@ -226,6 +293,7 @@ try { seen = !!sessionStorage.getItem('msdev:intro'); } catch (e) { /* rien */ }
 const replay = S().onboarded && (new URLSearchParams(location.search).has('accueil') || (S().prefs.replayIntro && !seen));
 if (replay) { startOnboarding(true); history.replaceState(null, '', location.pathname + '#/bienvenue'); }
 const splash = document.getElementById('splash');
+syncBilling();
 render();
 startReminders();
 bootLock();

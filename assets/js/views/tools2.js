@@ -2,7 +2,7 @@
 import { S, can, update, uid, calls, startOfDay, DAY, OUTCOMES, signedValue, startOfMonth } from '../store.js';
 import { ic, esc, eur, num, register, toast, field, input, select, confirmSheet } from '../ui.js';
 import { SECTORS } from '../data/sectors.js';
-import { SERVICES, SERVICE_IDS, allSectors, getSector, buildScript, fill, typo } from '../data/scripts.js';
+import { SERVICES, SERVICE_IDS, WEB_SERVICES, allSectors, getSector, buildScript, fill, typo } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
 import { ctxFor } from './scripts.js';
 import { stackedBars } from '../charts.js';
@@ -194,7 +194,7 @@ export function sectorEdit([id]) {
         ${field('Conseil', input('conseil', v.conseil))}
         <fieldset class="icon-pick"><legend class="field-l">Icône</legend>${ICONS.map((x) => `<label><input type="radio" name="icon" value="${x}" ${v.icon === x ? 'checked' : ''}><span>${ic(x)}</span></label>`).join('')}</fieldset>
       </section>
-      ${SERVICE_IDS.map(svcBlock).join('')}
+      ${WEB_SERVICES.map(svcBlock).join('')}
       <section class="card form rise">${field('Objection typique du secteur', input('obj.q', v.obj.q))}${field('Réponse', `<textarea class="inp" name="obj.a" rows="3">${esc(v.obj.a)}</textarea>`)}</section>
       <div class="act-row"><button class="btn btn-primary" type="submit">Enregistrer le secteur</button>${cur ? `<button type="button" class="btn btn-danger-ghost" data-act="sector-del" data-id="${cur.id}">${ic('trash')}<span>Supprimer</span></button>` : ''}</div>
     </form>`;
@@ -250,7 +250,7 @@ register({
       compliment: get('compliment') || 'votre activité', horaire: get('horaire'), eviter: get('eviter'), creneau: get('creneau'), temps: get('temps'), conseil: get('conseil'), icon: d.icon || 'store',
       obj: { q: get('obj.q'), a: get('obj.a') },
     };
-    SERVICE_IDS.forEach((k) => { sec[k] = { hook: get(`${k}.hook`), q: [get(`${k}.q0`), get(`${k}.q1`)], value: get(`${k}.value`), ex: get(`${k}.ex`) }; });
+    WEB_SERVICES.forEach((k) => { sec[k] = { hook: get(`${k}.hook`), q: [get(`${k}.q0`), get(`${k}.q1`)], value: get(`${k}.value`), ex: get(`${k}.ex`) }; });
     const id = f.dataset.id || `x-${uid()}`;
     update((s) => { const i = s.mySectors.findIndex((x) => x.id === id); const full = { ...sec, id }; if (i >= 0) s.mySectors[i] = full; else s.mySectors.push(full); });
     toast('Secteur enregistré : ses scripts sont prêts'); location.hash = `#/scripts/${id}`;
