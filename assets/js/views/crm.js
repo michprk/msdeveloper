@@ -36,11 +36,9 @@ export function crmView(params, q) {
         <p>Une fiche garde les coordonnées, l'historique des échanges et la prochaine relance. Elle avance d'étape en étape, de « ${esc(STAGES[0].label)} » à « ${esc(stageOf('signe').label)} » : plus aucun client oublié, plus aucune proposition sans suite.</p>
         <button class="btn btn-primary btn-lg" data-act="prospect-new">${ic('plus')}<span>Ajouter mon premier ${esc(one())}</span></button>
         <div class="oe-alt"><a class="btn btn-ghost" href="#/outils/import">${ic('upload')}<span>Importer une liste</span></a>${!s.crm.preset ? `<a class="btn btn-ghost" href="#/crm/personnaliser">${ic('sliders')}<span>Adapter à mon métier</span></a>` : ''}</div>
-        <div class="demo-preview dp-card" aria-hidden="true">
+        <div class="demo-preview dp-board" aria-hidden="true">
           <span class="tag">Exemple</span>
-          <p class="dp-t">Atelier Pivoine</p>
-          <p class="dp-s">Sophie · Ixelles</p>
-          <p class="dp-f"><span class="chip t-${STAGES[2]?.tone || 'blue'}"><i class="dot"></i>${esc(STAGES[2]?.label || '')}</span><span class="kcard-n">${ic('clock')}Relance demain 10 h</span></p>
+          <div class="mk-board">${[[STAGES[0], [['Atelier Pivoine', 'Relance demain 10 h'], ['Kiné Flagey', 'Ixelles']]], [stageOf('rdv'), [['Maison Lemaire', 'Jeudi 14 h 30']]], [stageOf('signe'), [['Salon Céleste', '1 290 €']]]].map(([st, cards]) => `<div class="mk-col"><p><i class="dot t-${st.tone}"></i>${esc(st.label)}</p>${cards.map(([n, m]) => `<span class="mk-card"><b>${n}</b><em>${m}</em></span>`).join('')}</div>`).join('')}</div>
         </div>
         <p class="oe-foot">Vous voulez d'abord voir l'application remplie ? <button class="link" data-act="load-demo">Charger des données d'exemple</button>, effaçables en un geste.</p>
       </section>` : `

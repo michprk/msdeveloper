@@ -65,12 +65,14 @@ export function quizHome() {
     <h2 class="sec-title">Vos quiz</h2>
     <section class="card rise">
       ${s.quiz.mine.length ? `<ul class="rows">${s.quiz.mine.map((m) => `<li><a class="row" href="#/quiz/${m.id}?restart=1"><span class="menu-ic">${ic('edit')}</span><span class="row-b"><b>${esc(m.title)}</b><span>${m.questions.length} question${m.questions.length > 1 ? 's' : ''}${result(m.id) ? ` · meilleur score ${result(m.id).best} %` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`
-        : '<p class="muted pad">Créez un quiz pour vous entraîner sur votre métier, ou pour former quelqu\'un de votre équipe.</p>'}
+        : `<p class="muted pad">Créez un quiz pour vous entraîner sur votre métier, ou pour former quelqu'un de votre équipe.</p>
+          <div class="demo-preview dp-mini" aria-hidden="true"><span class="tag">Exemple</span><div class="dp-line"><span class="menu-ic">${ic('edit')}</span><span><b>Nos tarifs 2027</b><em>8 questions · meilleur score 75 %</em></span></div><div class="dp-line"><span class="menu-ic">${ic('edit')}</span><span><b>Accueil d'un nouveau client</b><em>5 questions · pour former l'équipe</em></span></div></div>`}
       <div class="act-row"><a class="btn ${can('myQuiz') ? 'btn-primary' : 'btn-ghost'}" href="#/quiz/nouveau">${ic('plus')}<span>Créer un quiz</span>${can('myQuiz') ? '' : '<span class="badge b-pro">Pro</span>'}</a></div>
     </section>
     ${on('organiser') ? `<h2 class="sec-title">À réviser depuis vos notes</h2>
     <section class="card rise">${notePages.length ? `<ul class="rows">${notePages.map((p) => `<li><a class="row" href="#/quiz/note/${p.id}?restart=1"><span class="menu-ic">${ic('cards')}</span><span class="row-b"><b>${esc(p.title || 'Sans titre')}</b><span>${qaCards(p).length} carte${qaCards(p).length > 1 ? 's' : ''}${result('note:' + p.id) ? ` · ${result('note:' + p.id).last} % la dernière fois` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`
-      : `<div class="mini-empty">${ic('cards')}<p>Dans une page de notes, ajoutez des blocs « Question / réponse » (ou le modèle Fiche de révision) : ils deviennent des cartes à réviser ici.</p></div><div class="act-row"><button class="btn btn-ghost" data-act="page-new" data-tpl="revision">${ic('plus')}<span>Fiche de révision</span></button></div>`}</section>` : ''}`;
+      : `<div class="mini-empty">${ic('cards')}<p>Dans une page de notes, ajoutez des blocs « Question / réponse » (ou le modèle Fiche de révision) : ils deviennent des cartes à réviser ici.</p></div>
+      <div class="demo-preview dp-mini" aria-hidden="true"><span class="tag">Exemple</span><div class="dp-flash"><em>Question</em><b>Durée d'un cycle Pomodoro ?</b><em>Réponse</em><span>25 minutes, puis 5 minutes de pause.</span></div></div><div class="act-row"><button class="btn btn-ghost" data-act="page-new" data-tpl="revision">${ic('plus')}<span>Fiche de révision</span></button></div>`}</section>` : ''}`;
   return { title: 'Quiz', tab: 'quiz', html };
 }
 

@@ -134,7 +134,7 @@ export function tasksView(params, q) {
       <button class="chip-btn" data-act="list-new">${ic('plus')}Liste</button>
     </nav>` : ''}
     ${l ? `<p class="list-tools"><button class="link" data-act="list-edit" data-id="${l.id}">${ic('edit')}Renommer</button><button class="link danger" data-act="list-del" data-id="${l.id}">${ic('trash')}Supprimer la liste</button></p>` : ''}
-    ${v === 'board' ? boardBody() : listBody()}`;
+    ${v === 'board' && (open.length || done.length) ? boardBody() : listBody()}`;
   return {
     title: 'Tâches', tab: 'taches', fab: 'task-new', html,
     after(root) {

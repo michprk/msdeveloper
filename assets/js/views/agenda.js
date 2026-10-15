@@ -1,5 +1,5 @@
 // Agenda (vue calendrier des tâches) et suivi des projets signés.
-import { S, can, on, startOfDay, DAY, update, getProspect, PROJECT_STEPS, toggleTask, deleteTask } from '../store.js';
+import { S, can, on, startOfDay, DAY, update, getProspect, PROJECT_STEPS, toggleTask, deleteTask, stageOf } from '../store.js';
 import { ic, esc, register, time, dateDay, bar, confirmSheet, sheet, sheetHead, closeSheet, field, input, dateShort } from '../ui.js';
 import { SERVICES } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
@@ -26,7 +26,12 @@ export function agenda(params, q) {
     ${pageHead('Tâches', { kicker: `${open.length} à faire · vue agenda`, actions: `<button class="btn btn-primary fab-dup" data-act="task-new">${ic('plus')}<span>Tâche</span></button>` })}
     ${viewSeg('agenda')}
     ${open.length && 'Notification' in window && Notification.permission === 'default' && s.prefs.notifs !== false ? `<section class="card notif-cta rise"><span class="feat-ic f-blue">${ic('bell')}</span><div><b>Recevoir un rappel avant chaque tâche ?</b><p>Une notification 10 minutes avant chaque tâche à heure fixe.</p></div><button class="btn btn-primary btn-sm" data-act="notif-ask-sheet">Activer</button></section>` : ''}
-    ${!s.tasks.length ? `<div class="empty card"><span class="empty-ic">${ic('calendar')}</span><p class="empty-t">Votre agenda est vide</p><p class="empty-p">Chaque tâche datée apparaît ici, jour par jour.${on('prospecter') ? ' Quand quelqu\'un dit « rappelez-moi » pendant un appel, la tâche se crée toute seule.' : ''}</p>${quickAdd({ due: String(startOfDay()), placeholder: 'Ajouter une tâche… ex. « Dentiste jeudi 9h »' })}</div>` : ''}
+    ${!s.tasks.length ? `<div class="empty card"><span class="empty-ic">${ic('calendar')}</span><p class="empty-t">Votre agenda est vide</p><p class="empty-p">Chaque tâche datée apparaît ici, jour par jour.${on('prospecter') ? ' Quand quelqu\'un dit « rappelez-moi » pendant un appel, la tâche se crée toute seule.' : ''}</p>
+      <div class="demo-preview" aria-hidden="true"><span class="tag">Exemple</span>
+        <div class="dp-days">${['lu', 'ma', 'me', 'je', 've'].map((d, k) => `<span class="${k === 3 ? 'on' : ''}"><em>${d}</em><b>${12 + k}</b>${k === 1 || k === 3 ? '<i></i>' : ''}</span>`).join('')}</div>
+        <div class="dp-row"><span class="tick"></span><span><b>Rendez-vous comptable</b><em>Jeudi · 9 h 30</em></span></div>
+        <div class="dp-row"><span class="tick"></span><span><b>Livrer la commande Lemaire</b><em>Jeudi · 16 h · Travail</em></span></div>
+      </div>${quickAdd({ due: String(startOfDay()), placeholder: 'Ajouter une tâche… ex. « Dentiste jeudi 9h »' })}</div>` : ''}
     <div class="days" role="tablist" aria-label="Jours">${days.map((d) => {
       const dt = new Date(d), n = countOn(d);
       return `<button class="day ${d === selDay ? 'is-on' : ''} ${d === t0 ? 'is-today' : ''}" role="tab" aria-selected="${d === selDay}" data-act="day" data-d="${d}">
@@ -61,7 +66,13 @@ export function projects() {
         <ul class="proj-steps">${PROJECT_STEPS.map((st, k) => `<li><button class="pstep ${pr.done.includes(k) ? 'is-done' : ''}" data-act="pstep" data-id="${pr.id}" data-k="${k}" aria-pressed="${pr.done.includes(k)}"><span class="tick ${pr.done.includes(k) ? 'is-done' : ''}"></span>${st}</button></li>`).join('')}</ul>
         <footer class="proj-f">${p ? `<a class="link" href="#/fiche/${p.id}">Fiche client</a>` : ''}<button class="link" data-act="proj-edit" data-id="${pr.id}">Délai</button><button class="link danger" data-act="proj-del" data-id="${pr.id}">Retirer</button></footer>
       </section>`;
-    }).join('')}</div>` : `<div class="empty"><span class="empty-ic">${ic('folder')}</span><p class="empty-t">Aucun projet</p><p class="empty-p">Passez un prospect en « Signé » dans le CRM : le projet apparaît ici automatiquement.</p><a class="btn btn-primary" href="#/crm">Ouvrir le CRM</a></div>`}`;
+    }).join('')}</div>` : `<div class="empty"><span class="empty-ic">${ic('folder')}</span><p class="empty-t">Aucun projet</p><p class="empty-p">Passez une fiche en « ${esc(stageOf('signe').label)} » dans le CRM : le projet apparaît ici automatiquement, avec ses étapes et son délai.</p>
+      <div class="demo-preview" aria-hidden="true"><span class="tag">Exemple</span>
+        <p class="dp-t">Salon Céleste <span class="chip t-olive">J−12</span></p><p class="dp-s">Site web · démarré le 3 oct.</p>
+        <span class="bar olive"><i style="width:33%"></i></span>
+        <div class="dp-row"><span class="tick is-done"></span><span><b>Acompte reçu</b></span></div><div class="dp-row"><span class="tick is-done"></span><span><b>Contenus reçus</b></span></div><div class="dp-row"><span class="tick"></span><span><b>Maquette validée</b></span></div>
+      </div>
+      <a class="btn btn-primary" href="#/crm">Ouvrir le CRM</a></div>`}`;
   return { title: 'Projets', tab: 'plus', html };
 }
 

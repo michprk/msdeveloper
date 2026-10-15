@@ -69,7 +69,14 @@ export function notesHome(params, q) {
     ${!pages.length ? `<section class="card notes-empty rise">
         <span class="empty-ic">${ic('page')}</span>
         <p class="empty-t">Votre première page</p>
-        <p class="empty-p">Une page peut contenir du texte, des cases à cocher, des listes, des questions à réviser et d'autres pages. Commencez par un modèle :</p>
+        <p class="empty-p">Une page peut contenir du texte, des cases à cocher, des listes, des questions à réviser et d'autres pages.</p>
+        <div class="demo-preview dp-page" aria-hidden="true"><span class="tag">Exemple</span>
+          <p class="dp-pt"><span class="dp-pic">${ic('users')}</span>Réunion de lancement</p>
+          <p class="dp-h2">Décisions</p><p class="dp-li">Site en ligne avant le 15</p><p class="dp-li">Séance photo mardi matin</p>
+          <p class="dp-h2">Actions</p><div class="dp-row"><span class="tick is-done"></span><span><b>Envoyer la maquette</b></span></div><div class="dp-row"><span class="tick"></span><span><b>Réserver le photographe</b></span></div>
+        </div>
+        <button class="btn btn-primary btn-lg" data-act="page-new" data-tpl="reunion">${ic('plus')}<span>Créer ma première page</span></button>
+        <p class="oe-foot">Ou partez d'un des modèles ci-dessous.</p>
       </section>` : `
     <div class="search rise"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Chercher dans vos pages" data-filter=".page-row" aria-label="Chercher dans vos pages"></div>
     <p class="muted center filter-empty" hidden>Aucune page ne contient ce mot.</p>

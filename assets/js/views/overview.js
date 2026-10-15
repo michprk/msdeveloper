@@ -5,6 +5,12 @@ import { ic, esc, eur, num, ago, register } from '../ui.js';
 import { sparkline, lineChart, donut } from '../charts.js';
 import { pageHead } from './common.js';
 import { QUIZZES } from '../data/quizzes.js';
+import { sampleState } from '../data/sample.js';
+
+// Source des chiffres : les données de l'utilisateur, ou l'exemple quand il n'a encore rien.
+let SRC = null;
+const st = () => SRC || S();
+export const withSample = (fn) => { const prev = SRC; SRC = sampleState(); try { return fn(); } finally { SRC = prev; } };
 
 const df = new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short' });
 const dfl = new Intl.DateTimeFormat('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -39,11 +45,11 @@ export const hasData = (s = S()) => s.tasks.some((t) => t.done) || s.prospects.l
 
 // Valeurs jour par jour sur la période
 export function daily(id, days) {
-  const s = S(), [a] = period(days);
+  const s = st(), [a] = period(days);
   return Array.from({ length: days }, (_, i) => { const v = METRICS[id].get(s, [a + i * DAY, a + (i + 1) * DAY]); return v ?? 0; });
 }
 function delta(id, days) {
-  const s = S(), M = METRICS[id];
+  const s = st(), M = METRICS[id];
   const cur = M.get(s, period(days)), prev = M.get(s, period(days, 1));
   if (M.rate) {
     if (cur === null || prev === null) return { cur, dir: 0, txt: cur === null ? 'pas encore d\'appel' : 'première période' };
@@ -53,6 +59,7 @@ function delta(id, days) {
   if (!cur && !prev) return { cur, dir: 0, txt: 'stable' };
   if (!prev) return { cur, dir: 1, txt: 'nouveau', plain: true };
   const p = ((cur - prev) / prev) * 100;
+  if (Math.abs(p) < 0.5) return { cur, dir: 0, txt: 'stable' };
   return { cur, dir: Math.sign(Math.round(p)), txt: `${Math.abs(p) < 10 ? Math.abs(p).toFixed(1).replace('.', ',') : Math.round(Math.abs(p))} %` };
 }
 
@@ -72,7 +79,7 @@ export function kpiCard(id, days, { href = '#/apercu' } = {}) {
 // ---------- Activité récente ----------
 const ACT = { appel: ['phone', 'Appel'], note: ['note', 'Note'], email: ['mail', 'E-mail envoyé'], sms: ['message', 'SMS envoyé'], visite: ['store', 'Visite'], rdv: ['calendar', 'Rendez-vous'], devis: ['invoice', 'Devis envoyé'], audit: ['clipboard', 'Audit express'] };
 export function activity(limit = 6) {
-  const s = S(), now = Date.now();
+  const s = st(), now = Date.now();
   const pName = (id) => s.prospects.find((p) => p.id === id)?.entreprise || '';
   const pVal = (id) => Number(s.prospects.find((p) => p.id === id)?.valeur) || 0;
   const ev = [
@@ -97,7 +104,7 @@ export function activityTable(items) {
 // ---------- Répartition ----------
 const CAT = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'];
 function breakdown() {
-  const s = S();
+  const s = st();
   if (on('clients') && can('crm') && s.prospects.length) {
     const order = ['Appel', 'Recommandation', 'Instagram', 'Site web', 'Visite', 'Salon'];
     const count = (src) => s.prospects.filter((p) => (p.source || 'Autre') === src).length;
@@ -115,7 +122,12 @@ function breakdown() {
 
 // ---------- Page ----------
 export function overview(params, q) {
-  const s = S();
+  const example = !hasData(S());
+  SRC = example ? sampleState() : null;
+  try { return overviewView(q, example); } finally { SRC = null; }
+}
+function overviewView(q, example) {
+  const s = st();
   const days = q.p === '30' ? 30 : 7;
   const ids = metricIds();
   const chartIds = ids.filter((id) => id !== 'conv');
@@ -125,15 +137,15 @@ export function overview(params, q) {
   const series = m ? daily(m, days).map((v, i) => { const t = a + i * DAY; const dt = new Date(t); return { label: days === 7 ? `${DAYS[dt.getDay()]} ${dt.getDate()}` : `${dt.getDate()}/${dt.getMonth() + 1}`, full: cap(dfl.format(t)), value: v }; }) : [];
   const anyChart = series.some((d) => d.value > 0);
   const act = activity(q.all ? 30 : 6);
+  if (example) act.list = act.list.map((e) => ({ ...e, href: '#/apercu' }));
   const br = breakdown();
   const html = `
-    ${pageHead('Vue d\'ensemble', { kicker: 'Vos chiffres, calculés à partir de vos propres données', actions: `<nav class="seg seg-sm ov-period" aria-label="Période"><a class="seg-i ${days === 7 ? 'is-on' : ''}" href="${href({ p: '' })}">7 jours</a><a class="seg-i ${days === 30 ? 'is-on' : ''}" href="${href({ p: '30' })}">30 jours</a></nav>` })}
-    ${!hasData(s) ? `<section class="card onboard-empty rise">
-        <span class="empty-ic">${ic('chart')}</span>
-        <h2>Vos chiffres apparaîtront ici</h2>
-        <p>Dès votre première tâche terminée${on('clients') ? ' ou votre première fiche' : ''}, cette page montre votre progression, semaine après semaine. Rien n'est inventé : uniquement ce que vous faites dans l'application.</p>
-        <div class="end-a"><a class="btn btn-primary" href="#/taches?new=1">${ic('plus')}<span>Créer ma première tâche</span></a>${on('clients') ? `<a class="btn btn-ghost" href="#/crm?new=1">${ic('users')}<span>Ajouter un client</span></a>` : ''}</div>
-      </section>` : `
+    ${pageHead('Vue d\'ensemble', { kicker: example ? 'Aperçu avec des données d\'exemple' : 'Vos chiffres, calculés à partir de vos propres données', actions: `<nav class="seg seg-sm ov-period" aria-label="Période"><a class="seg-i ${days === 7 ? 'is-on' : ''}" href="${href({ p: '' })}">7 jours</a><a class="seg-i ${days === 30 ? 'is-on' : ''}" href="${href({ p: '30' })}">30 jours</a></nav>` })}
+    ${example ? `<section class="example-bar rise"><span class="tag">Exemple</span>
+        <p><b>Voici à quoi ressemblera votre vue d'ensemble.</b> Ces chiffres sont fictifs : les vôtres les remplacent dès votre première tâche terminée${on('clients') ? ' ou votre première fiche' : ''}.</p>
+        <div class="end-a"><a class="btn btn-primary btn-sm" href="#/taches?new=1">${ic('plus')}<span>Créer ma première tâche</span></a>${on('clients') ? `<a class="btn btn-ghost btn-sm" href="#/crm?new=1">${ic('users')}<span>Ajouter un client</span></a>` : ''}</div>
+      </section>` : ''}
+    <div class="${example ? 'is-example' : ''}">
     <p class="ov-range">${rangeLabel(period(days))}, comparé au ${rangeLabel(period(days, 1))}</p>
     <div class="kpi-grid n${ids.length}">${ids.map((id) => kpiCard(id, days, { href: chartIds.includes(id) ? href({ m: id }) : '#/apercu' })).join('')}</div>
     ${m ? `<section class="card ov-chart rise">
@@ -155,7 +167,8 @@ export function overview(params, q) {
           <ul class="dn-leg">${br.data.filter((d) => d.value).map((d) => `<li><i class="sw ${d.cls}"></i><span>${esc(d.name)}</span><b>${Math.round((d.value / br.total) * 100)} %</b></li>`).join('')}</ul></div>
         ${(on('clients') || on('prospecter')) && br.unit === 'fiches' ? '<a class="btn btn-ghost btn-sm" href="#/outils/stats">Voir le rapport complet</a>' : ''}
       </section>` : ''}
-    </div>`}`;
+    </div>
+    </div>`;
   return {
     title: 'Vue d\'ensemble', tab: 'apercu', html,
     after(root) {

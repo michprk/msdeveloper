@@ -9,7 +9,7 @@ import { clearDemo } from '../data/demo.js';
 import { cluster } from './flowers.js';
 import { taskRow, quickAdd } from './tasks.js';
 import { dailyQuiz } from './quiz.js';
-import { kpiCard, metricIds, hasData } from './overview.js';
+import { kpiCard, metricIds, hasData, withSample } from './overview.js';
 
 export function nextToCall(s) {
   const t1 = startOfDay() + DAY;
@@ -38,7 +38,8 @@ export function home() {
   const qr = s.quiz.results[quiz.id];
   const qDone = qr && qr.at >= t0;
   const hasDemo = s.prospects.some((x) => x.demo) || s.pages.some((x) => x.demo);
-  const kpis = hasData(s) ? metricIds().slice(0, 3) : [];
+  const real = hasData(s);
+  const kpis = metricIds().slice(0, 3);
 
   // Premiers pas, selon les modules choisis ; disparaît une fois tout fait
   const steps = [
@@ -101,9 +102,10 @@ export function home() {
         </section>` : ''}
       </div>
 
-      ${kpis.length ? `<section class="home-kpis rise" style="--i:6" aria-label="Cette semaine">
-        <header class="sec-row"><h2 class="sec-title">Cette semaine</h2><a class="link" href="#/apercu">Vue d'ensemble ${ic('chevR')}</a></header>
-        <div class="kpi-grid compact n${kpis.length}">${kpis.map((id) => kpiCard(id, 7)).join('')}</div>
+      ${kpis.length ? `<section class="home-kpis rise ${real ? '' : 'is-example'}" style="--i:6" aria-label="Cette semaine">
+        <header class="sec-row"><h2 class="sec-title">Cette semaine${real ? '' : ' <span class="tag">Exemple</span>'}</h2><a class="link" href="#/apercu">Vue d'ensemble ${ic('chevR')}</a></header>
+        ${real ? '' : '<p class="ex-note">Voici à quoi ressembleront vos chiffres. Ils apparaissent dès votre première tâche terminée.</p>'}
+        <div class="kpi-grid compact n${kpis.length}">${real ? kpis.map((id) => kpiCard(id, 7)).join('') : withSample(() => kpis.map((id) => kpiCard(id, 7, { href: '#/apercu' })).join(''))}</div>
       </section>` : ''}
     </div>
   </div>`;
