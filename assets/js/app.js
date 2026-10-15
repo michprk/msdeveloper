@@ -1,4 +1,4 @@
-// M&S Developer — démarrage, coquille, routeur, navigation par modules, événements délégués.
+// MindView — démarrage, coquille, routeur, navigation par modules, événements délégués.
 import { S, onChange, access, billing, trialLeft, PLANS, on, syncBilling, dayKey } from './store.js';
 import { ic, logoMark } from './icons.js';
 import { actions, forms, esc, toast, avatar, validateForm, fieldError, setFieldError, refreshNeeds, saveDraft } from './ui.js';
@@ -25,6 +25,7 @@ import { onboarding, startOnboarding, isReplay } from './views/onboarding.js';
 import { startReminders } from './notify.js';
 import { bootLock } from './lock.js';
 import { accessLabel } from './views/common.js';
+import { cloudUser, refreshSubscription, checkActivation, track } from './cloud.js';
 
 const ROUTES = [
   [/^(accueil)?$/, home],
@@ -121,7 +122,7 @@ root.innerHTML = `
   <div class="offline-bar" role="status">${ic('globe')}<span>Hors connexion — tout continue de fonctionner, vos données sont sur cet appareil.</span></div>
   <div class="shell">
     <aside class="side" aria-label="Navigation principale">
-      <a class="side-brand" href="#/">${logoMark()}<span><b>M&amp;S</b> Developer</span></a>
+      <a class="side-brand" href="#/">${logoMark()}<span>Mind<b>View</b></span></a>
       <div class="side-top"><button class="side-cta" data-act="create">${ic('plus')}<span>Nouveau</span></button><button class="side-search" data-act="search" aria-label="Rechercher (Ctrl K)">${ic('search')}<span>Rechercher</span><kbd>${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'} K</kbd></button></div>
       <div class="side-groups"></div>
       <div class="side-foot"></div>
@@ -177,7 +178,7 @@ function render({ keepScroll = false } = {}) {
   fab.dataset.act = typeof v.fab === 'string' ? v.fab : 'create';
   if (query.l) fab.dataset.list = query.l; else delete fab.dataset.list;
   fab.setAttribute('aria-label', { 'task-new': 'Nouvelle tâche', 'prospect-new': 'Nouvelle fiche', 'page-templates': 'Nouvelle page', 'project-new': 'Nouveau projet', 'quote-new': 'Nouveau devis' }[fab.dataset.act] || 'Créer : tâche, projet, page, fiche');
-  document.title = v.title === 'Aujourd\'hui' ? 'M&S Developer' : `${v.title} · M&S Developer`;
+  document.title = v.title === 'Aujourd\'hui' ? 'MindView' : `${v.title} · MindView`;
   view.innerHTML = v.html;
   view.classList.toggle('view-in', changed);
   if (changed) { void view.offsetWidth; view.classList.add('view-anim'); setTimeout(() => view.classList.remove('view-anim'), 600); }
@@ -275,7 +276,7 @@ applyPrefs();
 
 // ---------- Installation & mise à jour ----------
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.__installPrompt = e; });
-window.addEventListener('appinstalled', () => toast('M&S Developer est installée.'));
+window.addEventListener('appinstalled', () => toast('MindView est installée.'));
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').then((reg) => {
     reg.addEventListener('updatefound', () => {
@@ -294,8 +295,10 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 
 // ---------- Retour dans l'application ----------
 // Abonnement à jour (renouvellement, fin d'essai), nouveau jour → écran Aujourd'hui recalculé.
+let lastCloud = Date.now();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !S().onboarded) return;
+  if (cloudUser()) { track('active_day'); if (Date.now() - lastCloud > 10 * 60e3) { lastCloud = Date.now(); refreshSubscription().catch(() => null); } }
   const billed = syncBilling();
   if (!billed && dayKey() !== lastDay && !editing()) render({ keepScroll: true });
 });
@@ -308,6 +311,23 @@ const replay = S().onboarded && (new URLSearchParams(location.search).has('accue
 if (replay) { startOnboarding(true); history.replaceState(null, '', location.pathname + '#/bienvenue'); }
 const splash = document.getElementById('splash');
 syncBilling();
+// Retour de la page de paiement Stripe (?checkout=ok ou ?checkout=annule) : l'abonnement est
+// confirmé par le serveur (webhook) quelques secondes plus tard, on attend qu'il apparaisse.
+const back = new URLSearchParams(location.search).get('checkout');
+if (back) {
+  history.replaceState(null, '', location.pathname + location.hash);
+  if (back === 'ok') (async () => {
+    for (let i = 0; i < 8; i++) {
+      const row = await refreshSubscription().catch(() => null);
+      if (row && ['active', 'trialing'].includes(row.status)) { toast(`Toutes les fonctions ${PLANS[row.plan]?.name || ''} sont ouvertes.`, { title: 'Paiement confirmé' }); return; }
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    toast('Le paiement est en cours de confirmation : revenez sur Abonnement dans un instant.', { title: 'Presque fini', ms: 5000 });
+  })();
+  else setTimeout(() => toast('Paiement annulé : rien n\'a été prélevé.', { title: 'Abonnement' }), 600);
+} else if (cloudUser()) refreshSubscription().catch(() => null);
+if (cloudUser()) track('active_day');
+onChange(() => checkActivation());
 render();
 startReminders();
 bootLock();

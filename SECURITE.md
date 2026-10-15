@@ -1,6 +1,6 @@
-# Sécurité — M&S Developer
+# Sécurité — MindView
 
-## Où on en est (version 1.4, 15 octobre 2026)
+## Où on en est (version 1.5, 15 octobre 2026)
 
 L'application n'a **ni serveur, ni base de données, ni compte en ligne**. Tout est enregistré dans le navigateur de l'appareil (localStorage) : tâches, pages de notes, fiches, quiz, réglages. C'est volontaire pour la première version, et c'est dit clairement dans l'application (Compte, Abonnement, accueil).
 
@@ -25,6 +25,8 @@ Ce qui est en place :
 | Liens Canva, Figma, Notion… (1.4) | Seules les adresses `http(s)` sont acceptées, à la saisie comme à la lecture d'une sauvegarde (un lien `javascript:` ou `data:` est retiré). Ouverts avec `rel="noopener noreferrer"`. |
 | Aperçus intégrés (1.4) | Uniquement Figma et Canva, autorisés nommément dans la CSP (`frame-src`), chargés seulement après un geste de l'utilisateur, dans un `iframe` isolé (`sandbox`, `referrerpolicy="no-referrer"`). |
 | Import Notion (1.4) | Les fichiers .md sont lus sur l'appareil et convertis en blocs de texte : aucun HTML n'est conservé. |
+| Passage à Stripe (1.5, éteint) | Clés secrètes uniquement dans les variables d'environnement Supabase. L'application lit son abonnement (RLS : `auth.uid() = user_id`), seul le webhook l'écrit, après vérification de la signature Stripe ; aucune règle d'écriture pour les comptes. Fonctions protégées par le jeton de session, CORS limité à l'adresse de l'app. Suppression du compte : abonnement arrêté puis compte effacé côté serveur. Code client testé contre un serveur simulé ; code serveur à tester avec la liste de TEST-PAIEMENTS.md. |
+| Mesures (1.5) | Deux événements sans contenu, seulement avec un compte, désactivables ; l'application ne peut que les ajouter, jamais les lire. |
 | RGPD (1.4) | Page Confidentialité (`#/confidentialite`) : données, stockage, droits, contacts du CRM, tiers. À faire relire, et coordonnées du responsable du traitement à compléter avant le lancement. |
 
 ## Avant la commercialisation (comptes en ligne et paiement)

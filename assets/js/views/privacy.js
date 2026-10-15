@@ -14,8 +14,8 @@ export function privacyView() {
   const html = `${pageHead('Confidentialité et RGPD', { kicker: `Mise à jour le ${PRIVACY_UPDATED}`, back: '#/reglages' })}
     <section class="card priv-key rise">
       <ul class="priv-l">
-        <li>${ic('lock')}<span><b>Vos données restent sur votre appareil.</b> Aucun serveur M&amp;S ne les reçoit, et personne chez M&amp;S Design n'y a accès.</span></li>
-        <li>${ic('shield')}<span><b>Aucune publicité, aucun traceur, aucun cookie de suivi.</b> Pas d'outil de statistiques, pas de pixel, pas de revente.</span></li>
+        <li>${ic('lock')}<span><b>Vos données restent sur votre appareil.</b> Aucun serveur MindView ne les reçoit, et personne chez M&amp;S Design n'y a accès.</span></li>
+        <li>${ic('shield')}<span><b>Aucune publicité, aucun traceur, aucun cookie de suivi.</b> Pas d'outil de statistiques extérieur, pas de pixel, pas de revente.</span></li>
         <li>${ic('download')}<span><b>Vous gardez la main.</b> Tout exporter ou tout effacer prend un geste, depuis votre compte.</span></li>
       </ul>
     </section>
@@ -42,7 +42,10 @@ export function privacyView() {
       <p><b>Paiement</b> : en ce moment, l'abonnement fonctionne en mode test et aucune donnée bancaire n'est demandée. Au lancement, le paiement passera par un prestataire spécialisé (Stripe) : votre numéro de carte ne transitera jamais par l'application.</p>
       <p><b>Notifications</b> : elles sont calculées sur l'appareil, sans serveur d'envoi.</p>`)}
     ${sec('securite', 'Sécurité', `<p>Le code de verrouillage est enregistré sous forme d'empreinte irréversible (SHA-256). Les données elles-mêmes ne sont pas chiffrées sur l'appareil : protégez-le par un code, et rangez vos fichiers de sauvegarde en lieu sûr, car ils contiennent tout votre compte.</p>`)}
-    ${sec('futur', 'Avec les comptes en ligne (à venir)', `<p>Quand la synchronisation entre appareils arrivera, vos données seront hébergées dans l'Union européenne, chiffrées pendant le transfert, et chaque accès sera contrôlé par le serveur et les règles de la base de données, pas seulement par l'écran. Cette page sera mise à jour et votre accord sera demandé avant que quoi que ce soit ne quitte votre appareil.</p>`)}
+    ${sec('compte', 'Si vous créez un compte en ligne', `<p>Le compte sert uniquement à payer et gérer l'abonnement. Il enregistre, sur un serveur situé dans l'Union européenne (Supabase) : votre adresse e-mail, l'état de votre abonnement (formule, échéance) et, si vous ne l'avez pas refusé, deux mesures d'usage (« application ouverte ce jour-là » et « première prise en main »). Jamais le contenu de vos tâches, notes, projets ou fiches, qui restent sur l'appareil.</p>
+      <p>Le paiement est traité par Stripe, qui conserve les factures comme l'exige la loi. « Supprimer mon compte » arrête l'abonnement immédiatement et efface le compte du serveur. Les mesures se coupent dans Compte → Compte en ligne.</p>
+      <p>Chaque accès est contrôlé par le serveur et par les règles de la base de données : personne ne peut lire l'abonnement d'un autre, ni modifier le sien depuis l'application.</p>`)}
+    ${sec('futur', 'Synchronisation entre appareils (à venir)', `<p>Quand vos tâches et notes pourront se synchroniser entre téléphone et ordinateur, elles seront hébergées dans l'Union européenne, chiffrées pendant le transfert, et cette page sera mise à jour. Votre accord sera demandé avant que ce contenu ne quitte votre appareil.</p>`)}
     <section class="card article priv-todo rise" id="responsable"><h2>Responsable du traitement</h2>
       <p><span class="chip t-sand">À compléter avant le lancement</span></p>
       <p>M&amp;S Design — dénomination légale, adresse, numéro d'entreprise et adresse e-mail de contact pour les questions de confidentialité.</p>

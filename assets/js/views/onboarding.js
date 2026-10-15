@@ -76,7 +76,7 @@ export function iphone(prenom) {
       <p class="phone-time">9:41</p>
       <div class="phone-notes">${notes.map(([t, b, w], k) => `<div class="inote" style="--k:${k}">
         <span class="inote-ic">${logoMark('sm')}</span>
-        <div class="inote-b"><p class="inote-h"><span>M&amp;S Developer</span><span>${w}</span></p><p class="inote-t">${t}</p><p>${b}</p></div></div>`).join('')}</div>
+        <div class="inote-b"><p class="inote-h"><span>MindView</span><span>${w}</span></p><p class="inote-t">${t}</p><p>${b}</p></div></div>`).join('')}</div>
     </div>
   </div>`;
 }
@@ -111,7 +111,7 @@ export function onboarding() {
         <div class="ob-mark">${cluster('ob-cl')}${logoMark('xl draw')}</div>
         <p class="ob-kick">L'app de M&amp;S Design</p>
         <p class="ob-hook">Marre des applications ennuyeuses et des tableaux Excel pour vous organiser&nbsp;?</p>
-        <h1 class="ob-name">C'est là qu'intervient <span>M&amp;S</span>&nbsp;Developer.</h1>
+        <h1 class="ob-name">C'est là qu'intervient <span>MindView</span>.</h1>
         <p class="ob-promise">${PROMISE}</p>
         <p class="ob-p ob-aud">${AUDIENCE}</p>
       </div>

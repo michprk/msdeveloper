@@ -323,7 +323,8 @@ export function settleDue(ok) {
 // Appelé à l'ouverture et au retour dans l'application.
 export function syncBilling(now = Date.now()) {
   const s = state.sub;
-  if (s.plan === 'free' || !s.periodEnd) return false;
+  // Abonnement réel : Stripe renouvelle, la base fait foi (voir cloud.js) ; rien à simuler ici
+  if (s.source === 'stripe' || s.plan === 'free' || !s.periodEnd) return false;
   const due = (s.status === 'past_due' && s.graceEnd && now >= s.graceEnd) || (s.status !== 'past_due' && now >= s.periodEnd);
   if (!due) return false;
   update((st) => {

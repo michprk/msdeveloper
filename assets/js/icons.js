@@ -120,6 +120,6 @@ const P = {
 
 export const ic = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[name] || P.note}</svg>`;
 
-// Le monogramme M&S : un grand M et un grand S en Fraunces (la police de M&S Design),
-// avec une petite esperluette bleu clair entre les deux, en exposant.
-export const logoMark = (cls = '') => `<svg class="logo-mark ${cls}" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="236" class="lm-bg"/><text x="512" y="660" text-anchor="middle" class="lm-t">M<tspan class="lm-a" dy="-170">&amp;</tspan><tspan dy="170">S</tspan></text></svg>`;
+// Le monogramme MindView : un grand M crème et un grand V bleu clair en Fraunces
+// (la police de M&S Design, qui conçoit l’application).
+export const logoMark = (cls = '') => `<svg class="logo-mark ${cls}" viewBox="0 0 1024 1024" aria-hidden="true"><rect width="1024" height="1024" rx="236" class="lm-bg"/><text x="512" y="652" text-anchor="middle" class="lm-t">M<tspan class="lm-a">V</tspan></text></svg>`;

@@ -1,7 +1,7 @@
 {
-  "name": "M&S Developer",
-  "short_name": "M&S Dev",
-  "description": "Scripts de prospection, CRM et méthode pour décrocher des clients en création de site web, automatisation et référencement.",
+  "name": "MindView",
+  "short_name": "MindView",
+  "description": "Vos tâches, vos projets, vos notes et vos clients, au même endroit. Fini les applications ennuyeuses et les tableaux Excel pour s'organiser.",
   "lang": "fr-BE",
   "id": "./",
   "start_url": "./",
@@ -10,15 +10,15 @@
   "orientation": "any",
   "background_color": "#F5F1E9",
   "theme_color": "#F5F1E9",
-  "categories": ["business", "productivity"],
+  "categories": ["productivity", "business", "education"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
     { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Session d'appels", "url": "./#/appel", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Scripts", "url": "./#/scripts", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "CRM", "url": "./#/crm", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Nouvelle tâche", "url": "./#/taches?new=1", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Projets", "url": "./#/projets", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Notifications", "url": "./#/notifications", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

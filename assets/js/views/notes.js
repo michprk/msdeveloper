@@ -173,7 +173,7 @@ function editor(root, pid) {
   if (!page().title) setTimeout(() => title.focus(), 60);
   else if (page().tpl && page().blocks.every((b) => !b.x)) setTimeout(() => focusBlock(page().blocks.find((b) => b.t !== 'divider' && b.t !== 'h2' && b.t !== 'callout')?.id || page().blocks[0]?.id), 60);
 
-  title.addEventListener('input', () => { autosize(title); mutate(pid, (p) => { p.title = title.value.replace(/\n/g, ' '); }); document.title = `${title.value || 'Sans titre'} · M&S Developer`; flash(); });
+  title.addEventListener('input', () => { autosize(title); mutate(pid, (p) => { p.title = title.value.replace(/\n/g, ' '); }); document.title = `${title.value || 'Sans titre'} · MindView`; flash(); });
   title.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); const b = page().blocks[0]; if (b) focusBlock(b.id, 'start'); } });
 
   // Menu « / »

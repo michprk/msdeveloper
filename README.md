@@ -1,4 +1,4 @@
-# M&S Developer
+# MindView
 
 **Vos tâches, vos projets, vos notes et vos clients, au même endroit.** L'application d'organisation pour tout le monde : réviser un examen, mener un projet de code, gérer son travail, son budget ou ses clients.
 
@@ -17,6 +17,13 @@
 3. **Tout ce que vous savez, rangé** : des pages et sous-pages comme dans un carnet, des modèles (cours, planning de révision, budget, projet de code, réunion), et des quiz pour retenir.
 
 **Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche appartient à un projet, une page de notes à une fiche, un devis accepté transforme le prospect en client et crée son projet : rien à recopier d'un outil à l'autre.
+
+## Nouveautés 1.5 (15/10/2026)
+
+- **Nouveau nom : MindView**, monogramme MV (M crème, V bleu clair, Fraunces), même direction artistique bleu nuit, bleu clair, olive et crème. L'adresse et le dépôt `msdeveloper` ne changent pas encore, pour ne pas casser les applications déjà installées ; les données (`msdev:v1`) sont conservées.
+- **Vérifier les paiements** (Abonnement, mode test) : 12 situations et 38 vérifications rejouées automatiquement, abonnement remis comme avant. Voir [TEST-PAIEMENTS.md](TEST-PAIEMENTS.md).
+- **Passage à Stripe prêt et éteint** : compte en ligne par e-mail et code, Stripe Checkout, espace de gestion Stripe, webhook signé seul à écrire l'abonnement, suppression du compte côté serveur. S'allume en remplissant `assets/js/config.js`. Voir [PAIEMENTS.md](PAIEMENTS.md) et le dossier `server/`.
+- **Les quatre chiffres** (inscriptions, prise en main, retour à J+7, passage au payant) : vues SQL prêtes, deux événements seulement, désactivables. Voir [MESURES.md](MESURES.md).
 
 ## Nouveautés 1.4 (15/10/2026)
 
@@ -93,7 +100,12 @@ HTML/CSS/JS sans dépendance ni compilation (modules ES). Données dans le navig
 ```
 assets/js/app.js          routeur, navigation par modules, recherche, brouillons, retour dans l'app
 assets/js/store.js        données, migration, modules, abonnement (états, prorata, renouvellement)
-assets/js/payments.js     prestataire de paiement (mode test ; aucune clé secrète)
+assets/js/payments.js     prestataire de paiement (mode test tant que config.js est vide ; aucune clé secrète)
+assets/js/billing-check.js vérification automatique des 12 situations de paiement (mode test)
+assets/js/config.js       adresse Supabase + clé publique anon (vides = mode test)
+assets/js/cloud.js        compte en ligne, abonnement Stripe, mesures
+assets/js/views/account.js connexion par e-mail et code, carte Compte en ligne
+server/supabase/          base (migrations SQL, RLS, vues des chiffres) et fonctions Stripe
 assets/js/views/tasks.js  tâches et saisie rapide
 assets/js/views/notes.js  pages et éditeur de blocs
 assets/js/views/quiz.js   quiz, cartes de révision, création

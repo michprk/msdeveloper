@@ -120,7 +120,7 @@ export function toast(msg, { title = '', action, onAction, ms = 2800 } = {}) {
   while (host.children.length > 2) host.firstElementChild.remove();
   const t = document.createElement('div');
   t.className = 'toast';
-  t.innerHTML = `<span class="toast-ic">${logoMark('sm')}</span><div class="toast-b"><p class="toast-h"><span>M&amp;S Developer</span><span>maintenant</span></p>${title ? `<p class="toast-t">${title}</p>` : ''}<p class="toast-m">${msg}</p></div>${action ? `<button class="toast-btn">${action}</button>` : ''}`;
+  t.innerHTML = `<span class="toast-ic">${logoMark('sm')}</span><div class="toast-b"><p class="toast-h"><span>MindView</span><span>maintenant</span></p>${title ? `<p class="toast-t">${title}</p>` : ''}<p class="toast-m">${msg}</p></div>${action ? `<button class="toast-btn">${action}</button>` : ''}`;
   host.append(t);
   requestAnimationFrame(() => t.classList.add('in'));
   const kill = () => { t.classList.remove('in'); t.classList.add('out'); setTimeout(() => t.remove(), 350); };

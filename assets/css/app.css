@@ -2013,16 +2013,16 @@ body[data-mode="full"] .fab, body.is-locked .fab { display: none !important; }
 }
 
 /* ---------- Monogramme M&S (v1.3.2) ---------- */
-.lm-t { font-family: var(--display); font-weight: 600; font-size: 420px; letter-spacing: -10px; fill: var(--on-navy); }
-.lm-a { font-size: 200px; font-weight: 500; fill: var(--sky); }
+.lm-t { font-family: var(--display); font-weight: 600; font-size: 400px; letter-spacing: 8px; fill: var(--on-navy); }
+.lm-a { fill: var(--sky); }
 .side .lm-t, .lock .lm-t { fill: var(--navy); }
 .side .lm-a, .lock .lm-a { fill: var(--blue); }
 :root[data-theme="dark"] .side .lm-t { fill: #fff; }
 :root[data-theme="dark"] .side .lm-a { fill: #dfe9ff; }
 .logo-mark.draw .lm-t { stroke: var(--on-navy); stroke-width: 6; stroke-dasharray: 2600; stroke-dashoffset: 2600; fill-opacity: 0; animation: lm-draw 1.5s .1s var(--ease) forwards, sp-fill .5s 1.05s ease forwards; }
 .logo-mark.draw .lm-a { stroke: var(--sky); }
-.sp-t { font-family: var(--display); font-weight: 600; font-size: 420px; letter-spacing: -10px; fill: var(--on-navy); fill-opacity: 0; stroke: var(--on-navy); stroke-width: 6; stroke-dasharray: 2600; stroke-dashoffset: 2600; animation: lm-draw 1s .15s var(--ease) forwards, sp-fill .4s .8s ease forwards; }
-.sp-a { font-size: 200px; font-weight: 500; fill: var(--sky); stroke: var(--sky); }
+.sp-t { font-family: var(--display); font-weight: 600; font-size: 400px; letter-spacing: 8px; fill: var(--on-navy); fill-opacity: 0; stroke: var(--on-navy); stroke-width: 6; stroke-dasharray: 2600; stroke-dashoffset: 2600; animation: lm-draw 1s .15s var(--ease) forwards, sp-fill .4s .8s ease forwards; }
+.sp-a { fill: var(--sky); stroke: var(--sky); }
 
 /* ==========================================================================
    v1.3.2 — accueil (accroche, présentation, faire connaissance), exemples partout
@@ -2357,3 +2357,20 @@ body[data-mode="full"] .fab, body.is-locked .fab { display: none !important; }
 .nf-count { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 2px; }
 .notif-g .card-h { margin-bottom: 6px; }
 .chip-sel select { field-sizing: content; }
+
+/* ========== v1.5 : vérification des paiements ========== */
+.verif .body { margin-bottom: 14px; }
+.verif-l { display: grid; gap: 8px; }
+.verif-l > li { border: 1px solid var(--line); border-radius: var(--r-md); background: var(--card); }
+.verif-l > li.is-ko { border-color: var(--rose); background: var(--rose-3); }
+.verif-l summary { display: flex; align-items: center; gap: 10px; padding: 11px 13px; cursor: pointer; list-style: none; font-size: 15px; }
+.verif-l summary::-webkit-details-marker { display: none; }
+.verif-l summary b { flex: 1; font-weight: 600; }
+.verif-ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--olive-3); color: var(--olive-ink); flex: none; }
+.verif-ic .ic { width: 15px; height: 15px; }
+.verif-l .is-ko .verif-ic { background: var(--rose); color: #fff; }
+.verif-l details ul { display: grid; gap: 6px; padding: 0 14px 12px 49px; }
+.verif-l details li { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--ink-2); }
+.verif-l details li .ic { width: 14px; height: 14px; flex: none; margin-top: 3px; color: var(--olive-2); }
+.verif-l details li.is-ko { color: var(--rose); font-weight: 600; }
+.verif-l details li.is-ko .ic { color: var(--rose); }

@@ -7,6 +7,9 @@ import { GUIDES } from '../data/guides.js';
 import { pageHead } from './common.js';
 import { flower } from './flowers.js';
 import { isTest, PAYMENTS } from '../payments.js';
+import { runBillingChecks, CHECK_COUNT } from '../billing-check.js';
+import { cloudUser, checkout, openPortal, cloudMessage } from '../cloud.js';
+import { accountSheet } from './account.js';
 
 const price = (n) => n.toFixed(2).replace('.', ',');
 const dl = (t) => dateLong(t).toLowerCase();
@@ -47,6 +50,13 @@ export function plans() {
   const subscribed = b.plan !== 'free';
   const [title, text] = s.sub.demo ? ['Mode démonstration', `Affichage ${PLANS[s.sub.demo].name}, activé depuis le compte. Ce n'est pas un abonnement.`] : STATUS[st](b);
   const planBtn = (id) => {
+    // Paiement réel : changement de formule, carte, factures et résiliation chez Stripe (portail sécurisé)
+    if (!isTest()) {
+      if (subscribed && b.plan === id) return `<p class="plan-cur">${st === 'canceling' ? `Jusqu'au ${dl(b.periodEnd)}` : 'Votre formule'}</p>`;
+      if (id === 'free') return !subscribed && cur === 'free' ? '<p class="plan-cur">Votre formule</p>' : '';
+      if (subscribed) return `<button class="btn btn-ghost btn-block" data-act="cloud-portal">Passer à ${PLANS[id].name}</button><p class="plan-sub">${RANK[id] > RANK[b.plan] ? 'Tout de suite, au prorata' : 'À la fin de la période payée'}</p>`;
+      return `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="co-open" data-plan="${id}">Choisir ${PLANS[id].name}</button>`;
+    }
     if (subscribed && b.plan === id) return `<p class="plan-cur">${st === 'canceling' ? `Jusqu'au ${dl(b.periodEnd)}` : 'Votre formule'}</p>`;
     if (subscribed && b.pending === id) return `<p class="plan-cur">Prévue le ${dl(b.periodEnd)}</p>`;
     if (id === 'free') return subscribed ? (st === 'canceling' ? '' : '<button class="btn btn-ghost btn-block" data-act="sub-cancel">Revenir au gratuit</button>') : cur === 'free' ? '<p class="plan-cur">Votre formule</p>' : '';
@@ -70,12 +80,19 @@ export function plans() {
       <div class="act-row">
         ${st === 'free' ? `<button class="btn btn-primary" data-act="start-trial">Essayer tout gratuitement ${TRIAL_DAYS} jours</button>` : ''}
         ${['trial', 'trial_ended', 'ended'].includes(st) ? '<a class="btn btn-primary" href="#plans" data-act="to-plans">Choisir une formule</a>' : ''}
-        ${st === 'active' ? '<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a><button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>' : ''}
-        ${st === 'active' && b.pending ? '<button class="btn btn-ghost" data-act="sub-keep">Annuler le changement prévu</button>' : ''}
-        ${st === 'canceling' ? `<button class="btn btn-primary" data-act="sub-resume">Reprendre l'abonnement</button>` : ''}
-        ${st === 'past_due' ? `<button class="btn btn-primary" data-act="sub-retry">Réessayer le paiement</button><button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>` : ''}
+        ${!isTest() && ['active', 'canceling', 'past_due'].includes(st) ? `<button class="btn btn-primary" data-act="cloud-portal">${ic('card')}<span>Gérer mon abonnement</span></button>` : ''}
+        ${isTest() && st === 'active' ? '<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a><button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>' : ''}
+        ${isTest() && st === 'active' && b.pending ? '<button class="btn btn-ghost" data-act="sub-keep">Annuler le changement prévu</button>' : ''}
+        ${isTest() && st === 'canceling' ? `<button class="btn btn-primary" data-act="sub-resume">Reprendre l'abonnement</button>` : ''}
+        ${isTest() && st === 'past_due' ? `<button class="btn btn-primary" data-act="sub-retry">Réessayer le paiement</button><button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>` : ''}
       </div>
+      ${!isTest() && ['active', 'canceling', 'past_due'].includes(st) ? '<p class="field-h">Changer de formule ou de carte, télécharger vos factures, résilier ou reprendre : tout se fait dans l\'espace sécurisé de Stripe.</p>' : ''}
     </section>
+    ${isTest() ? `<section class="card verif rise">
+      <header class="card-h"><div><h2>Vérifier les paiements</h2><p>${CHECK_COUNT} situations rejouées automatiquement en une seconde</p></div><span class="chip t-olive">${ic('shield')}Test</span></header>
+      <p class="body">Essai, souscription, renouvellements, changements de formule au prorata, résiliation, reprise, paiements refusés, dates d'échéance : chaque situation est rejouée et comparée au résultat attendu. Votre abonnement est remis exactement comme avant.</p>
+      <button class="btn btn-primary" data-act="bill-check">${ic('check')}<span>Lancer la vérification</span></button>
+    </section>` : ''}
     <h2 class="sec-title" id="plans">Les formules</h2>
     <div class="plans">${['free', 'pro', 'premium'].map(card).join('')}</div>
     <section class="card rise">
@@ -87,7 +104,7 @@ export function plans() {
     <section class="card rise">
       <header class="card-h"><div><h2>Historique</h2><p>${hist.length ? `${hist.length} opération${hist.length > 1 ? 's' : ''}${isTest() ? ' · reçus de test' : ''}` : 'Aucun paiement pour l\'instant'}</p></div></header>
       ${hist.length ? `<ul class="rows bill">${hist.slice(0, 24).map((h) => `<li><button class="row" data-act="receipt" data-id="${h.id}"><span class="menu-ic">${ic(h.type === 'paiement' ? 'receipt' : h.type === 'echec' ? 'x' : 'refresh')}</span><span class="row-b"><b>${esc(h.label)}</b><span>${dateLong(h.at)}</span></span><span class="row-e">${h.amount ? `<b>${price(h.amount)} €</b>` : ''}<span class="chip ${TYPE[h.type]?.[1] || ''}">${TYPE[h.type]?.[0] || ''}</span></span></button></li>`).join('')}</ul>`
-        : '<p class="muted pad">Les paiements, changements de formule et reçus apparaîtront ici.</p>'}
+        : isTest() ? '<p class="muted pad">Les paiements, changements de formule et reçus apparaîtront ici.</p>' : `<p class="muted pad">Vos factures officielles sont envoyées par e-mail et restent disponibles dans l'espace sécurisé de Stripe.</p>${b.plan !== 'free' ? '<button class="btn btn-ghost" data-act="cloud-portal">Voir mes factures</button>' : ''}`}
     </section>
     ${isTest() ? `<details class="card test-tools rise"><summary><h2>Tester les paiements</h2>${ic('chevD', 'chev')}</summary>
       <p class="body">Pour vérifier chaque situation sans attendre : faites passer le temps, provoquez un refus de paiement, puis regardez le statut et l'historique ci-dessus.</p>
@@ -120,6 +137,20 @@ export function checkoutSheet(planId) {
   const due = upgrade ? prorata(planId) : p.price;
   const next = upgrade ? s.periodEnd : Date.now() + 30 * 864e5;
   if (!navigator.onLine) { toast('Le paiement demande une connexion internet. Vos données, elles, restent accessibles hors ligne.', { title: 'Hors connexion', ms: 4500 }); return; }
+  if (!isTest()) {
+    sheet(`${sheetHead(`S'abonner à ${p.name}`, `${price(p.price)} € par mois, sans engagement`)}
+      <div class="sheet-body co" data-plan="${planId}">
+        <dl class="co-sum">
+          <div><dt>Formule ${p.name}</dt><dd>${price(p.price)} € / mois</dd></div>
+          <div><dt>Engagement</dt><dd>aucun, résiliable à tout moment</dd></div>
+          <div class="co-tot"><dt>À payer aujourd'hui</dt><dd>${price(p.price)} €</dd></div>
+        </dl>
+        <p class="co-err" role="alert" hidden></p>
+        <button class="btn btn-primary btn-block btn-lg" data-act="co-stripe" data-plan="${planId}">${ic('lock')}<span>Continuer vers le paiement sécurisé</span></button>
+        <p class="sheet-note">${cloudUser() ? `Compte : ${esc(cloudUser().email || '')}. ` : 'Vous créerez d\'abord votre compte avec votre e-mail. '}Le paiement se fait sur la page sécurisée de ${PAYMENTS.provider} : aucune donnée bancaire ne passe par MindView.</p>
+      </div>`, { cls: 'sheet-sm' });
+    return;
+  }
   sheet(`${sheetHead(upgrade ? `Passer à ${p.name}` : `S'abonner à ${p.name}`, `${price(p.price)} € par mois, sans engagement`)}
     <div class="sheet-body co" data-plan="${planId}">
       <dl class="co-sum">
@@ -150,7 +181,32 @@ function receiptSheet(id) {
     <button class="btn btn-ghost btn-block" data-act="close-sheet">Fermer</button></div>`, { cls: 'sheet-sm' });
 }
 
+function checkSheet() {
+  const res = runBillingChecks();
+  const ok = res.filter((r) => r.ok).length;
+  const n = res.reduce((k, r) => k + r.checks.length, 0);
+  sheet(`${sheetHead(ok === res.length ? 'Tous les paiements sont conformes' : `${res.length - ok} situation${res.length - ok > 1 ? 's' : ''} à corriger`, `${ok} / ${res.length} situations · ${n} vérifications · ${dateLong(Date.now())}`)}
+    <div class="sheet-body">
+      <ul class="verif-l">${res.map((r) => `<li class="${r.ok ? 'is-ok' : 'is-ko'}"><details ${r.ok ? '' : 'open'}><summary><span class="verif-ic">${ic(r.ok ? 'check' : 'x')}</span><b>${esc(r.title)}</b><span class="muted-s">${r.checks.filter((c) => c[1]).length}/${r.checks.length}</span></summary>
+        <ul>${r.checks.map(([label, pass]) => `<li class="${pass ? '' : 'is-ko'}">${ic(pass ? 'check' : 'x')}<span>${esc(label)}</span></li>`).join('')}</ul></details></li>`).join('')}</ul>
+      <p class="sheet-note">Votre abonnement a été remis exactement comme avant. Ces vérifications portent sur le mode test ; avec Stripe, suivez la liste de TEST-PAIEMENTS.md.</p>
+      <button class="btn btn-ghost btn-block" data-act="close-sheet">Fermer</button>
+    </div>`, { cls: 'sheet-tall' });
+}
+
 register({
+  'bill-check': () => checkSheet(),
+  'co-stripe': async (b) => {
+    const plan = b.dataset.plan;
+    if (!cloudUser()) { closeSheet(null, true); accountSheet({ then: plan }); return; }
+    try { await busy(b, 'Ouverture du paiement…', () => checkout(plan)); }
+    catch (e) { const err = b.closest('.co').querySelector('.co-err'); err.textContent = cloudMessage(e); err.hidden = false; }
+  },
+  'cloud-portal': async (b) => {
+    if (!cloudUser()) { accountSheet(); return; }
+    try { await busy(b, 'Ouverture…', () => openPortal()); }
+    catch (e) { toast(cloudMessage(e), { title: 'Espace de gestion indisponible', ms: 4500 }); }
+  },
   'co-open': (b) => checkoutSheet(b.dataset.plan),
   'to-plans': (b, e) => { e.preventDefault(); document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
   'co-pay': async (b) => {

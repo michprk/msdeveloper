@@ -1,11 +1,13 @@
 // Prestataire de paiement.
-// Tant qu'aucun compte Stripe n'est relié à un serveur (voir PAIEMENTS.md), l'application
-// fonctionne en mode test : tout le parcours d'abonnement est réel (essai, souscription,
-// changement de formule, résiliation, échec de paiement, reçus), mais aucun argent ne bouge
-// et aucune carte n'est demandée. Aucune clé secrète ne doit jamais figurer dans ce fichier :
-// il est envoyé tel quel au navigateur.
+// Mode test tant que config.js est vide : tout le parcours d'abonnement fonctionne sur l'appareil
+// (essai, souscription, changement de formule, résiliation, échec de paiement, reçus), sans carte
+// et sans argent. Dès que config.js pointe vers le projet Supabase (voir PAIEMENTS.md), le paiement
+// passe par Stripe Checkout et l'abonnement est lu dans la base, écrite uniquement par le serveur.
+// Aucune clé secrète ne doit jamais figurer ici : ce fichier est envoyé tel quel au navigateur.
+import { cloudReady } from './cloud.js';
+
 export const PAYMENTS = {
-  mode: 'test',
+  get mode() { return cloudReady() ? 'stripe' : 'test'; },
   provider: 'Stripe',
 };
 export const isTest = () => PAYMENTS.mode === 'test';

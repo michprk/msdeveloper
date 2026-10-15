@@ -11,6 +11,8 @@ import { QUIZZES } from '../data/quizzes.js';
 import { startOnboarding, notifSheet } from './onboarding.js';
 import { flower } from './flowers.js';
 import { catSwitches, unreadCount } from './notifications.js';
+import { accountCard } from './account.js';
+import { cloudUser, deleteCloudAccount, cloudMessage } from '../cloud.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
 import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow, lockAfter, sessionStart } from '../lock.js';
 import { fieldError, setFieldError, ago, time } from '../ui.js';
@@ -29,7 +31,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -185,7 +187,7 @@ export function settings(params, q = {}) {
     </section>
     <section class="card rise">
       <header class="card-h"><div><h2>Installer l'application</h2><p>Écran d'accueil du téléphone, Dock du Mac, bureau du PC</p></div></header>
-      <button class="btn btn-ghost" data-act="install">${ic('install')}<span>Installer M&amp;S Developer</span></button>
+      <button class="btn btn-ghost" data-act="install">${ic('install')}<span>Installer MindView</span></button>
     </section>
 
     <h2 class="sec-title" id="notifications">Notifications</h2>
@@ -199,7 +201,7 @@ export function settings(params, q = {}) {
         <label class="ios-row"><span><b>Rappel avant chaque tâche</b><em>Dix minutes avant chaque tâche à heure fixe.</em></span><input type="checkbox" class="switch" ${s.prefs.notifs !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="notifs" data-on="Rappels activés" data-off="Rappels désactivés"></label>
         <label class="ios-row"><span><b>Résumé du matin</b><em>Le nombre de tâches du jour, à partir de 7 h.</em></span><input type="checkbox" class="switch" ${s.prefs.digest !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="digest" data-on="Résumé du matin activé" data-off="Résumé du matin désactivé"></label>
       </div>
-      ${perm === 'denied' ? '<p class="field-h">Pour les réactiver : réglages du navigateur (ou de l\'iPhone) → Notifications → M&amp;S Developer.</p>' : '<p class="field-h">Sans serveur d\'envoi, les rappels partent quand l\'application est ouverte ou vient de l\'être. Sur iPhone, installez-la d\'abord sur l\'écran d\'accueil.</p>'}
+      ${perm === 'denied' ? '<p class="field-h">Pour les réactiver : réglages du navigateur (ou de l\'iPhone) → Notifications → MindView.</p>' : '<p class="field-h">Sans serveur d\'envoi, les rappels partent quand l\'application est ouverte ou vient de l\'être. Sur iPhone, installez-la d\'abord sur l\'écran d\'accueil.</p>'}
       <div class="act-row">${perm === 'default' ? `<button class="btn btn-primary" data-act="notif-ask-sheet">${ic('bell')}<span>Autoriser</span></button>` : ''}<button class="btn btn-ghost" data-act="notif-test">${ic('bell')}<span>Envoyer une notification de test</span></button></div>
     </section>
 
@@ -210,6 +212,7 @@ export function settings(params, q = {}) {
       ${hasLock() ? `<label class="field"><span class="field-l">Verrouillage automatique</span>${select('after', LOCK_AFTER, lockAfter(), 'data-act-change="lock-after"')}</label>` : ''}
       <div class="act-row">${!lockSupported() ? '<p class="field-h">Le verrouillage demande une connexion sécurisée (https).</p>' : hasLock() ? `<button class="btn btn-primary" data-act="lock-now">${ic('lock')}<span>Verrouiller maintenant</span></button><button class="btn btn-ghost" data-act="lock-change">Changer le code</button><button class="btn btn-ghost" data-act="lock-off">Désactiver</button>` : `<button class="btn btn-primary" data-act="lock-set">${ic('lock')}<span>Activer un code</span></button>`}</div>
     </section>
+    ${accountCard()}
     <section class="card rise">
       <header class="card-h"><div><h2>Session</h2><p>Où et depuis quand l'application est ouverte</p></div></header>
       <dl class="dl">
@@ -257,7 +260,7 @@ export function settings(params, q = {}) {
 
     <section class="about-card rise">
       <p class="about-p"><b>${PROMISE}</b> ${PITCH}</p>
-      <p class="about">M&amp;S Developer ${VERSION} · conçu à Bruxelles par M&amp;S Design</p>
+      <p class="about">MindView ${VERSION} · conçue à Bruxelles par M&amp;S Design</p>
     </section>`;
   return { title: 'Compte', tab: 'plus', html, after(root) { if (q.s) setTimeout(() => root.querySelector('#' + CSS.escape(q.s))?.scrollIntoView({ block: 'start' }), 50); } };
 }
@@ -300,7 +303,7 @@ function wipeSheet() {
   const s = S();
   sheet(`${sheetHead('Supprimer votre compte ?', 'Action définitive')}
     <form class="sheet-body form" data-form="wipe" data-validate novalidate>
-      <p class="sheet-p">Seront <b>définitivement effacés de cet appareil</b> : ${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''}, ${s.pages.length} page${s.pages.length > 1 ? 's' : ''}, ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} et leur historique, vos quiz, l'abonnement de test et vos réglages. Rien n'est conservé ailleurs.</p>
+      <p class="sheet-p">Seront <b>définitivement effacés de cet appareil</b> : ${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''}, ${s.pages.length} page${s.pages.length > 1 ? 's' : ''}, ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} et leur historique, vos quiz, ${cloudUser() ? 'votre abonnement' : 'l\'abonnement de test'} et vos réglages.${cloudUser() ? ` Votre compte en ligne (${esc(cloudUser().email || '')}) est supprimé et l'abonnement arrêté immédiatement, sans autre prélèvement. Les factures déjà émises sont conservées par Stripe, comme l'exige la loi.` : ' Rien n\'est conservé ailleurs.'}</p>
       <button type="button" class="btn btn-ghost btn-block" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde d'abord</span></button>
       ${field('Tapez SUPPRIMER pour confirmer', '<input class="inp" name="confirm" autocomplete="off" autocapitalize="characters" required data-act-input="wipe-check">')}
       <button class="btn btn-danger btn-block" type="submit" disabled>Supprimer définitivement</button>
@@ -383,7 +386,7 @@ register({
         const r = mergeImport(data);
         toast(`${r.added} fiche${r.added > 1 ? 's' : ''} ajoutée${r.added > 1 ? 's' : ''}${r.skipped ? `, ${r.skipped} déjà présente${r.skipped > 1 ? 's' : ''} (ignorée${r.skipped > 1 ? 's' : ''})` : ''}. ${r.activities} échange${r.activities > 1 ? 's' : ''} et ${r.tasks} tâche${r.tasks > 1 ? 's' : ''}.`, { title: 'Import terminé', action: 'Voir', onAction: () => { location.hash = '#/crm'; }, ms: 5000 });
       } catch (e) {
-        toast(e.message === 'json' ? 'Ce fichier n\'est pas lisible : il doit s\'agir d\'un fichier .json exporté par M&S Developer.' : 'Ce fichier ne contient pas de fiches au bon format.', { title: 'Import impossible', ms: 5000 });
+        toast(e.message === 'json' ? 'Ce fichier n\'est pas lisible : il doit s\'agir d\'un fichier .json exporté par MindView.' : 'Ce fichier ne contient pas de fiches au bon format.', { title: 'Import impossible', ms: 5000 });
       }
     });
     el.value = '';
@@ -395,7 +398,7 @@ register({
       if (!data || !Array.isArray(data.prospects) || !data.profile) throw new Error('format');
       if (!await confirmSheet({ title: 'Restaurer cette sauvegarde ?', text: `Les données actuelles de cet appareil seront remplacées par celles du fichier (${data.prospects.length} fiches).`, ok: 'Restaurer', danger: true })) { el.value = ''; return; }
       replaceState({ ...data, onboarded: true, lock: S().lock }); toast('Vos données ont été remplacées par la sauvegarde.', { title: 'Sauvegarde restaurée' });
-    } catch (e) { toast('Ce fichier n\'est pas une sauvegarde complète de M&S Developer. Pour ajouter des fiches, utilisez « Importer un fichier ».', { title: 'Restauration impossible', ms: 5000 }); }
+    } catch (e) { toast('Ce fichier n\'est pas une sauvegarde complète de MindView. Pour ajouter des fiches, utilisez « Importer un fichier ».', { title: 'Restauration impossible', ms: 5000 }); }
     el.value = '';
   },
   'export-csv': () => {
@@ -448,8 +451,13 @@ register({
     if (d.code !== d.code2) { toast('Les deux codes ne sont pas identiques.', { title: 'Confirmation différente' }); return; }
     await setLock(d.code); closeSheet(); toast('L\'application vous demandera ce code à l\'ouverture.', { title: 'Code activé' }); rr();
   },
-  wipe: (d) => {
+  wipe: async (d, f) => {
     if ((d.confirm || '').trim().toUpperCase() !== 'SUPPRIMER') return;
+    // Compte en ligne : d'abord sur le serveur (abonnement Stripe arrêté, compte et données effacés)
+    if (cloudUser()) {
+      try { await busy(f.querySelector('[type=submit]'), 'Suppression du compte en ligne…', () => deleteCloudAccount()); }
+      catch (e) { toast(`${cloudMessage(e)} Rien n'a été effacé : réessayez.`, { title: 'Suppression impossible', ms: 5000 }); return; }
+    }
     closeSheet();
     resetState(); try { sessionStorage.clear(); } catch (e) { /* rien */ }
     startOnboarding(); location.hash = '#/bienvenue';
@@ -469,6 +477,6 @@ export function installFlow() {
     ? ['Ouvrez cette page dans Safari.', 'Touchez le bouton Partager (le carré avec une flèche).', 'Choisissez « Sur l\'écran d\'accueil », puis « Ajouter ».']
     : mac && safari ? ['Dans la barre de menus, ouvrez « Fichier ».', 'Choisissez « Ajouter au Dock ».', 'L\'application s\'ouvre ensuite depuis le Dock, dans sa propre fenêtre.']
       : ['Ouvrez le menu du navigateur (⋮ ou …).', 'Choisissez « Installer l\'application » ou « Ajouter à l\'écran d\'accueil ».', 'L\'application s\'ouvre ensuite dans sa propre fenêtre.'];
-  sheet(`${sheetHead('Installer M&amp;S Developer', ios ? 'iPhone et iPad' : mac ? 'Mac' : 'Android, PC et Mac')}<div class="sheet-body"><ol class="install-steps">${steps.map((x) => `<li>${x}</li>`).join('')}</ol></div>`, { cls: 'sheet-sm' });
+  sheet(`${sheetHead('Installer MindView', ios ? 'iPhone et iPad' : mac ? 'Mac' : 'Android, PC et Mac')}<div class="sheet-body"><ol class="install-steps">${steps.map((x) => `<li>${x}</li>`).join('')}</ol></div>`, { cls: 'sheet-sm' });
 }
 export { CHANNELS, eur, AUDIENCE, BENEFITS, notifSheet };

@@ -62,7 +62,7 @@ export function home() {
   const html = `
   <div class="home">
     <div class="m-top">
-      <a class="m-brand" href="#/" aria-label="M&amp;S Developer">${logoMark('sm')}<span><b>M&amp;S</b> Developer</span></a>
+      <a class="m-brand" href="#/" aria-label="MindView">${logoMark('sm')}<span>Mind<b>View</b></span></a>
       <div class="m-acts"><button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button>${bell()}<a class="m-avatar" href="#/reglages" aria-label="Compte et réglages">${avatar(p.prenom || 'M S')}</a></div>
     </div>
     <header class="ph ph-home">

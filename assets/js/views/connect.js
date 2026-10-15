@@ -106,7 +106,7 @@ export function tasksIcs() {
       timed ? `DTSTART:${utc(t.due)}` : `DTSTART;VALUE=DATE:${day(t.due)}`, timed ? `DTEND:${utc(t.due + 30 * 60e3)}` : `DTEND;VALUE=DATE:${day(t.due + 864e5)}`,
       `SUMMARY:${txt(t.title)}`, (t.notes || pr) ? `DESCRIPTION:${txt([pr ? `Projet : ${pr.name}` : '', t.notes].filter(Boolean).join('\n'))}` : '', 'END:VEVENT'].filter(Boolean).join('\r\n');
   });
-  return { n: list.length, text: ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//M&S Design//M&S Developer//FR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:M&S Developer', ...ev, 'END:VCALENDAR'].join('\r\n') };
+  return { n: list.length, text: ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//M&S Design//MindView//FR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:MindView', ...ev, 'END:VCALENDAR'].join('\r\n') };
 }
 
 export function connectorsView() {
@@ -125,7 +125,7 @@ export function connectorsView() {
         <p class="cx-p">Exportez vos tâches datées dans un fichier .ics, puis ouvrez-le avec votre agenda : elles y apparaissent à leur date et à leur heure.</p>
         <div class="cx-a"><button class="btn btn-ghost btn-sm" data-act="cx-ics">${ic('download')}<span>Exporter mes tâches (.ics)</span></button></div></section>
     </div>
-    <section class="card cx-soon rise">${ic('refresh')}<div><b>Synchronisation automatique</b><p>Pour qu'un changement fait dans Canva, Figma ou Notion apparaisse tout seul ici (et inversement), il faut un compte M&amp;S en ligne et l'autorisation officielle de chaque service, que vous donnerez vous-même. C'est prévu avec les comptes en ligne. D'ici là, rien ne quitte votre appareil sans votre geste.</p></div></section>`;
+    <section class="card cx-soon rise">${ic('refresh')}<div><b>Synchronisation automatique</b><p>Pour qu'un changement fait dans Canva, Figma ou Notion apparaisse tout seul ici (et inversement), il faut un compte MindView en ligne et l'autorisation officielle de chaque service, que vous donnerez vous-même. C'est prévu avec les comptes en ligne. D'ici là, rien ne quitte votre appareil sans votre geste.</p></div></section>`;
   return { title: 'Connecteurs', tab: 'plus', html };
 }
 
