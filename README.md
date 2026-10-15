@@ -1,24 +1,33 @@
 # M&S Developer
 
-**Vos tâches, vos notes et vos clients, au même endroit.** L'application d'organisation des indépendants : votre journée sur un écran, un CRM qui parle votre métier, des notes en pages, et des quiz pour progresser.
+**Vos tâches, vos projets, vos notes et vos clients, au même endroit.** L'application d'organisation pour tout le monde : réviser un examen, mener un projet de code, gérer son travail, son budget ou ses clients.
 
 - **En ligne :** https://michprk.github.io/msdeveloper/ (non indexée)
 - **Conçue par** M&S Design, Bruxelles.
 
-## Positionnement (version 1.3)
+## Positionnement (version 1.4)
 
-**Pour qui.** Les indépendants et les petites équipes : freelances, commerçants, artisans, consultants, agences. Pas seulement les créateurs de sites : chacun choisit ce qu'il utilise.
+**Pour qui.** Tout le monde, pas seulement les créateurs de sites : étudiants qui révisent, salariés, développeurs, indépendants, commerçants, finance, petites équipes. À l'accueil, chacun dit qui il est (dix situations) et ce qu'il veut (huit objectifs) ; l'application n'affiche que ce qui lui sert.
 
-**La promesse en une phrase.** Vos tâches, vos notes et vos clients, au même endroit.
+**La promesse en une phrase.** Vos tâches, vos projets, vos notes et vos clients, au même endroit.
 
 **Trois bénéfices**
-1. **Une journée claire** : les tâches du jour, les rendez-vous et les relances sur un seul écran. On écrit « Rappeler Marc demain 14h », la date se règle toute seule.
-2. **Des clients bien suivis** : un CRM qui s'adapte au métier (dix modèles), avec vos étapes, vos champs, votre équipe et une relance datée par fiche.
-3. **Tout ce que vous savez, rangé** : des pages et sous-pages comme dans un carnet, des modèles, et des quiz pour retenir.
+1. **Une journée claire** : les tâches du jour, les rendez-vous et les échéances sur un seul écran, avec un centre de notifications. On écrit « Réviser le chapitre 3 demain 18h », la date se règle toute seule.
+2. **Des projets qui avancent** : un examen, une application, un client, un déménagement ; chaque tâche appartient à un projet, et la progression se calcule toute seule.
+3. **Tout ce que vous savez, rangé** : des pages et sous-pages comme dans un carnet, des modèles (cours, planning de révision, budget, projet de code, réunion), et des quiz pour retenir.
 
-**Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche peut pointer vers un client, une page de notes vers sa fiche, un bloc de page devient une tâche, et le résultat d'un appel crée la relance tout seul : rien à recopier d'un outil à l'autre.
+**Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche appartient à un projet, une page de notes à une fiche, un devis accepté transforme le prospect en client et crée son projet : rien à recopier d'un outil à l'autre.
 
-**Un exemple concret** (affiché à l'accueil) : le matin, vous ouvrez l'application, vous voyez vos trois tâches du jour et le client à relancer, vous ouvrez le compte rendu du dernier rendez-vous, et vous cochez au fil de la journée.
+## Nouveautés 1.4 (15/10/2026)
+
+- **Projets** (`#/projets`) : tâches reliées, progression automatique, statut (en cours, en pause, terminé), échéance, client facultatif, pages et liens du projet, cinq modèles (examen, site ou app, client, événement, budget). Gratuit : 3 projets en cours ; Pro : illimités.
+- **Tâches** : chaque tâche a un projet, une priorité, une date limite et un statut (à faire, en cours, terminée). Filtre par projet ; saisie rapide `#nomduprojet`.
+- **Prospects → clients → devis** : « Convertir en client » sur la fiche, filtre Prospects / Clients, devis par fiche (`#/devis`) suivis de brouillon à envoyé (relance créée à J+3), accepté (la fiche passe en client signé et un projet est créé) ou refusé. Dupliquer, PDF, retour en brouillon.
+- **Pipeline** : cartes avec montant, date, étiquettes, responsable et prochaine action (rouge si en retard), total par colonne, « Ajouter » dans chaque colonne, filtre « Pipeline de ».
+- **Recherche globale** (Ctrl/⌘ K) : tâches, projets, clients, prospects, devis, pages, avec filtres type, période (aujourd'hui, 7 jours, en retard, ce mois), statut et priorité, même sans texte.
+- **Centre de notifications** (`#/notifications`, cloche avec pastille) : tâches en retard, rappels du jour, échéances proches, devis à relancer, clients sans nouvelles ; chaque catégorie s'active ou se coupe.
+- **Confidentialité et RGPD** (`#/confidentialite`) : données, stockage, droits, contacts du CRM, tiers, sécurité. Coordonnées du responsable du traitement **à compléter** avant le lancement.
+- **Connecteurs** (`#/connecteurs`) : liens Canva, Figma, Notion, Drive, GitHub rangés dans les projets et fiches, aperçu Figma/Canva à la demande, import de pages Notion (Markdown), export des tâches vers un agenda (.ics). La synchronisation automatique demandera les comptes en ligne et les autorisations officielles de chaque service.
 
 ## Modules
 
@@ -61,14 +70,17 @@
 | | Gratuit | Pro 17,99 €/mois | Premium 31,99 €/mois |
 |---|---|---|---|
 | Tâches, listes, tableau, agenda | ✓ | ✓ | ✓ |
+| Projets reliés aux tâches | 3 en cours | Illimités | Illimités |
+| Notifications, recherche, connecteurs | ✓ | ✓ | ✓ |
 | Notes en pages | 10 pages | Illimitées | Illimitées |
 | Quiz intégrés, révision des notes | ✓ | ✓ | ✓ |
 | Vos propres quiz | — | ✓ | ✓ |
 | CRM personnalisé | — | ✓ | ✓ |
+| Devis suivis, PDF, prospect → client | — | ✓ | ✓ |
 | Scripts d'appel à froid | ✓ | ✓ | ✓ |
 | Tous les scripts, mode appel | — | ✓ | ✓ |
 | Académie | 5 guides | 17 guides | 17 guides |
-| Devis, statistiques, export CSV, scripts personnels | — | — | ✓ |
+| Statistiques, export CSV, scripts personnels | — | — | ✓ |
 
 Essai de 7 jours sans carte, avec tout Premium. Mensuel, sans engagement. Changement de formule : vers le haut tout de suite (au prorata), vers le bas à la fin de la période payée. Paiement refusé : 7 jours de délai de grâce. La répartition se règle dans `FEATURES` et `LIMITS` (`assets/js/store.js`).
 
@@ -76,7 +88,7 @@ Essai de 7 jours sans carte, avec tout Premium. Mensuel, sans engagement. Change
 
 ## Technique
 
-HTML/CSS/JS sans dépendance ni compilation (modules ES). Données dans le navigateur (localStorage, clé `msdev:v1`, schéma v2 avec migration automatique depuis la v1). Hors ligne grâce au service worker (changer `VERSION` dans `sw.js` à chaque mise en ligne).
+HTML/CSS/JS sans dépendance ni compilation (modules ES). Données dans le navigateur (localStorage, clé `msdev:v1`, schéma v3 avec migration automatique depuis la v1 et la v2 : les anciens projets « à étapes » deviennent des projets dont chaque étape est une tâche). Hors ligne grâce au service worker (changer `VERSION` dans `sw.js` à chaque mise en ligne).
 
 ```
 assets/js/app.js          routeur, navigation par modules, recherche, brouillons, retour dans l'app
@@ -86,7 +98,12 @@ assets/js/views/tasks.js  tâches et saisie rapide
 assets/js/views/notes.js  pages et éditeur de blocs
 assets/js/views/quiz.js   quiz, cartes de révision, création
 assets/js/views/billing.js abonnement, paiement, reçus
-assets/js/views/search.js recherche globale et feuille « Créer »
+assets/js/views/search.js recherche globale (avec filtres) et feuille « Créer »
+assets/js/views/projects.js projets et progression
+assets/js/views/quotes.js devis (brouillon → envoyé → accepté / refusé)
+assets/js/views/notifications.js centre de notifications
+assets/js/views/connect.js connecteurs, liens, import Notion, export .ics
+assets/js/views/privacy.js confidentialité et RGPD
 assets/js/data/           secteurs, scripts, quiz, modèles de pages, modèles de CRM, guides
 ```
 

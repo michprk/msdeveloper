@@ -6,14 +6,19 @@ import { home } from './views/home.js';
 import { library, sectorPage, reader } from './views/scripts.js';
 import { callView, setCallRerender, resetCall } from './views/call.js';
 import { crmView, fiche, crmSettings } from './views/crm.js';
-import { agenda, projects } from './views/agenda.js';
+import { agenda } from './views/agenda.js';
+import { projectsView, projectView } from './views/projects.js';
+import { quotesView, quoteView } from './views/quotes.js';
+import { notificationsView, unreadCount } from './views/notifications.js';
+import { connectorsView } from './views/connect.js';
+import { privacyView } from './views/privacy.js';
 import { tasksView } from './views/tasks.js';
 import { notesHome, noteView } from './views/notes.js';
 import { quizHome, quizPlay, quizCards, quizEdit } from './views/quiz.js';
 import { searchSheet } from './views/search.js';
 import { plans } from './views/billing.js';
 import { overview } from './views/overview.js';
-import { hub, devis, messages, audit, importView, quoteLive } from './views/tools.js';
+import { hub, messages, audit, importView } from './views/tools.js';
 import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
 import { academy, guide, settings, more } from './views/pages.js';
 import { onboarding, startOnboarding, isReplay } from './views/onboarding.js';
@@ -39,9 +44,15 @@ const ROUTES = [
   [/^crm$/, crmView],
   [/^crm\/personnaliser$/, crmSettings],
   [/^fiche\/([\w-]+)$/, fiche],
-  [/^projets$/, projects],
+  [/^projets$/, projectsView],
+  [/^projet\/([\w-]+)$/, projectView],
+  [/^devis$/, quotesView],
+  [/^devis\/([\w-]+)$/, quoteView],
+  [/^notifications$/, notificationsView],
+  [/^connecteurs$/, connectorsView],
+  [/^confidentialite$/, privacyView],
   [/^outils$/, hub],
-  [/^outils\/devis$/, devis],
+  [/^outils\/devis$/, quotesView],
   [/^outils\/messages$/, messages],
   [/^outils\/audit$/, audit],
   [/^outils\/import$/, importView],
@@ -78,9 +89,10 @@ function side() {
   const s = S();
   const favs = s.pages.filter((p) => p.fav).slice(0, 5);
   return [
-    [null, [['accueil', 'Aujourd\'hui', 'home', '#/'], ['apercu', 'Vue d\'ensemble', 'chart', '#/apercu']]],
-    on('organiser') && ['S\'organiser', [['taches', 'Tâches', 'checkSquare', '#/taches'], ['agenda', 'Agenda', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ...favs.map((p) => [`note:${p.id}`, p.title || 'Sans titre', p.icon || 'page', `#/note/${p.id}`, 'sub'])]],
-    on('clients') && ['Clients', [['crm', noun(), 'users', '#/crm'], ['projets', 'Projets clients', 'folder', '#/projets'], ['devis', 'Devis', 'invoice', '#/outils/devis'], ['stats', 'Statistiques', 'chart', '#/outils/stats']]],
+    [null, [['accueil', 'Aujourd\'hui', 'home', '#/'], ['apercu', 'Vue d\'ensemble', 'chart', '#/apercu'], ['notifications', 'Notifications', 'bell', '#/notifications', '', unreadCount()]]],
+    on('organiser') ? ['S\'organiser', [['taches', 'Tâches', 'checkSquare', '#/taches'], ['projets', 'Projets', 'folder', '#/projets'], ['agenda', 'Agenda', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ...favs.map((p) => [`note:${p.id}`, p.title || 'Sans titre', p.icon || 'page', `#/note/${p.id}`, 'sub'])]]
+      : ['Projets', [['projets', 'Projets', 'folder', '#/projets']]],
+    on('clients') && ['Clients', [['crm', noun(), 'users', '#/crm'], ['devis', 'Devis', 'invoice', '#/devis'], ['stats', 'Statistiques', 'chart', '#/outils/stats']]],
     on('prospecter') && ['Prospecter', [['scripts', 'Scripts', 'script', '#/scripts'], ['appel', 'Session d\'appels', 'headset', '#/appel'], ['outils', 'Outils', 'briefcase', '#/outils']]],
     on('apprendre') && ['Progresser', [['quiz', 'Quiz', 'quiz', '#/quiz'], ['academie', 'Académie', 'book', '#/academie']]],
   ].filter(Boolean);
@@ -94,7 +106,8 @@ function navFor(path) {
   if (path.startsWith('quiz')) return 'quiz';
   if (path.startsWith('crm') || path.startsWith('fiche')) return 'crm';
   if (path.startsWith('script')) return 'scripts';
-  if (path === 'outils/devis') return 'devis';
+  if (path === 'outils/devis' || path.startsWith('devis')) return 'devis';
+  if (path.startsWith('projet')) return 'projets';
   if (path === 'outils/stats') return 'stats';
   if (path.startsWith('outils')) return 'outils';
   if (path.startsWith('academie')) return 'academie';
@@ -143,7 +156,7 @@ function drawNav() {
   navSig = sig;
   tabbar.style.gridTemplateColumns = `repeat(${t.length}, 1fr)`;
   tabbar.innerHTML = t.map(([id, l, i, h]) => `<a class="tab" data-nav="${id}" href="${h}"><span class="tab-ic">${ic(i)}</span><span>${esc(label(l))}</span></a>`).join('');
-  sideGroups.innerHTML = side().map(([g, items]) => `${g ? `<p class="side-g">${esc(g)}</p>` : ''}<nav class="side-nav" aria-label="${esc(g || 'Accueil')}">${items.map(([id, l, i, h, sub]) => `<a class="side-i ${sub ? 'side-sub-i' : ''}" data-nav="${id}" href="${h}">${ic(i)}<span>${esc(l)}</span></a>`).join('')}</nav>`).join('');
+  sideGroups.innerHTML = side().map(([g, items]) => `${g ? `<p class="side-g">${esc(g)}</p>` : ''}<nav class="side-nav" aria-label="${esc(g || 'Accueil')}">${items.map(([id, l, i, h, sub, badge]) => `<a class="side-i ${sub ? 'side-sub-i' : ''}" data-nav="${id}" href="${h}">${ic(i)}<span>${esc(l)}</span>${badge ? `<b class="nav-badge" aria-label="${badge} non lue${badge > 1 ? 's' : ''}">${badge > 99 ? '99+' : badge}</b>` : ''}</a>`).join('')}</nav>`).join('');
   root.querySelector('.side-foot').innerHTML = sideFoot();
 }
 
@@ -163,7 +176,7 @@ function render({ keepScroll = false } = {}) {
   const fab = root.querySelector('.fab');
   fab.dataset.act = typeof v.fab === 'string' ? v.fab : 'create';
   if (query.l) fab.dataset.list = query.l; else delete fab.dataset.list;
-  fab.setAttribute('aria-label', { 'task-new': 'Nouvelle tâche', 'prospect-new': 'Nouvelle fiche', 'page-templates': 'Nouvelle page' }[fab.dataset.act] || 'Créer : tâche, page, fiche');
+  fab.setAttribute('aria-label', { 'task-new': 'Nouvelle tâche', 'prospect-new': 'Nouvelle fiche', 'page-templates': 'Nouvelle page', 'project-new': 'Nouveau projet', 'quote-new': 'Nouveau devis' }[fab.dataset.act] || 'Créer : tâche, projet, page, fiche');
   document.title = v.title === 'Aujourd\'hui' ? 'M&S Developer' : `${v.title} · M&S Developer`;
   view.innerHTML = v.html;
   view.classList.toggle('view-in', changed);
@@ -225,8 +238,7 @@ document.addEventListener('input', (e) => {
   if (vf) { refreshNeeds(vf); if (e.target.getAttribute('aria-invalid')) setFieldError(e.target, fieldError(e.target)); }
   const d = e.target.closest('form[data-draft]');
   if (d) saveDraft(d);
-  const live = e.target.closest('form[data-live]');
-  if (live && live.dataset.form === 'quote-meta') quoteLive(live);
+
   const flt = e.target.closest('[data-filter]');
   if (flt) {
     const q = flt.value.trim().toLowerCase();

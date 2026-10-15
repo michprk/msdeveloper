@@ -10,6 +10,7 @@ import { cluster } from './flowers.js';
 import { taskRow, quickAdd } from './tasks.js';
 import { dailyQuiz } from './quiz.js';
 import { kpiCard, metricIds, hasData, withSample } from './overview.js';
+import { unreadCount } from './notifications.js';
 
 export function nextToCall(s) {
   const t1 = startOfDay() + DAY;
@@ -18,6 +19,9 @@ export function nextToCall(s) {
     .sort((a, b) => rank(a) - rank(b) || (a.next?.due || 9e15) - (b.next?.due || 9e15) || a.createdAt - b.createdAt);
   return { queue, next: queue[0] };
 }
+
+// Cloche du centre de notifications, avec le nombre de non lues
+const bell = () => { const n = unreadCount(); return `<a class="icon-btn bell" href="#/notifications" aria-label="${n ? `Notifications : ${n} non lue${n > 1 ? 's' : ''}` : 'Notifications'}">${ic('bell')}${n ? `<b class="bell-n">${n > 99 ? '99+' : n}</b>` : ''}</a>`; };
 
 export function home() {
   const s = S(), p = s.profile, g = s.goals;
@@ -59,7 +63,7 @@ export function home() {
   <div class="home">
     <div class="m-top">
       <a class="m-brand" href="#/" aria-label="M&amp;S Developer">${logoMark('sm')}<span><b>M&amp;S</b> Developer</span></a>
-      <div class="m-acts"><button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button><a class="m-avatar" href="#/reglages" aria-label="Compte et réglages">${avatar(p.prenom || 'M S')}</a></div>
+      <div class="m-acts"><button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button>${bell()}<a class="m-avatar" href="#/reglages" aria-label="Compte et réglages">${avatar(p.prenom || 'M S')}</a></div>
     </div>
     <header class="ph ph-home">
       <p class="ph-k">${dateLong()}</p>

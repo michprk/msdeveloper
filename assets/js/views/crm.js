@@ -1,12 +1,14 @@
 // CRM : pipeline, liste, fiche, formulaires, personnalisation (modèles par métier).
-import { S, can, on, STAGES, STAGE, stageOf, TONES, SOURCES, OUTCOMES, OUTCOME, getProspect, addProspect, updateProspect, deleteProspect, logActivity, recordCall, update, uid, addPage } from '../store.js';
-import { ic, esc, eur, num, register, sheet, sheetHead, closeSheet, toast, confirmSheet, avatar, stageChip, outcomeChip, when, ago, field, input, select, dateShort, initials, enableDnD, clearDraft } from '../ui.js';
+import { S, can, on, STAGES, STAGE, stageOf, TONES, SOURCES, OUTCOMES, OUTCOME, getProspect, getProject, projectProgress, quoteTotals, QUOTE_STATUS, addProspect, updateProspect, deleteProspect, logActivity, recordCall, update, uid, addPage } from '../store.js';
+import { ic, esc, eur, num, register, sheet, sheetHead, closeSheet, toast, confirmSheet, avatar, stageChip, outcomeChip, when, ago, field, input, select, dateShort, initials, bar, enableDnD, clearDraft } from '../ui.js';
 import { SERVICES, SERVICE_IDS, CHANNELS, allSectors, getSector } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
 import { QUALIF } from '../data/script-plus.js';
 import { PRESETS, preset } from '../data/presets.js';
 import { taskSheet, taskRow } from './tasks.js';
 import { template } from '../data/templates.js';
+import { linksBlock } from './connect.js';
+import { toFollow } from './quotes.js';
 
 const secName = (id) => getSector(id)?.name || 'Toute entreprise';
 const showSector = (p) => on('prospecter') || (p.secteur && p.secteur !== 'toute');
@@ -28,6 +30,7 @@ export function crmView(params, q) {
   const openSum = open.reduce((n, p) => n + (Number(p.valeur) || 0), 0);
   const f = STAGE[q.f] ? q.f : '';
   const none = !s.prospects.length;
+  const kq = q.k === 'client' || q.k === 'prospect' ? `?k=${q.k}` : '';
   const html = `
     ${pageHead(N, { kicker: none ? 'Vos fiches, étape par étape' : `${num(s.prospects.length)} fiche${s.prospects.length > 1 ? 's' : ''}${openSum ? ` · ${eur(openSum)} en cours` : ''}`, actions: `<a class="icon-btn" href="#/crm/personnaliser" aria-label="Personnaliser le CRM" title="Personnaliser">${ic('sliders')}</a><a class="icon-btn" href="#/outils/import" aria-label="Importer une liste" title="Importer">${ic('upload')}</a><button class="btn btn-primary fab-dup" data-act="prospect-new">${ic('plus')}<span>Fiche</span></button>` })}
     ${none ? `<section class="card onboard-empty rise">
@@ -44,10 +47,11 @@ export function crmView(params, q) {
       </section>` : `
     <div class="crm-bar">
       <div class="search"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Nom, ville, étiquette…" data-filter=".kcard, .rows .row" aria-label="Chercher une fiche"></div>
-      <nav class="seg seg-sm" aria-label="Affichage"><a class="seg-i ${view === 'board' ? 'is-on' : ''}" href="#/crm">${ic('crm')}<span>Pipeline</span></a><a class="seg-i ${view === 'list' ? 'is-on' : ''}" href="#/crm?v=list">${ic('list')}<span>Liste</span></a></nav>
+      <nav class="seg seg-sm" aria-label="Affichage"><a class="seg-i ${view === 'board' ? 'is-on' : ''}" href="#/crm${kq}">${ic('crm')}<span>Pipeline</span></a><a class="seg-i ${view === 'list' ? 'is-on' : ''}" href="#/crm?v=list${kq.replace('?', '&')}">${ic('list')}<span>Liste</span></a></nav>
     </div>
+    <nav class="seg seg-sm kind-seg" aria-label="Type de fiche">${[['', 'Tous', s.prospects.length], ['prospect', 'Prospects', s.prospects.filter((p) => p.type !== 'client').length], ['client', 'Clients', s.prospects.filter((p) => p.type === 'client').length]].map(([k, l, n]) => `<a class="seg-i ${(q.k || '') === k ? 'is-on' : ''}" href="#/crm?${new URLSearchParams({ ...(view === 'list' ? { v: 'list' } : {}), ...(k ? { k } : {}) })}">${l} <b>${n}</b></a>`).join('')}</nav>
     <p class="muted center filter-empty" hidden>Aucune fiche ne correspond à cette recherche.</p>
-    ${view === 'board' ? board(s) : list(s, f, q)}`}`;
+    ${view === 'board' ? board(s, q) : list(s, f, q)}`}`;
   return {
     title: N, tab: 'crm', fab: 'prospect-new', html,
     after(root) {
@@ -66,20 +70,33 @@ function preview() {
   return `<div class="ghost-board" aria-hidden="true">${STAGES.slice(0, 4).map((st) => `<div class="kcol"><p class="kcol-h"><i class="dot t-${st.tone}"></i>${esc(st.label)}</p><div class="kcard"></div><div class="kcard"></div></div>`).join('')}</div>`;
 }
 
-const card = (p) => `<a class="kcard" href="#/fiche/${p.id}" draggable="false" data-id="${p.id}" data-name="${searchKey(p)}">
-  <p class="kcard-t">${esc(p.entreprise)}${p.demo ? '<span class="tag">Exemple</span>' : ''}${p.owner && ownerName(p.owner) ? `<span class="owner" title="${esc(ownerName(p.owner))}">${esc(initials(ownerName(p.owner)))}</span>` : ''}</p>
+// Carte d'opportunité : nom, contact, montant, date, étiquettes, responsable et prochaine action
+const card = (p) => {
+  const late = p.next?.due && p.next.due < Date.now();
+  const who = p.owner && ownerName(p.owner);
+  return `<a class="kcard deal" href="#/fiche/${p.id}" draggable="false" data-id="${p.id}" data-name="${searchKey(p)}">
+  <p class="kcard-t">${esc(p.entreprise)}${p.demo ? '<span class="tag">Exemple</span>' : ''}${p.type === 'client' && p.stage !== 'signe' ? '<span class="tag tag-ok">Client</span>' : ''}</p>
   ${subLine(p) ? `<p class="kcard-s">${showSector(p) ? ic(getSector(p.secteur)?.icon || 'building') : ''}${subLine(p)}</p>` : ''}
-  ${p.tags?.length ? `<p class="kcard-tags">${tagChips(p, 3)}</p>` : ''}
-  <div class="kcard-f">${p.valeur ? `<b>${eur(p.valeur)}</b>` : `<span class="muted-s">${on('prospecter') ? SERVICES[p.service]?.short || '' : ''}</span>`}${p.next?.due ? `<span class="kcard-n ${p.next.due < Date.now() ? 'is-late' : ''}">${ic('clock')}${when(p.next.due)}</span>` : p.contact && showSector(p) ? `<span class="muted-s">${esc(p.contact)}</span>` : ''}</div>
+  <div class="deal-m">${p.valeur ? `<b>${eur(p.valeur)}</b>` : `<span class="muted-s">${on('prospecter') ? SERVICES[p.service]?.short || 'Montant à définir' : 'Montant à définir'}</span>`}<span class="deal-d">${ic('calendar')}${dateShort(p.updatedAt || p.createdAt)}</span></div>
+  ${p.tags?.length || who ? `<div class="deal-f"><p class="kcard-tags">${tagChips(p, 3)}</p>${who ? `<span class="owner" title="${esc(who)}">${esc(initials(who))}</span>` : ''}</div>` : ''}
+  ${p.next?.due ? `<p class="deal-next ${late ? 'is-late' : ''}">${ic(late ? 'bell' : 'clock')}<span>${esc(p.next.label || 'Relance')} · ${when(p.next.due)}</span></p>` : ''}
 </a>`;
+};
 
-function board(s) {
-  return `<div class="board" role="list">${STAGES.map((st) => {
-    const items = s.prospects.filter((p) => p.stage === st.id).sort((a, b) => (a.next?.due || 9e15) - (b.next?.due || 9e15) || b.updatedAt - a.updatedAt);
+// « Prospects », « Clients » ou tous ; et « Pipeline de » quand l'équipe compte plusieurs personnes
+const kindOk = (p, k) => !k || (k === 'client' ? p.type === 'client' : p.type !== 'client');
+function board(s, q) {
+  const k = q.k || '', o = q.o || '';
+  const team = s.crm.team;
+  const pool = s.prospects.filter((p) => kindOk(p, k) && (!o || p.owner === o));
+  return `${team.length ? `<div class="board-tools"><label class="chip-sel ${o ? 'is-on' : ''}">${ic('users')}<span>Pipeline de</span><select data-act-change="crm-owner" aria-label="Pipeline de"><option value="">toute l'équipe</option>${team.map((m) => `<option value="${m.id}" ${o === m.id ? 'selected' : ''}>${esc(m.name)}</option>`).join('')}</select></label></div>` : ''}
+  <div class="board" role="list">${STAGES.map((st) => {
+    const items = pool.filter((p) => p.stage === st.id).sort((a, b) => (a.next?.due || 9e15) - (b.next?.due || 9e15) || b.updatedAt - a.updatedAt);
     const sum = items.reduce((n, p) => n + (Number(p.valeur) || 0), 0);
     return `<section class="kcol" data-stage="${st.id}" role="listitem" aria-label="${esc(st.label)}">
-      <header class="kcol-h"><i class="dot t-${st.tone}"></i><span>${esc(st.label)}</span><b>${items.length}</b>${sum ? `<span class="kcol-sum">${eur(sum)}</span>` : ''}</header>
+      <header class="kcol-h"><i class="dot t-${st.tone}"></i><span>${esc(st.label)}</span><b>${items.length}</b><span class="kcol-sum">${sum ? eur(sum) : ''}</span></header>
       <div class="kcol-b">${items.map(card).join('') || '<p class="kcol-empty">Glissez une fiche ici</p>'}</div>
+      <button class="kcol-add" data-act="prospect-new" data-stage="${st.id}">${ic('plus')}<span>Ajouter</span></button>
     </section>`;
   }).join('')}</div>
   <p class="hint">${matchMedia('(pointer:fine)').matches ? 'Glissez les fiches d\'une colonne à l\'autre.' : 'Appui long sur une fiche pour la déplacer.'}</p>`;
@@ -88,9 +105,9 @@ function board(s) {
 function list(s, f, q) {
   const team = s.crm.team;
   const tags = [...new Set(s.prospects.flatMap((p) => p.tags || []))].sort();
-  const o = q.o || '', t = q.t || '';
-  const items = s.prospects.filter((p) => (!f || p.stage === f) && (!o || p.owner === o) && (!t || (p.tags || []).includes(t))).sort((a, b) => b.updatedAt - a.updatedAt);
-  const href = (patch) => { const p = new URLSearchParams({ v: 'list', ...(f ? { f } : {}), ...(o ? { o } : {}), ...(t ? { t } : {}), ...patch }); for (const [k, v] of [...p]) if (!v) p.delete(k); return `#/crm?${p}`; };
+  const o = q.o || '', t = q.t || '', k = q.k || '';
+  const items = s.prospects.filter((p) => kindOk(p, k) && (!f || p.stage === f) && (!o || p.owner === o) && (!t || (p.tags || []).includes(t))).sort((a, b) => b.updatedAt - a.updatedAt);
+  const href = (patch) => { const p = new URLSearchParams({ v: 'list', ...(f ? { f } : {}), ...(o ? { o } : {}), ...(t ? { t } : {}), ...(k ? { k } : {}), ...patch }); for (const [k, v] of [...p]) if (!v) p.delete(k); return `#/crm?${p}`; };
   return `<nav class="chips-row" aria-label="Filtrer par étape">
       <a class="chip-btn ${!f ? 'is-on' : ''}" href="${href({ f: '' })}">Toutes <b>${s.prospects.length}</b></a>
       ${STAGES.map((st) => `<a class="chip-btn ${f === st.id ? 'is-on' : ''}" href="${href({ f: st.id })}"><i class="dot t-${st.tone}"></i>${esc(st.label)} <b>${s.prospects.filter((p) => p.stage === st.id).length}</b></a>`).join('')}
@@ -101,7 +118,7 @@ function list(s, f, q) {
     </nav>` : ''}
     ${items.length ? `<ul class="rows card">${items.map((p) => `<li><a class="row" href="#/fiche/${p.id}" data-name="${searchKey(p)}">${avatar(p.entreprise)}
       <span class="row-b"><b>${esc(p.entreprise)}</b><span>${subLine(p)}${p.owner && ownerName(p.owner) ? ' · ' + esc(ownerName(p.owner)) : ''}${p.next?.due ? ` · ${when(p.next.due)}` : ''}</span></span>
-      <span class="row-e">${stageChip(p.stage)}${p.valeur ? `<b class="muted-s">${eur(p.valeur)}</b>` : ''}</span></a></li>`).join('')}</ul>`
+      <span class="row-e">${p.type === 'client' && p.stage !== 'signe' ? '<span class="tag tag-ok">Client</span>' : ''}${stageChip(p.stage)}${p.valeur ? `<b class="muted-s">${eur(p.valeur)}</b>` : ''}</span></a></li>`).join('')}</ul>`
     : `<div class="empty"><span class="empty-ic">${ic('filter')}</span><p class="empty-t">Aucune fiche avec ces filtres</p><p class="empty-p">Changez d'étape ou retirez un filtre.</p><a class="btn btn-ghost" href="#/crm?v=list">Tout afficher</a></div>`}`;
 }
 
@@ -112,7 +129,7 @@ function moveSheet(id) {
 
 // ---------- Fiche ----------
 const ACT_ICON = { appel: 'phone', etape: 'arrowR', note: 'note', email: 'mail', sms: 'message', visite: 'store', rdv: 'calendar', devis: 'invoice', audit: 'clipboard' };
-const ACT_LABEL = { appel: 'Appel', note: 'Note', email: 'E-mail envoyé', sms: 'SMS envoyé', visite: 'Visite', rdv: 'Rendez-vous', devis: 'Devis envoyé', audit: 'Audit express' };
+const ACT_LABEL = { appel: 'Appel', note: 'Note', email: 'E-mail envoyé', sms: 'SMS envoyé', visite: 'Visite', rdv: 'Rendez-vous', devis: 'Devis', audit: 'Audit express' };
 
 function timeline(acts) {
   if (!acts.length) return '<p class="muted pad">Aucun échange pour l\'instant.</p>';
@@ -133,6 +150,8 @@ export function fiche([id]) {
   const acts = s.activities.filter((a) => a.prospectId === id).sort((a, b) => b.at - a.at);
   const tasks = s.tasks.filter((t) => t.prospectId === id && !t.done).sort((a, b) => (a.due || 9e15) - (b.due || 9e15));
   const pages = s.pages.filter((x) => x.prospectId === id);
+  const quotes = s.quotes.filter((x) => x.prospectId === id).sort((a, b) => b.updatedAt - a.updatedAt);
+  const projects = s.projects.filter((x) => x.prospectId === id);
   const tel = (p.tel || '').replace(/[^\d+]/g, '');
   const demo = p.demo;
   const url = p.site ? (/^https?:\/\//.test(p.site) ? p.site : `https://${p.site}`) : '';
@@ -142,9 +161,10 @@ export function fiche([id]) {
     ${pageHead('', { back: '#/crm' })}
     <section class="fiche-h rise">
       ${avatar(p.entreprise, 'xl')}
-      <div><h1 class="ph-t">${esc(p.entreprise)}</h1><p class="fiche-s">${showSector(p) ? ic(sec.icon) : ''}<span>${subLine(p) || esc(stageOf(p.stage).label)}</span>${p.demo ? '<span class="tag">Exemple</span>' : ''}</p></div>
+      <div><h1 class="ph-t">${esc(p.entreprise)}</h1><p class="fiche-s"><span class="chip ${p.type === 'client' ? 't-olive' : 't-sky'}">${p.type === 'client' ? 'Client' : 'Prospect'}</span>${showSector(p) ? ic(sec.icon) : ''}<span>${subLine(p) || esc(stageOf(p.stage).label)}</span>${p.demo ? '<span class="tag">Exemple</span>' : ''}</p></div>
       <button class="icon-btn" data-act="prospect-edit" data-id="${id}" aria-label="Modifier la fiche">${ic('edit')}</button>
     </section>
+    ${p.type !== 'client' ? `<div class="convert rise"><p>${ic('check')}<span>Il ou elle a dit oui ? Convertissez la fiche en client : elle passe en « ${esc(stageOf('signe').label)} » et un projet se crée pour suivre le travail.</span></p><button class="btn btn-olive btn-sm" data-act="convert-client" data-id="${id}">Convertir en client</button></div>` : ''}
     <nav class="stage-row rise" aria-label="Étape">${STAGES.map((st) => `<button class="stage-b t-${st.tone} ${st.id === p.stage ? 'is-on' : ''}" data-act="set-stage" data-id="${id}" data-stage="${st.id}" aria-pressed="${st.id === p.stage}"><i class="dot"></i>${esc(st.label)}</button>`).join('')}</nav>
     <div class="quick-acts rise">
       <a class="qa ${tel ? '' : 'is-off'}" href="${tel && !demo ? `tel:${tel}` : '#'}" data-act="${tel && !demo ? 'qa-log' : 'qa-off'}" data-type="appel" data-id="${id}">${ic('phone')}<span>Appeler</span></a>
@@ -160,6 +180,15 @@ export function fiche([id]) {
           ${tasks.length ? `<ul class="tasks">${tasks.map((t) => taskRow(t)).join('')}</ul>`
             : '<p class="muted pad">Rien de prévu. Une relance datée évite qu\'une fiche ne refroidisse.</p>'}
         </section>
+        <section class="card rise">
+          <header class="card-h"><div><h2>Devis</h2><p>${quotes.length ? `${quotes.length} devis · ${eur(quotes.filter((x) => x.status === 'accepte').reduce((n, x) => n + quoteTotals(x).ttc, 0))} accepté` : 'Brouillon, envoyé, accepté ou refusé'}</p></div><button class="link" data-act="quote-new" data-pid="${id}">${ic('plus')}Devis</button></header>
+          ${quotes.length ? `<ul class="rows">${quotes.map((x) => `<li><a class="row" href="#/devis/${x.id}"><span class="menu-ic">${ic('invoice')}</span><span class="row-b"><b>${esc(x.num)}${x.title ? ` · ${esc(x.title)}` : ''}</b><span>${eur(quoteTotals(x).ttc)} TVAC · ${ago(x.updatedAt)}</span></span><span class="row-e"><span class="chip t-${QUOTE_STATUS[x.status][1]}">${QUOTE_STATUS[x.status][0]}</span>${toFollow(x) ? '<span class="pill-alert">À relancer</span>' : ''}</span></a></li>`).join('')}</ul>`
+            : '<p class="muted pad">Un devis accepté fait passer la fiche en client, avec son projet.</p>'}
+        </section>
+        ${projects.length || p.type === 'client' ? `<section class="card rise">
+          <header class="card-h"><div><h2>Projets</h2><p>${projects.length ? 'La progression suit les tâches' : 'Suivez le travail pour ce client'}</p></div><button class="link" data-act="project-new" data-pid="${id}">${ic('plus')}Projet</button></header>
+          ${projects.length ? `<ul class="rows">${projects.map((x) => { const g = projectProgress(x.id); return `<li><a class="row" href="#/projet/${x.id}"><span class="menu-ic">${ic(x.icon || 'folder')}</span><span class="row-b"><b>${esc(x.name)}</b><span>${g.done} / ${g.total} tâches · ${g.pct} %</span>${bar(g.done, g.total || 1, 'olive')}</span>${ic('chevR', 'chev')}</a></li>`; }).join('')}</ul>` : ''}
+        </section>` : ''}
         ${pro ? `<section class="card rise">
           <header class="card-h"><div><h2>Scripts pour ${esc(p.entreprise)}</h2><p>${esc(sec.name)} · ${SERVICES[svc]?.label || ''}</p></div></header>
           <div class="act-row"><a class="btn btn-primary" href="#/appel?p=${id}">${ic('headset')}<span>Mode appel</span></a><a class="btn btn-ghost" href="#/script/${svc}.appel.${sec.id}?p=${id}">${ic('script')}<span>Lire le script</span></a></div>
@@ -179,6 +208,7 @@ export function fiche([id]) {
           </dl>
           ${p.tags?.length ? `<p class="fiche-tags">${tagChips(p)}</p>` : ''}
         </section>
+        ${linksBlock('prospect', id, p.links || [])}
         <section class="card rise">
           <header class="card-h"><div><h2>Notes</h2><p>Enregistrées automatiquement</p></div></header>
           <textarea class="inp notes" rows="5" data-act-input="notes" data-id="${id}" placeholder="Prénom de la personne, horaires, ce qui compte pour elle…">${esc(p.notes)}</textarea>
@@ -202,10 +232,10 @@ export function fiche([id]) {
 }
 
 // ---------- Formulaires ----------
-export function prospectSheet(p = null) {
+export function prospectSheet(p = null, preset0 = {}) {
   const s = S();
   const pro = on('prospecter');
-  const v = p || { stage: STAGES[0].id, service: s.profile.service || 'site', secteur: 'toute', source: pro ? 'Appel' : 'Recommandation', ville: '' };
+  const v = p || { stage: STAGE[preset0.stage] ? preset0.stage : STAGES[0].id, service: s.profile.service || 'site', secteur: 'toute', source: pro ? 'Appel' : 'Recommandation', ville: '' };
   const sectors = allSectors().map((x) => [x.id, x.name]);
   sheet(`${sheetHead(p ? 'Modifier la fiche' : 'Nouvelle fiche', p ? '' : esc(noun()))}
     <form class="sheet-body form" data-form="prospect" data-id="${p?.id || ''}" ${p ? '' : 'data-draft="prospect-new"'} data-validate novalidate>
@@ -236,7 +266,15 @@ function activitySheet(pid) {
 
 let notesTimer;
 register({
-  'prospect-new': () => { if (can('crm')) prospectSheet(); else location.hash = '#/crm'; },
+  'prospect-new': (b) => { if (can('crm')) prospectSheet(null, { stage: b?.dataset?.stage }); else location.hash = '#/crm'; },
+  'crm-owner': (el) => { const q = new URLSearchParams(location.hash.split('?')[1] || ''); if (el.value) q.set('o', el.value); else q.delete('o'); location.hash = `#/crm${q.toString() ? `?${q}` : ''}`; },
+  'convert-client': async (b) => {
+    const p = getProspect(b.dataset.id);
+    if (!await confirmSheet({ title: `Convertir ${esc(p.entreprise)} en client ?`, text: `La fiche passe en « ${esc(stageOf('signe').label)} ». Un projet est créé pour suivre le travail ; vous pourrez y ajouter ses tâches.`, ok: 'Convertir en client' })) return;
+    updateProspect(p.id, { stage: 'signe', type: 'client' });
+    const pr = S().projects.find((x) => x.prospectId === p.id);
+    toast(`${esc(p.entreprise)} est maintenant client.`, { title: 'Fiche convertie', action: pr ? 'Ouvrir le projet' : '', onAction: pr ? () => { location.hash = `#/projet/${pr.id}`; } : undefined, ms: 4200 });
+  },
   'prospect-edit': (b) => prospectSheet(getProspect(b.dataset.id)),
   'prospect-del': async (b) => {
     const p = getProspect(b.dataset.id);

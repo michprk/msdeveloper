@@ -1,6 +1,6 @@
 # Sécurité — M&S Developer
 
-## Où on en est (version 1.3, 15 octobre 2026)
+## Où on en est (version 1.4, 15 octobre 2026)
 
 L'application n'a **ni serveur, ni base de données, ni compte en ligne**. Tout est enregistré dans le navigateur de l'appareil (localStorage) : tâches, pages de notes, fiches, quiz, réglages. C'est volontaire pour la première version, et c'est dit clairement dans l'application (Compte, Abonnement, accueil).
 
@@ -22,6 +22,10 @@ Ce qui est en place :
 | Sauvegarde et restauration | Testées : téléchargement d'un fichier, restauration (remplace tout, avec confirmation), import par fusion (ajoute sans effacer, doublons ignorés). Les dates mal formées dans un fichier sont corrigées à la lecture. |
 | Actions destructrices | Confirmation systématique ; « Supprimer toutes mes données » demande de taper SUPPRIMER. |
 | Données réelles de clients | Jamais dans le dépôt GitHub. Les vraies fiches M&S s'importent depuis un fichier privé, gardé hors du dépôt. |
+| Liens Canva, Figma, Notion… (1.4) | Seules les adresses `http(s)` sont acceptées, à la saisie comme à la lecture d'une sauvegarde (un lien `javascript:` ou `data:` est retiré). Ouverts avec `rel="noopener noreferrer"`. |
+| Aperçus intégrés (1.4) | Uniquement Figma et Canva, autorisés nommément dans la CSP (`frame-src`), chargés seulement après un geste de l'utilisateur, dans un `iframe` isolé (`sandbox`, `referrerpolicy="no-referrer"`). |
+| Import Notion (1.4) | Les fichiers .md sont lus sur l'appareil et convertis en blocs de texte : aucun HTML n'est conservé. |
+| RGPD (1.4) | Page Confidentialité (`#/confidentialite`) : données, stockage, droits, contacts du CRM, tiers. À faire relire, et coordonnées du responsable du traitement à compléter avant le lancement. |
 
 ## Avant la commercialisation (comptes en ligne et paiement)
 
@@ -51,6 +55,7 @@ Dès qu'il y aura des comptes, une base de données et des abonnements payants, 
 7. **Suppression du compte** depuis l'application (exigence Apple pour toute application qui permet de créer un compte), avec effacement réel côté serveur.
 8. **Sauvegardes de la base** activées et une restauration testée sur un projet de test.
 9. **App Store.** Vérifier au moment de la soumission les règles d'Apple sur les abonnements numériques (achat intégré ou lien externe selon le pays) et sur les connexions tierces (si « Se connecter avec Google », proposer aussi une option conforme aux règles d'Apple).
+10. **Connecteurs synchronisés (Canva, Figma, Notion, Google).** Passer par l'OAuth officiel de chaque service, côté serveur : les jetons d'accès et secrets d'application restent sur le serveur (jamais dans le navigateur), portée minimale demandée, révocation possible depuis le compte.
 
 ## Bonnes pratiques
 

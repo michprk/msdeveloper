@@ -2,7 +2,7 @@
 // citation, encadré, séparateur, question / réponse). « / » ouvre le menu des blocs ;
 // les raccourcis Markdown marchent aussi (# titre, - liste, [] case, > citation).
 // Tout s'enregistre au fil de la frappe, sans rechargement de l'écran.
-import { S, update, on, can, addPage, getPage, getProspect, pageFamily, canAddPage, bid, addTask, LIMITS } from '../store.js';
+import { S, update, on, can, addPage, getPage, getProspect, getProject, pageFamily, canAddPage, bid, addTask, LIMITS } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, ago, dateLong, copyText, download, select } from '../ui.js';
 import { pageHead, paywall } from './common.js';
 import { TEMPLATES, template } from '../data/templates.js';
@@ -31,7 +31,7 @@ const trail = (p) => { const out = []; let x = p; let g = 0; while (x?.parent &&
 
 // ---------- Création ----------
 const capFirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-export function newPage(tplId = 'vierge', { parent = null, prospectId = null } = {}) {
+export function newPage(tplId = 'vierge', { parent = null, prospectId = null, projectId = null } = {}) {
   if (!canAddPage()) { limitSheet(); return null; }
   const t = template(tplId);
   const d = new Date();
@@ -42,7 +42,8 @@ export function newPage(tplId = 'vierge', { parent = null, prospectId = null } =
   }
   if (t.month) title = `${title}${new Intl.DateTimeFormat('fr-BE', { month: 'long', year: 'numeric' }).format(d)}`;
   if (t.client && prospectId) title = `${title}${getProspect(prospectId)?.entreprise || ''}`;
-  return addPage({ title, icon: t.icon === 'page' ? 'page' : t.icon, parent, prospectId, tpl: t.id, blocks: t.blocks.map(([type, x, a]) => ({ id: bid(), t: type, x: x || '', ...(type === 'todo' ? { c: false } : {}), ...(type === 'qa' ? { a: a || '' } : {}) })) });
+  if (projectId && t.id === 'projet') title = `Notes — ${getProject(projectId)?.name || ''}`;
+  return addPage({ title, icon: t.icon === 'page' ? 'page' : t.icon, parent, prospectId, projectId, tpl: t.id, blocks: t.blocks.map(([type, x, a]) => ({ id: bid(), t: type, x: x || '', ...(type === 'todo' ? { c: false } : {}), ...(type === 'qa' ? { a: a || '' } : {}) })) });
 }
 function limitSheet() {
   sheet(`${sheetHead('Dix pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">Vos ${S().pages.length} pages restent modifiables. Vous pouvez aussi supprimer une page pour en créer une autre.</p></div>`, { cls: 'sheet-sm' });
@@ -294,6 +295,7 @@ function pageMenu(id) {
   sheet(`${sheetHead('Page', esc(p.title || 'Sans titre'))}<div class="sheet-body">
     <label class="field"><span class="field-l">Ranger dans</span>${select('parent', [['', 'Aucune page (à la racine)'], ...parents.map((x) => [x.id, x.title || 'Sans titre'])], p.parent || '', `data-act-change="page-parent" data-id="${id}"`)}</label>
     ${on('clients') && can('crm') ? `<label class="field"><span class="field-l">Liée à la fiche</span>${select('pid', [['', 'Aucune'], ...S().prospects.map((x) => [x.id, x.entreprise])], p.prospectId || '', `data-act-change="page-link" data-id="${id}"`)}</label>` : ''}
+    ${S().projects.length ? `<label class="field"><span class="field-l">Projet</span>${select('project', [['', 'Aucun projet'], ...S().projects.map((x) => [x.id, x.name])], p.projectId || '', `data-act-change="page-project" data-id="${id}"`)}</label>` : ''}
     <div class="btn-list">
       <button class="btn btn-ghost" data-act="page-dup" data-id="${id}">${ic('copy')}<span>Dupliquer</span></button>
       <button class="btn btn-ghost" data-act="page-copy" data-id="${id}">${ic('note')}<span>Copier le texte (Markdown)</span></button>
@@ -307,7 +309,7 @@ const curPid = () => document.querySelector('.note')?.dataset.pid;
 register({
   'page-new': (b) => {
     closeSheet(null, true);
-    const p = newPage(b.dataset.tpl || 'vierge', { parent: b.dataset.parent || null, prospectId: b.dataset.pid || null });
+    const p = newPage(b.dataset.tpl || 'vierge', { parent: b.dataset.parent || null, prospectId: b.dataset.pid || null, projectId: b.dataset.project || null });
     if (p) location.hash = `#/note/${p.id}`;
   },
   'page-templates': () => templatesSheet(),
@@ -317,6 +319,7 @@ register({
   'page-icon': (b) => sheet(`${sheetHead('Icône de la page')}<div class="sheet-body"><div class="icon-grid">${PAGE_ICONS.map((i) => `<button class="icon-btn" data-act="page-icon-set" data-id="${b.dataset.id}" data-i="${i}" aria-label="${i}">${ic(i)}</button>`).join('')}</div></div>`, { cls: 'sheet-sm' }),
   'page-icon-set': (b) => { mutate(b.dataset.id, (p) => { p.icon = b.dataset.i; }, { soft: false }); closeSheet(); },
   'page-parent': (el) => { mutate(el.dataset.id, (p) => { p.parent = el.value || null; }, { soft: false }); closeSheet(); toast(el.value ? 'Page rangée' : 'Page remise à la racine', { ms: 1400 }); },
+  'page-project': (el) => { mutate(el.dataset.id, (p) => { p.projectId = el.value || null; }, { soft: false }); toast(el.value ? 'Page rangée dans le projet' : 'Page retirée du projet', { ms: 1400 }); },
   'page-link': (el) => { mutate(el.dataset.id, (p) => { p.prospectId = el.value || null; }, { soft: false }); toast(el.value ? 'Page liée à la fiche' : 'Lien retiré', { ms: 1400 }); },
   'page-dup': (b) => {
     if (!canAddPage()) { closeSheet(null, true); limitSheet(); return; }

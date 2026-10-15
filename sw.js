@@ -1,6 +1,6 @@
 // Service worker : l'application fonctionne hors ligne.
 // Changer VERSION à chaque mise en ligne pour proposer la mise à jour.
-const VERSION = 'msdev-1.3.2';
+const VERSION = 'msdev-1.4.0';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'assets/css/app.css',
@@ -8,7 +8,7 @@ const FILES = [
   'assets/js/theme.js', 'assets/js/app.js', 'assets/js/notify.js', 'assets/js/lock.js', 'assets/js/store.js', 'assets/js/ui.js', 'assets/js/icons.js', 'assets/js/charts.js', 'assets/js/payments.js',
   'assets/js/data/sectors.js', 'assets/js/data/scripts.js', 'assets/js/data/guides.js', 'assets/js/data/demo.js', 'assets/js/data/sector-plus.js', 'assets/js/data/script-plus.js', 'assets/js/data/situations.js', 'assets/js/data/presets.js', 'assets/js/data/templates.js', 'assets/js/data/quizzes.js', 'assets/js/data/sample.js',
   'assets/js/views/common.js', 'assets/js/views/home.js', 'assets/js/views/scripts.js', 'assets/js/views/call.js',
-  'assets/js/views/crm.js', 'assets/js/views/agenda.js', 'assets/js/views/tools.js', 'assets/js/views/tools2.js', 'assets/js/views/pages.js', 'assets/js/views/onboarding.js', 'assets/js/views/flowers.js', 'assets/js/views/tasks.js', 'assets/js/views/notes.js', 'assets/js/views/quiz.js', 'assets/js/views/billing.js', 'assets/js/views/search.js', 'assets/js/views/overview.js',
+  'assets/js/views/crm.js', 'assets/js/views/agenda.js', 'assets/js/views/tools.js', 'assets/js/views/tools2.js', 'assets/js/views/pages.js', 'assets/js/views/onboarding.js', 'assets/js/views/flowers.js', 'assets/js/views/tasks.js', 'assets/js/views/notes.js', 'assets/js/views/quiz.js', 'assets/js/views/billing.js', 'assets/js/views/search.js', 'assets/js/views/overview.js', 'assets/js/views/projects.js', 'assets/js/views/quotes.js', 'assets/js/views/notifications.js', 'assets/js/views/connect.js', 'assets/js/views/privacy.js',
   'assets/img/fleur-1.webp', 'assets/img/fleur-2.webp', 'assets/img/fleur-3.webp', 'assets/img/fleur-4.webp',
   'icons/favicon-32.png', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
 ];

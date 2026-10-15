@@ -18,16 +18,21 @@ const ob = { i: 0, dir: 1, anim: true, replay: false, d: null, slide: 0 };
 const price = (n) => n.toFixed(2).replace('.', ',');
 
 const SITUATIONS = [
+  ['etudes', 'Études, révisions', 'Cours, examens, mémoire', 'book', ''],
+  ['salarie', 'Salarié·e', 'Bureau, réunions, dossiers', 'building', ''],
+  ['dev', 'Code, développement', 'Applications, sites, projets', 'monitor', ''],
+  ['finance', 'Finance, comptabilité', 'Dossiers, échéances, budgets', 'euro', 'b2b'],
   ['freelance', 'À mon compte', 'Freelance, profession libérale', 'user', 'freelance'],
   ['commerce', 'Commerce, restaurant', 'Boutique, café, salon…', 'store', 'commerce'],
   ['artisan', 'Artisanat, travaux', 'Chantiers, dépannage, atelier', 'hammer', 'artisan'],
   ['conseil', 'Conseil, coaching, soin', 'Séances, accompagnements', 'compass', 'coach'],
   ['agence', 'Agence ou petite équipe', 'Web, communication, studio', 'briefcase', 'agence'],
-  ['etudes', 'Études, formation', 'Cours, révisions, projets', 'book', ''],
-  ['autre', 'Autre chose', 'Je vous explique plus tard', 'grid', ''],
+  ['autre', 'Juste m\'organiser', 'Maison, projets perso, tout le reste', 'grid', ''],
 ];
 const DEFIS = [
-  ['oublier', 'Ne plus rien oublier', 'Tâches, rappels, agenda', 'bell', ['organiser']],
+  ['oublier', 'Ne plus rien oublier', 'Tâches, rappels, notifications', 'bell', ['organiser']],
+  ['projets', 'Mener mes projets à bout', 'Tâches reliées, progression', 'folder', ['organiser']],
+  ['reviser', 'Réviser mes cours', 'Planning, fiches, quiz', 'book', ['organiser', 'apprendre']],
   ['temps', 'Mieux organiser mes journées', 'Priorités, plan de la semaine', 'calendar', ['organiser']],
   ['idees', 'Ranger mes idées et mes notes', 'Pages, modèles, sous-pages', 'page', ['organiser']],
   ['clients', 'Suivre mes clients et mes devis', 'Un CRM à mon métier', 'users', ['clients']],
@@ -36,6 +41,8 @@ const DEFIS = [
 ];
 const SUGG = {
   oublier: ['Noter tout ce que j\'ai en tête', 0],
+  projets: ['Créer mon premier projet et ses étapes', 0],
+  reviser: ['Faire mon planning de révision', 0],
   temps: ['Préparer ma semaine (modèle « Plan de la semaine »)', 0],
   idees: ['Ranger mes idées dans une page', 0],
   clients: ['Ajouter mes clients en cours', 0],
@@ -172,7 +179,7 @@ export function onboarding() {
         ${sugg.length ? `<p class="group-k">Vos premières tâches, à cocher ou non</p>
         <div class="group">${sugg.map(([id, t, day]) => `<label class="group-r is-pick is-multi"><input type="checkbox" ${d.sugg[id] ? 'checked' : ''} data-act-change="ob-sugg" data-id="${id}"><span class="group-ic f-olive">${ic('checkSquare')}</span><span class="group-t"><b>${esc(t)}</b><em>${day ? 'Demain' : 'Aujourd\'hui'}</em></span>${ic('check', 'group-ck')}</label>`).join('')}</div>` : ''}
         <p class="group-k">Essai gratuit de ${TRIAL_DAYS} jours</p>
-        <p class="ob-trial-t">Tout est ouvert pendant ${TRIAL_DAYS} jours, sans carte. Ensuite, Pro à ${price(PLANS.pro.price)} € ou Premium à ${price(PLANS.premium.price)} € par mois, ou la version gratuite : tâches, agenda, 10 pages et quiz. Vos données restent.</p>
+        <p class="ob-trial-t">Tout est ouvert pendant ${TRIAL_DAYS} jours, sans carte. Ensuite, Pro à ${price(PLANS.pro.price)} € ou Premium à ${price(PLANS.premium.price)} € par mois, ou la version gratuite : tâches, agenda, 3 projets, 10 pages et quiz. Vos données restent.</p>
       </div>
       <div class="ob-foot">
         <button class="btn btn-apple" data-act="ob-finish" data-trial="1">${S().sub.trialStart && !ob.replay ? 'Ouvrir mon espace' : 'Commencer l\'essai gratuit'}</button>
@@ -242,7 +249,7 @@ function finish(trial) {
   if (metier && preset(metier) && (first || !S().crm.preset) && !S().prospects.length) applyPreset(metier);
   // Premières tâches proposées (jamais pendant une démonstration)
   if (!wasReplay) {
-    d.defis.slice(0, 3).filter((id) => d.sugg[id]).forEach((id) => addTask({ title: SUGG[id][0], due: startOfDay() + SUGG[id][1] * DAY, list: 'travail' }));
+    d.defis.slice(0, 3).filter((id) => d.sugg[id]).forEach((id) => addTask({ title: SUGG[id][0], due: startOfDay() + SUGG[id][1] * DAY, list: ['etudes', 'autre'].includes(d.situation) ? 'perso' : 'travail' }));
   }
   ob.replay = false; ob.d = null; ob.i = 0; ob.slide = 0;
   try { sessionStorage.setItem('msdev:intro', '1'); } catch (e) { /* rien */ }
@@ -300,7 +307,8 @@ register({
   'ob-privacy': () => sheet(`${sheetHead('Vos données')}<div class="sheet-body article">
     <p>Vos tâches, vos pages, vos fiches et vos réglages sont enregistrés <b>uniquement sur cet appareil</b>. Rien n'est envoyé à un serveur, et M&amp;S Design n'y a pas accès.</p>
     <p>Vous pouvez à tout moment télécharger une sauvegarde, la restaurer sur un autre appareil, ou tout supprimer depuis votre compte.</p>
-    <p>Quand vous appelez quelqu'un depuis une fiche, c'est votre téléphone qui compose : l'application ne passe pas d'appel elle-même.</p></div>`, { cls: 'sheet-sm' }),
+    <p>Quand vous appelez quelqu'un depuis une fiche, c'est votre téléphone qui compose : l'application ne passe pas d'appel elle-même.</p>
+    <p>Le détail complet, et vos droits (RGPD), sont dans Compte → Confidentialité.</p></div>`, { cls: 'sheet-sm' }),
 }, {
   'ob-you': (f) => {
     const d = data();

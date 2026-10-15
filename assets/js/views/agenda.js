@@ -1,8 +1,7 @@
-// Agenda (vue calendrier des tâches) et suivi des projets signés.
-import { S, can, on, startOfDay, DAY, update, getProspect, PROJECT_STEPS, toggleTask, deleteTask, stageOf } from '../store.js';
-import { ic, esc, register, time, dateDay, bar, confirmSheet, sheet, sheetHead, closeSheet, field, input, dateShort } from '../ui.js';
-import { SERVICES } from '../data/scripts.js';
-import { pageHead, paywall } from './common.js';
+// Agenda : vue calendrier des tâches (les projets ont leur propre écran, views/projects.js).
+import { S, on, startOfDay, DAY, toggleTask, deleteTask } from '../store.js';
+import { ic, register, time, dateDay } from '../ui.js';
+import { pageHead } from './common.js';
 import { taskRow, viewSeg, quickAdd } from './tasks.js';
 
 let selDay = null;
@@ -46,51 +45,7 @@ export function agenda(params, q) {
   return { title: 'Agenda', tab: 'taches', fab: 'task-new', html };
 }
 
-// ---------- Projets ----------
-export function projects() {
-  if (!can('projects')) return { title: 'Projets', tab: 'plus', html: `${pageHead('Projets', { kicker: 'Clients signés en production' })}${paywall('projects')}` };
-  const s = S();
-  const list = [...s.projects].sort((a, b) => a.start + a.days * DAY - (b.start + b.days * DAY));
-  const html = `
-    ${pageHead('Projets', { kicker: `${list.length} projet${list.length > 1 ? 's' : ''} en cours`, back: '#/plus' })}
-    <p class="lead">Chaque prospect passé en « Signé » devient un projet, avec son délai et ses étapes.</p>
-    ${list.length ? `<div class="proj-grid">${list.map((pr, i) => {
-      const end = pr.start + pr.days * DAY;
-      const left = Math.ceil((end - Date.now()) / DAY);
-      const pct = Math.round((pr.done.length / PROJECT_STEPS.length) * 100);
-      const p = getProspect(pr.prospectId);
-      return `<section class="card proj rise" style="--i:${i}">
-        <header class="card-h"><div><h2>${esc(pr.name)}</h2><p>${SERVICES[pr.service]?.label || ''} · démarré le ${dateShort(pr.start)}</p></div>
-          <span class="chip ${left < 0 ? 't-rose' : left <= 5 ? 't-sand' : 't-olive'}">${left < 0 ? `${-left} j de retard` : left === 0 ? 'Livraison aujourd\'hui' : `J−${left}`}</span></header>
-        <div class="proj-p"><span>${pct} %</span>${bar(pr.done.length, PROJECT_STEPS.length, 'olive')}</div>
-        <ul class="proj-steps">${PROJECT_STEPS.map((st, k) => `<li><button class="pstep ${pr.done.includes(k) ? 'is-done' : ''}" data-act="pstep" data-id="${pr.id}" data-k="${k}" aria-pressed="${pr.done.includes(k)}"><span class="tick ${pr.done.includes(k) ? 'is-done' : ''}"></span>${st}</button></li>`).join('')}</ul>
-        <footer class="proj-f">${p ? `<a class="link" href="#/fiche/${p.id}">Fiche client</a>` : ''}<button class="link" data-act="proj-edit" data-id="${pr.id}">Délai</button><button class="link danger" data-act="proj-del" data-id="${pr.id}">Retirer</button></footer>
-      </section>`;
-    }).join('')}</div>` : `<div class="empty"><span class="empty-ic">${ic('folder')}</span><p class="empty-t">Aucun projet</p><p class="empty-p">Passez une fiche en « ${esc(stageOf('signe').label)} » dans le CRM : le projet apparaît ici automatiquement, avec ses étapes et son délai.</p>
-      <div class="demo-preview" aria-hidden="true"><span class="tag">Exemple</span>
-        <p class="dp-t">Salon Céleste <span class="chip t-olive">J−12</span></p><p class="dp-s">Site web · démarré le 3 oct.</p>
-        <span class="bar olive"><i style="width:33%"></i></span>
-        <div class="dp-row"><span class="tick is-done"></span><span><b>Acompte reçu</b></span></div><div class="dp-row"><span class="tick is-done"></span><span><b>Contenus reçus</b></span></div><div class="dp-row"><span class="tick"></span><span><b>Maquette validée</b></span></div>
-      </div>
-      <a class="btn btn-primary" href="#/crm">Ouvrir le CRM</a></div>`}`;
-  return { title: 'Projets', tab: 'plus', html };
-}
-
 register({
   day: (b) => { selDay = +b.dataset.d; window.dispatchEvent(new Event('ms:rerender')); },
-  pstep: (b) => update((s) => {
-    const pr = s.projects.find((x) => x.id === b.dataset.id); const k = +b.dataset.k;
-    pr.done = pr.done.includes(k) ? pr.done.filter((x) => x !== k) : [...pr.done, k];
-  }),
-  'proj-edit': (b) => {
-    const pr = S().projects.find((x) => x.id === b.dataset.id);
-    sheet(`${sheetHead('Délai du projet', esc(pr.name))}<form class="sheet-body form" data-form="proj" data-id="${pr.id}">${field('Durée (jours)', input('days', pr.days, 'type="number" min="1" max="365" required'))}<button class="btn btn-primary btn-block">Enregistrer</button></form>`, { cls: 'sheet-sm' });
-  },
-  'proj-del': async (b) => {
-    if (!await confirmSheet({ title: 'Retirer ce projet ?', text: 'La fiche client est conservée.', ok: 'Retirer', danger: true })) return;
-    update((s) => { s.projects = s.projects.filter((x) => x.id !== b.dataset.id); });
-  },
-}, {
-  proj: (data, f) => { update((s) => { s.projects.find((x) => x.id === f.dataset.id).days = Number(data.days) || 21; }); closeSheet(); },
 });
 export { toggleTask, deleteTask, time };

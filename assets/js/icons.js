@@ -111,6 +111,11 @@ const P = {
   spray: '<path d="M8 9.5h6l1 2.5v8a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1v-8z"/><path d="M9.5 9.5V6h4l3 1.5M9.5 6H8"/><path d="M19.5 4.5h.01M19.5 8h.01M21 6.2h.01"/>',
   wheel: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2"/><path d="M3.8 10.5C6.4 11 9.2 11.3 12 11.3s5.6-.3 8.2-.8M12 14v6.5"/>',
   paw: '<ellipse cx="12" cy="15.5" rx="4" ry="3.5"/><circle cx="6.3" cy="10.3" r="1.7"/><circle cx="9.5" cy="6.4" r="1.7"/><circle cx="14.5" cy="6.4" r="1.7"/><circle cx="17.7" cy="10.3" r="1.7"/>',
+  send: '<path d="M20.5 3.5 3.5 10.6l7 2.9 2.9 7z"/><path d="M20.5 3.5 10.5 13.5"/>',
+  link: '<path d="M10.2 13.8a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.1 1.1"/><path d="M13.8 10.2a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.1-1.1"/>',
+  plug: '<path d="M9 3.5v4M15 3.5v4"/><path d="M6.5 7.5h11v3a5.5 5.5 0 0 1-11 0z"/><path d="M12 16v4.5"/>',
+  external: '<path d="M14 4.5h5.5V10"/><path d="M19.5 4.5 11 13"/><path d="M17 13.5v5a1 1 0 0 1-1 1H5.5a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h5"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
 };
 
 export const ic = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[name] || P.note}</svg>`;

@@ -1,4 +1,4 @@
-// Outils : devis, messages, audit express, import.
+// Outils : messages, audit express, import (les devis ont leur écran : views/quotes.js).
 import { S, can, update, getProspect, addProspect, logActivity, updateProspect, uid } from '../store.js';
 import { ic, esc, eur, eur2, num, register, toast, copyText, shareText, field, input, select, sheet, sheetHead, closeSheet, dateShort, toLocalInput, fromLocalInput } from '../ui.js';
 import { SERVICES, SERVICE_IDS, allSectors, getSector, buildScript, fill } from '../data/scripts.js';
@@ -7,7 +7,7 @@ import { ctxFor } from './scripts.js';
 import { rdvText } from './call.js';
 
 export const TOOLS = [
-  { id: 'devis', f: 'quote', icon: 'invoice', name: 'Devis express', text: 'Un devis calculé et imprimable en PDF en deux minutes.' },
+  { id: 'devis', href: '#/devis', f: 'quote', icon: 'invoice', name: 'Devis', text: 'Brouillon, envoyé, accepté : chaque devis suivi, imprimable en PDF.' },
   { id: 'messages', f: 'messages', icon: 'message', name: 'Messages prêts à envoyer', text: 'Confirmation, relance, demande d\'avis : remplis avec la fiche.' },
   { id: 'audit', f: 'audit', icon: 'clipboard', name: 'Audit express', text: 'La présence en ligne d\'un prospect, notée sur 10, et quoi lui dire.' },
   { id: 'entrainement', f: 'training', icon: 'target', name: 'Entraînement', text: 'Des objections au hasard pour répondre du tac au tac.' },
@@ -15,11 +15,11 @@ export const TOOLS = [
   { id: 'import', f: 'import', icon: 'upload', name: 'Importer une liste', text: 'Collez des entreprises : elles deviennent des fiches à appeler.' },
   { id: 'mes-scripts', f: 'myScripts', icon: 'edit', name: 'Mes scripts & secteurs', text: 'Vos propres scripts, et vos secteurs avec tous les formats générés.' },
 ];
-const PLAN_OF = { quote: 'Premium', training: 'Premium', stats: 'Premium', myScripts: 'Premium', messages: 'Pro', audit: 'Pro', import: 'Pro' };
+const PLAN_OF = { quote: 'Pro', training: 'Premium', stats: 'Premium', myScripts: 'Premium', messages: 'Pro', audit: 'Pro', import: 'Pro' };
 
 export function hub() {
   const html = `${pageHead('Outils', { kicker: 'Pour préparer, convaincre et signer' })}
-    <div class="tool-grid">${TOOLS.map((t, i) => `<a class="card tool rise" style="--i:${i}" href="#/outils/${t.id}">
+    <div class="tool-grid">${TOOLS.map((t, i) => `<a class="card tool rise" style="--i:${i}" href="${t.href || `#/outils/${t.id}`}">
       <span class="tool-ic">${ic(t.icon)}</span><b>${t.name}</b><span>${t.text}</span>
       ${can(t.f) ? '' : `<span class="badge b-${PLAN_OF[t.f] === 'Premium' ? 'premium' : 'pro'}">${PLAN_OF[t.f]}</span>`}</a>`).join('')}</div>`;
   return { title: 'Outils', tab: 'plus', html };
@@ -27,85 +27,6 @@ export function hub() {
 
 const prospectPicker = (cur, act, label = 'Prospect') => `<label class="fill-for">${ic('user')}<span>${label}</span><select class="inp" data-act-change="${act}">
   <option value="">Aucun</option>${S().prospects.map((x) => `<option value="${x.id}" ${cur === x.id ? 'selected' : ''}>${esc(x.entreprise)}</option>`).join('')}</select></label>`;
-
-// ---------- Devis ----------
-let quote = null;
-function freshQuote(pid) {
-  const p = pid && getProspect(pid);
-  return { pid: pid || '', client: p?.entreprise || '', contact: p?.contact || '', adresse: [p?.adresse, p?.ville].filter(Boolean).join(', '), lines: [], remise: 0, tva: 21, acompte: 50, validite: 30, note: '' };
-}
-const totals = (qt) => {
-  const ht = qt.lines.reduce((n, l) => n + (Number(l.price) || 0) * (Number(l.qty) || 0), 0);
-  const remise = ht * (Number(qt.remise) || 0) / 100;
-  const base = ht - remise, tva = base * (Number(qt.tva) || 0) / 100;
-  return { ht, remise, base, tva, ttc: base + tva, acompte: (base + tva) * (Number(qt.acompte) || 0) / 100 };
-};
-
-export function devis(params, q) {
-  if (!can('quote')) return { title: 'Devis', tab: 'plus', html: `${pageHead('Devis express', { back: '#/outils' })}${paywall('quote')}` };
-  if (!quote || (q.p && q.p !== quote.pid)) quote = freshQuote(q.p);
-  const s = S(), t = totals(quote);
-  const html = `${pageHead('Devis express', { back: '#/outils', kicker: 'Calculé en direct, imprimable en PDF' })}
-    <div class="tool-2">
-      <div>
-        ${prospectPicker(quote.pid, 'quote-prospect', 'Client')}
-        <form class="card form rise" data-form="quote-meta" data-live>
-          <div class="form-2">${field('Client', input('client', quote.client, 'placeholder="Nom de l\'entreprise"'))}${field('Contact', input('contact', quote.contact))}</div>
-          ${field('Adresse', input('adresse', quote.adresse))}
-        </form>
-        <section class="card rise">
-          <header class="card-h"><div><h2>Prestations</h2><p>Touchez pour ajouter depuis votre catalogue</p></div></header>
-          <div class="chips-wrap">${s.catalogue.map((c) => `<button class="chip-btn" data-act="quote-add" data-id="${c.id}">${ic('plus')}${esc(c.label)} <b>${eur(c.price)}${c.monthly ? '/mois' : ''}</b></button>`).join('')}<button class="chip-btn" data-act="quote-add" data-id="">${ic('plus')}Ligne libre</button></div>
-          ${quote.lines.length ? `<ul class="qlines">${quote.lines.map((l, i) => `<li class="qline" data-i="${i}">
-            <input class="inp" aria-label="Désignation" value="${esc(l.label)}" data-act-input="quote-line" data-k="label" data-i="${i}">
-            <input class="inp qty" aria-label="Quantité" type="number" min="0" step="1" value="${l.qty}" data-act-input="quote-line" data-k="qty" data-i="${i}">
-            <input class="inp price" aria-label="Prix unitaire" type="number" min="0" step="1" value="${l.price}" data-act-input="quote-line" data-k="price" data-i="${i}">
-            <button class="icon-btn sm" data-act="quote-del" data-i="${i}" aria-label="Retirer">${ic('x')}</button></li>`).join('')}</ul>` : '<p class="muted pad">Aucune prestation pour l\'instant.</p>'}
-          <a class="link" href="#/reglages?s=catalogue">Modifier le catalogue</a>
-        </section>
-        <form class="card form rise" data-form="quote-meta" data-live>
-          <div class="form-2">${field('Remise (%)', input('remise', quote.remise, 'type="number" min="0" max="100"'))}${field('TVA', select('tva', [[21, '21 %'], [6, '6 %'], [0, '0 % — franchise de taxe']], quote.tva))}</div>
-          <div class="form-2">${field('Acompte (%)', input('acompte', quote.acompte, 'type="number" min="0" max="100"'))}${field('Validité (jours)', input('validite', quote.validite, 'type="number" min="1"'))}</div>
-          ${field('Conditions et remarques', `<textarea class="inp" name="note" rows="3" placeholder="Délai, nombre de retouches, ce qui est inclus…">${esc(quote.note)}</textarea>`)}
-        </form>
-      </div>
-      <aside class="card qtot rise">
-        <h2>Total</h2>
-        <dl class="dl dl-tot">
-          <div><dt>Sous-total HTVA</dt><dd>${eur2(t.ht)}</dd></div>
-          ${t.remise ? `<div><dt>Remise ${quote.remise} %</dt><dd>− ${eur2(t.remise)}</dd></div>` : ''}
-          <div><dt>TVA ${quote.tva} %</dt><dd>${eur2(t.tva)}</dd></div>
-          <div class="is-big"><dt>Total TVAC</dt><dd>${eur2(t.ttc)}</dd></div>
-          ${quote.acompte ? `<div><dt>Acompte ${quote.acompte} %</dt><dd>${eur2(t.acompte)}</dd></div>` : ''}
-        </dl>
-        <button class="btn btn-primary btn-block" data-act="quote-print" ${quote.lines.length ? '' : 'disabled'}>${ic('download')}<span>Aperçu et PDF</span></button>
-        ${quote.pid ? `<button class="btn btn-ghost btn-block" data-act="quote-log" ${quote.lines.length ? '' : 'disabled'}>${ic('check')}<span>Marquer comme envoyé</span></button>` : ''}
-        <button class="link center" data-act="quote-reset">Nouveau devis</button>
-        ${!s.profile.societe ? `<p class="field-h">Ajoutez vos coordonnées (société, TVA, IBAN) dans les <a href="#/reglages">réglages</a> : elles apparaissent sur le devis.</p>` : ''}
-      </aside>
-    </div>`;
-  return { title: 'Devis', tab: 'plus', html };
-}
-
-function quoteDoc() {
-  const s = S(), p = s.profile, t = totals(quote);
-  const num = `DEV-${new Date().getFullYear()}-${String((s.quoteSeq || 0) + 1).padStart(3, '0')}`;
-  const today = Date.now();
-  return `<article class="doc" id="print-doc">
-    <header class="doc-h"><div><p class="doc-co">${esc(p.societe || 'Votre société')}</p><p>${esc(p.prenom)}</p><p>${esc(p.adresse || '')}</p><p>${esc(p.tel || '')}${p.email ? ' · ' + esc(p.email) : ''}</p>${p.tva ? `<p>TVA ${esc(p.tva)}</p>` : ''}</div>
-      <div class="doc-r"><h1>Devis</h1><p>N° ${num}</p><p>Date : ${dateShort(today)}</p><p>Valable ${quote.validite} jours</p></div></header>
-    <section class="doc-to"><p class="doc-k">Pour</p><p><b>${esc(quote.client || '—')}</b></p>${quote.contact ? `<p>${esc(quote.contact)}</p>` : ''}${quote.adresse ? `<p>${esc(quote.adresse)}</p>` : ''}</section>
-    <table class="doc-t"><thead><tr><th>Désignation</th><th>Qté</th><th>Prix unitaire</th><th>Total HTVA</th></tr></thead>
-      <tbody>${quote.lines.map((l) => `<tr><td>${esc(l.label)}</td><td>${num_(l.qty)}</td><td>${eur2(l.price)}</td><td>${eur2(l.price * l.qty)}</td></tr>`).join('')}</tbody></table>
-    <dl class="doc-tot"><div><dt>Sous-total HTVA</dt><dd>${eur2(t.ht)}</dd></div>${t.remise ? `<div><dt>Remise ${quote.remise} %</dt><dd>− ${eur2(t.remise)}</dd></div>` : ''}
-      <div><dt>TVA ${quote.tva} %</dt><dd>${eur2(t.tva)}</dd></div><div class="is-big"><dt>Total TVAC</dt><dd>${eur2(t.ttc)}</dd></div>
-      ${quote.acompte ? `<div><dt>Acompte à la signature (${quote.acompte} %)</dt><dd>${eur2(t.acompte)}</dd></div>` : ''}</dl>
-    ${quote.tva === 0 || quote.tva === '0' ? '<p class="doc-n">Régime particulier de franchise des petites entreprises — TVA non applicable.</p>' : ''}
-    ${quote.note ? `<p class="doc-n">${esc(quote.note).replace(/\n/g, '<br>')}</p>` : ''}
-    <footer class="doc-f"><div><p class="doc-k">Bon pour accord</p><p>Date et signature du client</p><div class="doc-sign"></div></div>${p.iban ? `<p>Paiement : IBAN ${esc(p.iban)}</p>` : ''}</footer>
-  </article>`;
-}
-const num_ = (n) => num(Number(n) || 0);
 
 // ---------- Messages ----------
 const MSG = [
@@ -120,7 +41,7 @@ const MSG = [
   { id: 'prospection', label: 'E-mail de prospection', from: ['email', 1] },
   { id: 'bienvenue', label: 'Bienvenue après signature', text: 'Bonjour {contact},\n\nMerci pour votre confiance, et bienvenue chez {societe} ! Pour démarrer, j\'ai besoin de votre logo, de vos photos, de vos textes et des accès à votre nom de domaine si vous en avez un.\n\nJe vous envoie le planning dans la journée.\n\n{prenom}' },
   { id: 'avis', label: 'Demande d\'avis au client', text: 'Bonjour {contact},\n\nMerci encore pour votre confiance. Si vous êtes satisfait du travail, un avis Google nous aiderait énormément : il suffit de deux phrases. [lien vers votre fiche]\n\nMerci beaucoup !\n{prenom}, {societe}' },
-  { id: 'recommandation', label: 'Demande de recommandation', text: 'Bonjour {contact},\n\nÃa me fait plaisir que le projet vous plaise. Connaissez-vous un ou deux commerçants autour de vous à qui ça pourrait aussi rendre service ? Je les contacterai de votre part, sans insister.\n\nMerci !\n{prenom}' },
+  { id: 'recommandation', label: 'Demande de recommandation', text: 'Bonjour {contact},\n\nÇa me fait plaisir que le projet vous plaise. Connaissez-vous un ou deux commerçants autour de vous à qui ça pourrait aussi rendre service ? Je les contacterai de votre part, sans insister.\n\nMerci !\n{prenom}' },
 ];
 const msgState = { type: 'confirmation', pid: '', due: null };
 
@@ -233,35 +154,6 @@ export function importView() {
 }
 
 register({
-  'quote-prospect': (el) => { quote = freshQuote(el.value); window.dispatchEvent(new Event('ms:rerender')); },
-  'quote-add': (b) => {
-    const c = S().catalogue.find((x) => x.id === b.dataset.id);
-    quote.lines.push(c ? { label: c.label + (c.monthly ? ' (par mois)' : ''), qty: 1, price: c.price } : { label: 'Prestation', qty: 1, price: 0 });
-    window.dispatchEvent(new Event('ms:rerender'));
-  },
-  'quote-del': (b) => { quote.lines.splice(+b.dataset.i, 1); window.dispatchEvent(new Event('ms:rerender')); },
-  'quote-line': (el) => {
-    const l = quote.lines[+el.dataset.i];
-    l[el.dataset.k] = el.dataset.k === 'label' ? el.value : Number(el.value) || 0;
-    if (el.dataset.k !== 'label') refreshTotals();
-  },
-  'quote-reset': () => { quote = freshQuote(''); window.dispatchEvent(new Event('ms:rerender')); },
-  'quote-print': () => {
-    let host = document.querySelector('.print-host');
-    if (!host) { host = document.createElement('div'); host.className = 'print-host'; document.body.append(host); }
-    host.innerHTML = quoteDoc();
-    sheet(`${sheetHead('Aperçu du devis', 'Imprimez ou enregistrez en PDF')}<div class="sheet-body"><div class="doc-prev">${quoteDoc()}</div>
-      <button class="btn btn-primary btn-block" data-act="do-print">${ic('download')}<span>Imprimer / PDF</span></button></div>`, { cls: 'sheet-tall sheet-doc' });
-  },
-  'do-print': () => { update((s) => { s.quoteSeq = (s.quoteSeq || 0) + 1; }, { silent: true }); window.print(); },
-  'quote-log': () => {
-    const t = totals(quote);
-    logActivity({ prospectId: quote.pid, type: 'devis', note: `Devis de ${eur2(t.ttc)} TVAC — ${quote.lines.map((l) => l.label).join(', ')}` });
-    const p = getProspect(quote.pid);
-    if (p && !['signe', 'devis'].includes(p.stage)) updateProspect(p.id, { stage: 'devis', valeur: Math.round(t.base) });
-    else if (p) updateProspect(p.id, { valeur: Math.round(t.base) }, { log: false });
-    toast('Devis noté dans la fiche', { action: 'Ouvrir', onAction: () => { location.hash = `#/fiche/${quote.pid}`; } });
-  },
   'msg-prospect': (el) => { msgState.pid = el.value; window.dispatchEvent(new Event('ms:rerender')); },
   'msg-type': (b) => { msgState.type = b.dataset.id; window.dispatchEvent(new Event('ms:rerender')); },
   'msg-due': (el) => { msgState.due = fromLocalInput(el.value); window.dispatchEvent(new Event('ms:rerender')); },
@@ -291,7 +183,6 @@ register({
     form.querySelector('[type=submit]').disabled = !n;
   },
 }, {
-  'quote-meta': (data) => { Object.assign(quote, data); refreshTotals(); },
   import: (data) => {
     const rows = parseList(data.raw || '');
     if (!rows.length) { toast('Aucune entreprise détectée'); return; }
@@ -300,11 +191,4 @@ register({
     location.hash = '#/crm?v=list&f=a_appeler';
   },
 });
-
-function refreshTotals() {
-  const t = totals(quote);
-  const dl = document.querySelector('.dl-tot'); if (!dl) return;
-  dl.innerHTML = `<div><dt>Sous-total HTVA</dt><dd>${eur2(t.ht)}</dd></div>${t.remise ? `<div><dt>Remise ${quote.remise} %</dt><dd>− ${eur2(t.remise)}</dd></div>` : ''}<div><dt>TVA ${quote.tva} %</dt><dd>${eur2(t.tva)}</dd></div><div class="is-big"><dt>Total TVAC</dt><dd>${eur2(t.ttc)}</dd></div>${Number(quote.acompte) ? `<div><dt>Acompte ${quote.acompte} %</dt><dd>${eur2(t.acompte)}</dd></div>` : ''}`;
-}
-export const quoteLive = (form) => { const data = Object.fromEntries(new FormData(form)); Object.assign(quote, data); refreshTotals(); };
 export { uid };

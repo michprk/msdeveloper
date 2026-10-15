@@ -15,21 +15,24 @@ const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 // Ce que comprend chaque formule, avec ses limites
 export const OFFER = [
   ['Tâches, listes, tableau et agenda', true, true, true],
+  ['Projets reliés aux tâches, progression automatique', `${LIMITS.freeProjects} en cours`, 'Illimités', 'Illimités'],
   ['Notes en pages et sous-pages, modèles', `${LIMITS.freePages} pages`, 'Illimitées', 'Illimitées'],
+  ['Centre de notifications, recherche globale, connecteurs', true, true, true],
   ['Quiz intégrés et révision de vos notes', true, true, true],
   ['Créer vos propres quiz', false, true, true],
   ['CRM personnalisé : fiches, pipeline, champs, équipe', false, true, true],
+  ['Devis suivis (brouillon → accepté), PDF, prospect → client', false, true, true],
   ['Scripts d\'appel à froid (23 secteurs)', true, true, true],
   [`Les ${scriptCount()} scripts, situations délicates, mode appel`, false, true, true],
   ['Académie', `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.length} guides`, `${GUIDES.length} guides`],
   ['Messages prêts, audit express, import de listes', false, true, true],
-  ['Devis PDF, statistiques, export CSV', false, false, true],
+  ['Statistiques, export CSV', false, false, true],
   ['Vos scripts et secteurs, entraînement aux objections', false, false, true],
 ];
 const cell = (v) => (v === true ? `<span class="ok">${ic('check')}<span class="sr-only">Inclus</span></span>` : v === false ? '<span class="no" aria-label="Non inclus">—</span>' : `<span class="txt">${esc(v)}</span>`);
 
 const STATUS = {
-  free: () => ['Version gratuite', `Tâches, agenda, ${LIMITS.freePages} pages de notes, les quiz et les scripts d'appel à froid. Essayez tout le reste pendant ${TRIAL_DAYS} jours, sans carte.`],
+  free: () => ['Version gratuite', `Tâches, agenda, ${LIMITS.freeProjects} projets, ${LIMITS.freePages} pages de notes, les quiz et les scripts d'appel à froid. Essayez tout le reste pendant ${TRIAL_DAYS} jours, sans carte.`],
   trial: () => ['Essai gratuit', `Toutes les fonctions jusqu'au ${dl(trialEnd())} (encore ${trialLeft()} jour${trialLeft() > 1 ? 's' : ''}). Sans carte : à la fin, l'application repasse en version gratuite si vous ne choisissez rien.`],
   trial_ended: () => ['Version gratuite', `Votre essai s'est terminé le ${dl(trialEnd())}. Vos fiches, vos pages et vos tâches sont conservées.`],
   active: (s) => [`${PLANS[s.plan].name} · actif`, `Prochain prélèvement : ${price(PLANS[s.pending || s.plan].price)} € le ${dl(s.periodEnd)}.${s.pending ? ` Passage à ${PLANS[s.pending].name} à cette date.` : ''}`],

@@ -50,5 +50,25 @@ export const TEMPLATES = [
     title: 'Liste de contrôle',
     blocks: [['p', 'Pour une tâche que vous faites souvent : un lancement, une livraison, un départ en congé…'], ['todo', ''], ['todo', ''], ['todo', ''], ['todo', ''], ['todo', '']],
   },
+  {
+    id: 'planning', name: 'Planning de révision', icon: 'book', desc: 'Les chapitres jour par jour jusqu\'à l\'examen.',
+    title: 'Planning de révision — ',
+    blocks: [['callout', 'Une matière par ligne, une date par chapitre. Cochez au fur et à mesure ; la veille, uniquement des quiz.'], ['h2', 'Examen'], ['p', 'Date, salle, ce qui est autorisé.'], ['h2', 'Chapitres à revoir'], ['todo', 'Chapitre 1 — '], ['todo', 'Chapitre 2 — '], ['todo', 'Chapitre 3 — '], ['h2', 'La dernière semaine'], ['ul', 'Examen blanc'], ['ul', 'Quiz sur les dates et les définitions']],
+  },
+  {
+    id: 'cours', name: 'Fiche de cours', icon: 'cards', desc: 'Un cours résumé : idées clés, dates, définitions.',
+    title: 'Cours — ',
+    blocks: [['h2', 'Les idées clés'], ['ul', ''], ['ul', ''], ['h2', 'Dates et définitions'], ['qa', '', ''], ['qa', '', ''], ['h2', 'Ce que je n\'ai pas encore compris'], ['p', '']],
+  },
+  {
+    id: 'code', name: 'Projet de code', icon: 'monitor', desc: 'Objectif, fonctionnalités, stack, bugs et idées.',
+    title: 'Projet — ',
+    blocks: [['h2', 'Objectif'], ['p', 'Ce que l\'application doit permettre, en une phrase.'], ['h2', 'Fonctionnalités'], ['todo', ''], ['todo', ''], ['h2', 'Technique'], ['ul', 'Langage, framework, hébergement'], ['h2', 'Bugs connus'], ['todo', ''], ['h2', 'Idées pour plus tard'], ['ul', '']],
+  },
+  {
+    id: 'budget', name: 'Budget du mois', icon: 'euro', desc: 'Revenus, dépenses fixes, dépenses variables, bilan.',
+    title: 'Budget — ', month: true,
+    blocks: [['h2', 'Revenus'], ['ul', ''], ['h2', 'Dépenses fixes'], ['ul', 'Loyer'], ['ul', 'Abonnements'], ['h2', 'Dépenses variables'], ['ul', ''], ['h2', 'Objectif d\'épargne'], ['p', ''], ['h2', 'Bilan de fin de mois'], ['p', '']],
+  },
 ];
 export const template = (id) => TEMPLATES.find((t) => t.id === id) || TEMPLATES[0];

@@ -14,11 +14,11 @@ export const RANK = { free: 0, pro: 1, premium: 2 };
 // Fonction → formule minimale. L'essai gratuit donne accès à tout (Premium).
 // Tâches, agenda, notes (10 pages) et quiz intégrés restent gratuits.
 export const FEATURES = {
-  crm: 'pro', notesUnlimited: 'pro', myQuiz: 'pro', scriptsAll: 'pro', callMode: 'pro', projects: 'pro', academy: 'pro',
+  crm: 'pro', notesUnlimited: 'pro', myQuiz: 'pro', scriptsAll: 'pro', callMode: 'pro', projectsUnlimited: 'pro', quote: 'pro', academy: 'pro',
   messages: 'pro', audit: 'pro', import: 'pro',
-  quote: 'premium', myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium',
+  myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium',
 };
-export const LIMITS = { freePages: 10 };
+export const LIMITS = { freePages: 10, freeProjects: 3 };
 
 // Modules : chacun choisit ce qu'il utilise (accueil, puis Compte → Modules).
 export const MODULES = {
@@ -69,7 +69,7 @@ export const SOURCES = ['Appel', 'Visite', 'Recommandation', 'Instagram', 'Site 
 export const PROJECT_STEPS = ['Acompte reçu', 'Contenus reçus', 'Maquette validée', 'Développement', 'Relecture client', 'Mise en ligne'];
 
 const defaults = () => ({
-  v: 2, onboarded: false, createdAt: Date.now(),
+  v: 3, onboarded: false, createdAt: Date.now(),
   profile: {
     prenom: '', societe: '', ville: 'Bruxelles', tel: '', email: '', adresse: '', tva: '', iban: '',
     usages: [...MODULE_IDS], metier: '',
@@ -78,7 +78,7 @@ const defaults = () => ({
     promesse: 'Prix fixe, délais tenus, et un seul interlocuteur du début à la fin.',
   },
   goals: { appelsJour: 40, rdvSemaine: 5, caMois: 1000 },
-  prefs: { theme: 'light', motion: 'full', notifs: true, replayIntro: false, textSize: 'm' },
+  prefs: { theme: 'light', motion: 'full', notifs: true, replayIntro: false, textSize: 'm', notifCats: { retard: true, echeances: true, devis: true, relances: true, rappels: true } },
   // Abonnement : formule, essai, période en cours, résiliation, échec de paiement, historique
   sub: { plan: 'free', trialStart: null, demo: null, status: 'none', periodStart: null, periodEnd: null, cancelAt: false, pending: null, graceEnd: null, failNext: false, history: [] },
   // CRM personnalisé : noms d'étapes, étapes ajoutées, champs, équipe, nom des fiches
@@ -86,7 +86,7 @@ const defaults = () => ({
   academy: { read: {}, last: null },
   lock: null, baseline: null,
   lists: [{ id: 'perso', name: 'Personnel', tone: 'sky' }, { id: 'travail', name: 'Travail', tone: 'olive' }],
-  pages: [], quiz: { results: {}, mine: [], days: [] },
+  pages: [], quiz: { results: {}, mine: [], days: [] }, quotes: [], notifSeen: {},
   prospects: [], activities: [], tasks: [], projects: [],
   favorites: [], recent: [], myScripts: [], mySectors: [], training: {},
   catalogue: [
@@ -122,6 +122,10 @@ function sanitize(s) {
   s.pages.forEach((p) => { p.blocks = Array.isArray(p.blocks) ? p.blocks : []; p.updatedAt = n(p.updatedAt) || Date.now(); p.createdAt = n(p.createdAt) || p.updatedAt; });
   if (!Array.isArray(s.profile.usages) || !s.profile.usages.length) s.profile.usages = [...MODULE_IDS];
   if (!Array.isArray(s.sub.history)) s.sub.history = [];
+  if (!Array.isArray(s.quotes)) s.quotes = [];
+  // Liens externes : seulement http(s), jamais javascript: ou data: (même depuis une sauvegarde importée)
+  const safeLinks = (x) => { x.links = Array.isArray(x.links) ? x.links.filter((l) => l && typeof l.url === 'string' && /^https?:\/\//i.test(l.url)) : []; };
+  s.projects.forEach(safeLinks); s.prospects.forEach(safeLinks);
   return s;
 }
 // Version 1 → 2 : l'application devient aussi une application d'organisation.
@@ -131,6 +135,20 @@ function migrate(saved) {
     saved.crm = { ...(saved.crm || {}) };
     if (!saved.crm.noun) saved.crm.noun = 'Prospects';
     saved.v = 2;
+  }
+  // Version 2 → 3 : les projets deviennent génériques et se nourrissent des tâches.
+  // Les anciennes étapes cochées deviennent des tâches du projet ; les fiches signées deviennent des clients.
+  if (saved && typeof saved === 'object' && saved.v < 3) {
+    const tasks = saved.tasks || (saved.tasks = []);
+    (saved.projects || []).forEach((pr) => {
+      if (!Array.isArray(pr.done)) return;
+      const due = pr.start && pr.days ? pr.start + pr.days * DAY : null;
+      PROJECT_STEPS.forEach((step, k) => tasks.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7) + k, title: step, projectId: pr.id, prospectId: pr.prospectId || null, done: pr.done.includes(k), doneAt: pr.done.includes(k) ? Date.now() : null, status: pr.done.includes(k) ? 'done' : 'todo', due: null, kind: 'tache', list: null, prio: 0, notes: '', sub: [], createdAt: pr.createdAt || Date.now() }));
+      Object.assign(pr, { status: 'actif', due, tone: 'olive', icon: 'folder', links: [], desc: '' });
+      delete pr.done; delete pr.days; delete pr.start;
+    });
+    (saved.prospects || []).forEach((p) => { if (!p.type) p.type = p.stage === 'signe' ? 'client' : 'prospect'; });
+    saved.v = 3;
   }
   return saved;
 }
@@ -361,9 +379,10 @@ export const getProspect = (id) => state.prospects.find((p) => p.id === id);
 export function addProspect(data) {
   const p = {
     id: uid(), entreprise: '', contact: '', tel: '', email: '', ville: '', adresse: '', site: '', instagram: '',
-    secteur: 'toute', service: state.profile.service || 'site', stage: 'a_appeler', valeur: 0, source: 'Appel',
+    secteur: 'toute', service: state.profile.service || 'site', stage: 'a_appeler', type: 'prospect', valeur: 0, source: 'Appel',
     notes: '', next: null, attempts: 0, createdAt: Date.now(), updatedAt: Date.now(), ...data,
   };
+  if (p.stage === 'signe') { p.type = 'client'; p.signedAt = p.signedAt || Date.now(); }
   update((s) => { s.prospects.unshift(p); });
   return p;
 }
@@ -378,9 +397,8 @@ export function updateProspect(id, patch, { log = true } = {}) {
       if (log) s.activities.unshift({ id: uid(), prospectId: id, type: 'etape', from: before, to: patch.stage, at: Date.now() });
       if (patch.stage === 'signe') {
         p.signedAt = Date.now();
-        if (!s.projects.some((pr) => pr.prospectId === id)) {
-          s.projects.unshift({ id: uid(), prospectId: id, name: p.entreprise, service: p.service, start: Date.now(), days: 21, done: [], createdAt: Date.now() });
-        }
+        p.type = 'client';
+        if (!s.projects.some((pr) => pr.prospectId === id)) s.projects.unshift(newProject({ name: p.entreprise, prospectId: id }));
       }
     }
   });
@@ -390,10 +408,34 @@ export function deleteProspect(id) {
   update((s) => {
     s.prospects = s.prospects.filter((p) => p.id !== id);
     s.activities = s.activities.filter((a) => a.prospectId !== id);
-    s.tasks = s.tasks.filter((t) => t.prospectId !== id);
-    s.projects = s.projects.filter((p) => p.prospectId !== id);
+    s.tasks = s.tasks.filter((t) => t.prospectId !== id || t.projectId);
+    s.tasks.forEach((t) => { if (t.prospectId === id) t.prospectId = null; });
+    s.projects.forEach((p) => { if (p.prospectId === id) p.prospectId = null; });
+    s.quotes.forEach((q) => { if (q.prospectId === id) q.prospectId = null; });
   });
 }
+
+// ---------- Projets ----------
+// Un projet regroupe des tâches ; sa progression = tâches terminées / tâches du projet.
+export const newProject = (data = {}) => ({ id: 'pj-' + uid(), name: 'Nouveau projet', icon: 'folder', tone: 'blue', prospectId: null, due: null, status: 'actif', desc: '', links: [], createdAt: Date.now(), ...data });
+export const getProject = (id) => state.projects.find((p) => p.id === id);
+export function projectProgress(id) {
+  const ts = state.tasks.filter((t) => t.projectId === id);
+  const done = ts.filter((t) => t.done).length;
+  return { total: ts.length, done, doing: ts.filter((t) => !t.done && t.status === 'doing').length, pct: ts.length ? Math.round((done / ts.length) * 100) : 0 };
+}
+export const canAddProject = () => can('projectsUnlimited') || state.projects.filter((p) => p.status !== 'termine').length < LIMITS.freeProjects;
+
+// ---------- Devis ----------
+// États : brouillon → envoyé → accepté ou refusé. Un devis accepté fait passer la fiche en client signé.
+export const QUOTE_STATUS = { brouillon: ['Brouillon', 'grey'], envoye: ['Envoyé', 'sky'], accepte: ['Accepté', 'olive'], refuse: ['Refusé', 'rose'] };
+export const quoteTotals = (qt) => {
+  const ht = (qt.lines || []).reduce((n, l) => n + (Number(l.price) || 0) * (Number(l.qty) || 0), 0);
+  const remise = ht * (Number(qt.remise) || 0) / 100;
+  const base = ht - remise, tva = base * (Number(qt.tva) || 0) / 100;
+  return { ht, remise, base, tva, ttc: base + tva, acompte: (base + tva) * (Number(qt.acompte) || 0) / 100 };
+};
+export const getQuote = (id) => state.quotes.find((q) => q.id === id);
 
 export function logActivity(a) {
   const act = { id: uid(), at: Date.now(), ...a };
@@ -416,7 +458,7 @@ export function recordCall(prospectId, outcome, note = '') {
 
 // ---------- Tâches ----------
 export function addTask(t) {
-  const task = { id: uid(), title: '', due: null, prospectId: null, kind: 'tache', done: false, list: null, prio: 0, notes: '', sub: [], status: 'todo', createdAt: Date.now(), ...t };
+  const task = { id: uid(), title: '', due: null, prospectId: null, projectId: null, kind: 'tache', done: false, list: null, prio: 0, notes: '', sub: [], status: 'todo', createdAt: Date.now(), ...t };
   update((s) => {
     s.tasks.push(task);
     if (task.prospectId && task.due) {

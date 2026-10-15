@@ -10,6 +10,7 @@ import { preset } from '../data/presets.js';
 import { QUIZZES } from '../data/quizzes.js';
 import { startOnboarding, notifSheet } from './onboarding.js';
 import { flower } from './flowers.js';
+import { catSwitches, unreadCount } from './notifications.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
 import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow, lockAfter, sessionStart } from '../lock.js';
 import { fieldError, setFieldError, ago, time } from '../ui.js';
@@ -28,7 +29,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.3.2';
+const VERSION = '1.4.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -189,6 +190,10 @@ export function settings(params, q = {}) {
 
     <h2 class="sec-title" id="notifications">Notifications</h2>
     <section class="card rise">
+      <header class="card-h"><div><h2>Ce que je veux voir</h2><p>Dans le centre de notifications et sur la cloche</p></div><a class="link" href="#/notifications">Ouvrir</a></header>
+      ${catSwitches()}
+    </section>
+    <section class="card rise">
       <header class="card-h"><div><h2>Sur cet appareil</h2><p>${perm === 'granted' ? 'Autorisées' : perm === 'denied' ? 'Bloquées par le navigateur' : perm === 'default' ? 'Pas encore autorisées' : esc(notifSupport().hint)}</p></div><span class="chip ${perm === 'granted' ? 't-olive' : perm === 'denied' ? 't-rose' : ''}">${ic('bell')}${perm === 'granted' ? 'Activées' : perm === 'denied' ? 'Bloquées' : 'Inactives'}</span></header>
       <div class="ios-list">
         <label class="ios-row"><span><b>Rappel avant chaque tâche</b><em>Dix minutes avant chaque tâche à heure fixe.</em></span><input type="checkbox" class="switch" ${s.prefs.notifs !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="notifs" data-on="Rappels activés" data-off="Rappels désactivés"></label>
@@ -225,8 +230,10 @@ export function settings(params, q = {}) {
         <label class="btn btn-ghost">${ic('upload')}<span>Importer un fichier (ajoute sans rien effacer)</span><input type="file" accept="application/json,.json" hidden data-act-change="import-merge"></label>
         <label class="btn btn-ghost">${ic('refresh')}<span>Restaurer une sauvegarde (remplace tout)</span><input type="file" accept="application/json,.json" hidden data-act-change="restore"></label>
         <button class="btn btn-ghost" data-act="export-csv" ${s.prospects.length ? '' : 'disabled'}>${ic('list')}<span>Exporter les fiches (CSV)</span>${can('export') ? '' : '<span class="badge b-premium">Premium</span>'}</button>
+        <button class="btn btn-ghost" data-act="cx-ics">${ic('calendar')}<span>Exporter les tâches datées vers un agenda (.ics)</span></button>
       </div>
     </section>
+    <a class="card row priv-link rise" href="#/confidentialite"><span class="menu-ic">${ic('shield')}</span><span class="row-b"><b>Confidentialité et RGPD</b><span>Ce qui est enregistré, où, et vos droits : accès, rectification, effacement, portabilité</span></span>${ic('chevR', 'chev')}</a>
 
     <h2 class="sec-title" id="sensible">Suppression</h2>
     <section class="card danger-zone rise">
@@ -261,13 +268,13 @@ export function more() {
   const read = GUIDES.filter((g) => isRead(g.id)).length;
   const N = s.crm.noun || 'Clients';
   const groups = [
-    ['Suivi', null, [['#/apercu', 'chart', 'Vue d\'ensemble', 'Vos chiffres, l\'activité récente, la répartition']]],
-    ['S\'organiser', 'organiser', [['#/taches', 'checkSquare', 'Tâches', `${s.tasks.filter((t) => !t.done).length} à faire · listes, tableau`], ['#/agenda', 'calendar', 'Agenda', 'Vos tâches jour par jour'], ['#/notes', 'page', 'Notes', `${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · modèles, sous-pages`]]],
-    ['Clients', 'clients', [['#/crm', 'users', N, `${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · pipeline`, 'crm'], ['#/projets', 'folder', 'Projets clients', 'Après la signature : étapes et délais', 'projects'], ['#/outils/devis', 'invoice', 'Devis', 'Calculé et imprimable en PDF', 'quote'], ['#/outils/messages', 'message', 'Messages prêts à envoyer', 'Confirmation, relance, avis', 'messages'], ['#/outils/stats', 'chart', 'Statistiques', 'Vos taux, étape par étape', 'stats']]],
+    ['Suivi', null, [['#/notifications', 'bell', 'Notifications', (() => { const n = unreadCount(); return n ? `${n} non lue${n > 1 ? 's' : ''} · retards, échéances, devis` : 'Retards, échéances, devis à relancer'; })()], ['#/apercu', 'chart', 'Vue d\'ensemble', 'Vos chiffres, l\'activité récente, la répartition']]],
+    ['S\'organiser', null, [...(on('organiser') ? [['#/taches', 'checkSquare', 'Tâches', `${s.tasks.filter((t) => !t.done).length} à faire · listes, tableau`]] : []), ['#/projets', 'folder', 'Projets', `${s.projects.filter((x) => x.status !== 'termine').length} en cours · progression automatique`], ...(on('organiser') ? [['#/agenda', 'calendar', 'Agenda', 'Vos tâches jour par jour'], ['#/notes', 'page', 'Notes', `${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · modèles, sous-pages`]] : [])]],
+    ['Clients', 'clients', [['#/crm', 'users', N, `${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · pipeline`, 'crm'], ['#/devis', 'invoice', 'Devis', s.quotes.length ? `${s.quotes.length} devis · brouillon, envoyé, accepté` : 'Brouillon, envoyé, accepté, refusé', 'quote'], ['#/outils/messages', 'message', 'Messages prêts à envoyer', 'Confirmation, relance, avis', 'messages'], ['#/outils/stats', 'chart', 'Statistiques', 'Vos taux, étape par étape', 'stats']]],
     ['Prospecter', 'prospecter', [['#/scripts', 'script', 'Scripts', `${scriptCount()} scripts prêts à l'emploi`], ['#/appel', 'headset', 'Session d\'appels', 'Le script pas à pas, le résultat en un geste', 'callMode'], ['#/outils/audit', 'clipboard', 'Audit express', 'La présence en ligne notée sur 10', 'audit'], ['#/outils/import', 'upload', 'Importer une liste', 'Depuis un tableur', 'import'], ['#/outils/entrainement', 'target', 'Entraînement', 'Répondre aux objections', 'training'], ['#/outils/mes-scripts', 'edit', 'Mes scripts et secteurs', 'Vos propres versions', 'myScripts']]],
     ['Progresser', 'apprendre', [['#/quiz', 'quiz', 'Quiz', `${QUIZZES.length} quiz · quiz du jour, révision des notes`], ['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`]]],
   ].filter(([, m]) => !m || on(m));
-  const account = [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Modules, profil, sécurité, données']];
+  const account = [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Modules, profil, sécurité, données'], ['#/connecteurs', 'plug', 'Connecteurs', 'Canva, Figma, Notion, Drive, agenda'], ['#/confidentialite', 'shield', 'Confidentialité et RGPD', 'Vos données restent sur cet appareil']];
   const rows = (items) => `<ul class="menu card rise">${items.map(([h, i, t, d, f]) => `<li><a class="row" href="${h}"><span class="menu-ic">${ic(i)}</span><span class="row-b"><b>${esc(t)}</b><span>${esc(d)}</span></span>${f && !can(f) ? `<span class="badge b-${FEATURES[f]}">${PLANS[FEATURES[f]].name}</span>` : ''}${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`;
   const html = `${pageHead('Plus', { actions: `<button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button>` })}
     <a class="card me rise" href="#/reglages">${avatar(p.prenom || 'M S', 'lg')}<span class="row-b"><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(p.societe || 'Ajoutez votre société')}</span></span>${planBadge()}</a>
@@ -403,7 +410,7 @@ register({
   },
   'load-demo': async () => {
     if (!await confirmSheet({ title: 'Charger des données de démonstration ?', text: 'Seize entreprises fictives avec leurs appels, des tâches et trois pages de notes, pour présenter l\'application. Tout est marqué « démonstration » et s\'efface en un geste.', ok: 'Charger' })) return;
-    update((s) => { const d = demoData(); s.prospects.push(...d.prospects); s.activities.push(...d.activities); s.tasks.push(...d.tasks); s.projects.push(...d.projects); s.pages.push(...d.pages.filter((p) => !s.pages.some((x) => x.id === p.id))); });
+    update((s) => { const d = demoData(); s.prospects.push(...d.prospects); s.activities.push(...d.activities); s.tasks.push(...d.tasks); s.projects.push(...d.projects.filter((x) => !s.projects.some((y) => y.id === x.id))); s.quotes.push(...d.quotes.filter((x) => !s.quotes.some((y) => y.id === x.id))); s.pages.push(...d.pages.filter((p) => !s.pages.some((x) => x.id === p.id))); });
     toast('Données de démonstration chargées');
   },
   wipe: () => wipeSheet(),

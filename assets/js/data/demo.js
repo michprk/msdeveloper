@@ -33,7 +33,7 @@ export function demoData(now = Date.now()) {
     notes: '', next: null, attempts: stage === 'a_appeler' ? 0 : 1 + Math.floor(r() * 3),
     createdAt: now - (12 - (i % 10)) * DAY, updatedAt: now - Math.floor(r() * 5) * DAY,
     lastContact: stage === 'a_appeler' ? null : now - Math.floor(1 + r() * 6) * DAY,
-    signedAt: stage === 'signe' ? now - 5 * DAY : undefined,
+    signedAt: stage === 'signe' ? now - 5 * DAY : undefined, type: stage === 'signe' ? 'client' : 'prospect', tags: i === 1 ? ['boulangerie', 'vip'] : i === 0 ? ['fête des mères'] : [],
   }));
   const P = Object.fromEntries(prospects.map((p) => [p.entreprise, p]));
 
@@ -91,8 +91,23 @@ export function demoData(now = Date.now()) {
     { id: 'pg-demo3', demo: true, title: 'Révision — méthodes d\'organisation', icon: 'cards', fav: false, parent: 'pg-demo1', prospectId: null, createdAt: now - 3 * DAY, updatedAt: now - 2 * DAY,
       blocks: [b('callout', 'Bouton « Réviser » en haut de la page : chaque question devient une carte.'), b('qa', 'Durée d\'un cycle Pomodoro ?', { a: '25 minutes, puis 5 minutes de pause.' }), b('qa', 'La règle des deux minutes ?', { a: 'Si une tâche prend moins de deux minutes, la faire tout de suite.' }), b('qa', 'Les deux critères de la matrice d\'Eisenhower ?', { a: 'L\'urgence et l\'importance.' })] },
   ];
-  const projects = [{ id: uid(), demo: true, prospectId: P['Salon Céleste'].id, name: 'Salon Céleste', service: 'site', start: now - 5 * DAY, days: 21, done: [0, 1], createdAt: now - 5 * DAY }];
-  return { prospects, activities, tasks: [...tasks, ...own], projects, pages };
+  // Deux projets : un client et un projet personnel, pour montrer que l'outil sert à tout
+  const projects = [
+    { id: 'pj-demo1', demo: true, prospectId: P['Salon Céleste'].id, name: 'Site du Salon Céleste', icon: 'briefcase', tone: 'olive', status: 'actif', due: today + 16 * DAY, desc: 'Site vitrine avec prise de rendez-vous.', links: [], createdAt: now - 5 * DAY },
+    { id: 'pj-demo2', demo: true, prospectId: null, name: 'Réviser l\'examen d\'histoire', icon: 'book', tone: 'sky', status: 'actif', due: today + 9 * DAY, desc: 'Chapitres 3 à 6, examen le vendredi.', links: [], createdAt: now - 3 * DAY },
+  ];
+  const ptasks = [
+    ['pj-demo1', 'Acompte reçu', true], ['pj-demo1', 'Brief et contenus reçus', true], ['pj-demo1', 'Première version', false, 'doing', today + 4 * DAY], ['pj-demo1', 'Retours du client', false, 'todo', today + 9 * DAY], ['pj-demo1', 'Livraison', false, 'todo', today + 16 * DAY],
+    ['pj-demo2', 'Fiche : la Révolution française', true], ['pj-demo2', 'Fiche : l\'Empire', true], ['pj-demo2', 'Fiche : la révolution industrielle', false, 'doing', today + DAY], ['pj-demo2', 'Quiz : dates clés', false, 'todo', today + 2 * DAY + 18 * 3600e3], ['pj-demo2', 'Examen blanc', false, 'todo', today + 7 * DAY],
+  ].map(([projectId, title, done, status = 'done', due = null], i) => ({ id: uid() + 'j' + i, demo: true, title, projectId, prospectId: projectId === 'pj-demo1' ? P['Salon Céleste'].id : null, done, doneAt: done ? now - (10 - i) * 3600e3 : null, status, due, kind: 'tache', list: null, prio: status === 'doing' ? 1 : 0, notes: '', sub: [], createdAt: now - 4 * DAY + i }));
+  // Trois devis : accepté (le client du projet), envoyé et à relancer, brouillon
+  const qt = (id, name, title, lines, status, sentDays, extra = {}) => ({ id, demo: true, num: `DEV-${new Date(now).getFullYear()}-0${id.slice(-2)}`, prospectId: P[name].id, client: name, contact: P[name].contact || '', email: '', adresse: P[name].ville || '', title, lines, remise: 0, tva: 21, acompte: 50, validite: 30, note: '', status, createdAt: now - (sentDays + 1) * DAY, updatedAt: now - sentDays * DAY, sentAt: status === 'brouillon' ? null : now - sentDays * DAY, decidedAt: status === 'accepte' ? now - (sentDays - 2) * DAY : null, ...extra });
+  const quotes = [
+    qt('qt-demo12', 'Maison Lemaire', 'Site vitrine et précommandes', [{ label: 'Site vitrine 5 pages', qty: 1, price: 990 }, { label: 'Module de précommande', qty: 1, price: 300 }], 'envoye', 4),
+    qt('qt-demo11', 'Salon Céleste', 'Site avec prise de rendez-vous', [{ label: 'Site vitrine', qty: 1, price: 990 }, { label: 'Réservation en ligne', qty: 1, price: 300 }], 'accepte', 7),
+    qt('qt-demo13', 'Atelier Pivoine', 'Fiche Google et avis', [{ label: 'Optimisation fiche Google', qty: 1, price: 290 }], 'brouillon', 0),
+  ].filter((x) => x.prospectId);
+  return { prospects, activities, tasks: [...tasks, ...own, ...ptasks], projects, pages, quotes };
 }
 
 export function clearDemo(s) {
@@ -101,4 +116,5 @@ export function clearDemo(s) {
   s.tasks = s.tasks.filter((x) => !x.demo);
   s.projects = s.projects.filter((x) => !x.demo);
   s.pages = s.pages.filter((x) => !x.demo);
+  s.quotes = (s.quotes || []).filter((x) => !x.demo);
 }

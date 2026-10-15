@@ -1,5 +1,5 @@
 // Tâches : saisie rapide en langage courant, listes, priorités, sous-tâches, tableau.
-import { S, update, on, uid, addTask, toggleTask, getProspect, startOfDay, startOfWeek, DAY, TONES } from '../store.js';
+import { S, update, on, uid, addTask, toggleTask, getProspect, getProject, startOfDay, startOfWeek, DAY, TONES } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, when, time, toLocalInput, fromLocalInput, enableDnD, clearDraft, cap } from '../ui.js';
 import { pageHead } from './common.js';
 
@@ -12,10 +12,17 @@ export const listOf = (id) => S().lists.find((l) => l.id === id);
 // « Appeler Marc demain 14h #travail ! » → titre, échéance, liste, priorité
 export function parseQuick(raw) {
   let t = ` ${raw || ''} `;
-  let day = null, hh = null, mm = 0, prio = 0, list = null, abs = null;
+  let day = null, hh = null, mm = 0, prio = 0, list = null, abs = null, project = null;
   const take = (re, fn) => { t = t.replace(re, (...m) => (fn(...m) === false ? m[0] : ' ')); };
   take(/\s(!{1,2})(?=\s)/, (m, x) => { prio = x.length; });
-  take(/\s#([\p{L}\d_-]+)(?=\s)/u, (m, x) => { const l = S().lists.find((y) => norm(y.name) === norm(x)); if (!l) return false; list = l.id; return true; });
+  // « #travail » vise une liste ; « #examenhistoire » vise un projet (nom sans espaces)
+  take(/\s#([\p{L}\d_-]+)(?=\s)/u, (m, x) => {
+    const l = S().lists.find((y) => norm(y.name) === norm(x));
+    if (l) { list = l.id; return true; }
+    const pr = S().projects.find((y) => y.status !== 'termine' && norm(y.name).replace(/[\s'’-]+/g, '') === norm(x).replace(/[-_]/g, ''));
+    if (!pr) return false;
+    project = pr.id; return true;
+  });
   take(/\s(?:pour\s|d'ici\s)?(après-demain|apres-demain)(?=\s)/i, () => { day = 2; });
   take(/\s(?:pour\s)?(aujourd['’]hui|auj\.?|ce soir)(?=\s)/i, (m, x) => { day = 0; if (/soir/i.test(x)) hh = 19; });
   take(/\s(?:pour\s)?demain(?=\s)/i, () => { day = 1; });
@@ -37,20 +44,25 @@ export function parseQuick(raw) {
     if (abs === null && day === null && due < Date.now()) due += DAY;
   }
   const title = t.replace(/\s+/g, ' ').trim().replace(/\s(à|pour|le|de|d'ici|avant)$/i, '');
-  return { title: title ? cap(title) : '', due, prio, list };
+  return { title: title ? cap(title) : '', due, prio, list, project };
 }
-const previewOf = (r) => [r.due ? when(r.due) : '', r.list ? listOf(r.list)?.name : '', r.prio ? PRIO[r.prio][1] : ''].filter(Boolean);
+const previewOf = (r) => [r.due ? when(r.due) : '', r.list ? listOf(r.list)?.name : '', r.project ? getProject(r.project)?.name : '', r.prio ? PRIO[r.prio][1] : ''].filter(Boolean);
+export const TSTATUS = [['todo', 'À faire'], ['doing', 'En cours'], ['done', 'Terminée']];
+export const PRIOS = PRIO;
 
-// ---------- Ligne de tâche (réutilisée : accueil, agenda, fiche) ----------
-export function taskRow(t, { showList = true } = {}) {
+// ---------- Ligne de tâche (réutilisée : accueil, agenda, fiche, projet) ----------
+export function taskRow(t, { showList = true, showProject = true } = {}) {
   const s = S();
   const p = t.prospectId && s.prospects.find((x) => x.id === t.prospectId);
   const late = !t.done && t.due && t.due < (new Date(t.due).getHours() || new Date(t.due).getMinutes() ? Date.now() : startOfDay());
   const l = showList && t.list && listOf(t.list);
+  const pr = showProject && t.projectId && getProject(t.projectId);
   const subs = t.sub?.length ? `${t.sub.filter((x) => x.done).length}/${t.sub.length}` : '';
   const meta = [
     late ? '<span class="is-late">En retard</span>' : '',
     t.due ? `<span class="${late ? 'is-late' : ''}">${when(t.due)}</span>` : '',
+    !t.done && t.status === 'doing' ? '<span class="st-doing">En cours</span>' : '',
+    pr ? `<span class="pj-chip k-${pr.tone}">${ic(pr.icon || 'folder')}${esc(pr.name)}</span>` : '',
     l ? `<span class="lst t-${l.tone}"><i class="dot"></i>${esc(l.name)}</span>` : '',
     subs ? `<span class="subs">${ic('tasks')}${subs}</span>` : '',
     p ? `<span>${esc(p.entreprise)}</span>` : '',
@@ -64,11 +76,11 @@ export function taskRow(t, { showList = true } = {}) {
 }
 
 // ---------- Saisie rapide ----------
-export function quickAdd({ list = '', due = '', placeholder = 'Ajouter une tâche… « Appeler Marc demain 14h »', cls = '' } = {}) {
+export function quickAdd({ list = '', due = '', project = '', placeholder = 'Ajouter une tâche… « Appeler Marc demain 14h »', cls = '' } = {}) {
   return `<form class="qadd ${cls}" data-form="quick-task" autocomplete="off">
     <span class="qadd-ic">${ic('plus')}</span>
     <input class="qadd-in" name="title" placeholder="${esc(placeholder)}" aria-label="Nouvelle tâche" data-act-input="qadd-preview" enterkeyhint="done" maxlength="200">
-    <input type="hidden" name="list" value="${esc(list)}"><input type="hidden" name="due" value="${esc(due)}">
+    <input type="hidden" name="list" value="${esc(list)}"><input type="hidden" name="due" value="${esc(due)}"><input type="hidden" name="project" value="${esc(project)}">
     <button class="qadd-go" type="submit" aria-label="Ajouter la tâche" disabled>${ic('arrowR')}</button>
     <p class="qadd-p" aria-live="polite"></p>
   </form>`;
@@ -85,12 +97,13 @@ export function tasksView(params, q) {
   const s = S();
   const v = q.v === 'board' ? 'board' : 'list';
   const lid = q.l && listOf(q.l) ? q.l : '';
+  const pid = q.p && getProject(q.p) ? q.p : '';
   const t0 = startOfDay();
-  const all = s.tasks.filter((t) => !lid || t.list === lid);
+  const all = s.tasks.filter((t) => (!lid || t.list === lid) && (!pid || t.projectId === pid));
   const open = all.filter((t) => !t.done).sort(sortTasks);
   const done = all.filter((t) => t.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
   const todayN = s.tasks.filter((t) => !t.done && t.due && t.due < t0 + DAY).length;
-  const href = (patch) => { const p = new URLSearchParams({ ...(v === 'board' ? { v } : {}), ...(lid ? { l: lid } : {}), ...patch }); for (const [k, x] of [...p]) if (!x) p.delete(k); const qs = p.toString(); return `#/taches${qs ? '?' + qs : ''}`; };
+  const href = (patch) => { const p = new URLSearchParams({ ...(v === 'board' ? { v } : {}), ...(lid ? { l: lid } : {}), ...(pid ? { p: pid } : {}), ...patch }); for (const [k, x] of [...p]) if (!x) p.delete(k); const qs = p.toString(); return `#/taches${qs ? '?' + qs : ''}`; };
   const counts = (id) => s.tasks.filter((t) => !t.done && t.list === id).length;
 
   const sections = [
@@ -127,18 +140,20 @@ export function tasksView(params, q) {
   const html = `
     ${pageHead('Tâches', { kicker: `${open.length} à faire${todayN ? ` · ${todayN} pour aujourd'hui` : ''}`, actions: `<button class="btn btn-primary fab-dup" data-act="task-new" ${lid ? `data-list="${lid}"` : ''}>${ic('plus')}<span>Tâche</span></button>` })}
     ${viewSeg(v)}
-    ${quickAdd({ list: lid })}
+    ${quickAdd({ list: lid, project: pid })}
     ${s.tasks.length || lid ? `<nav class="chips-row" aria-label="Listes">
       <a class="chip-btn ${!lid ? 'is-on' : ''}" href="${href({ l: '' })}">Toutes <b>${s.tasks.filter((t) => !t.done).length}</b></a>
       ${s.lists.map((x) => `<a class="chip-btn ${lid === x.id ? 'is-on' : ''}" href="${href({ l: x.id })}"><i class="dot t-${x.tone}"></i>${esc(x.name)} <b>${counts(x.id)}</b></a>`).join('')}
       <button class="chip-btn" data-act="list-new">${ic('plus')}Liste</button>
+      ${s.projects.length ? `<label class="chip-sel ${pid ? 'is-on' : ''}">${ic('folder')}<select aria-label="Filtrer par projet" data-act-change="tasks-project" data-base="${esc(href({ p: '' }))}"><option value="">Tous les projets</option>${s.projects.filter((x) => x.status !== 'termine' || x.id === pid).map((x) => `<option value="${x.id}" ${x.id === pid ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''}
     </nav>` : ''}
+    ${pid ? `<p class="list-tools"><a class="link" href="#/projet/${pid}">${ic('folder')}Ouvrir le projet « ${esc(getProject(pid).name)} »</a></p>` : ''}
     ${l ? `<p class="list-tools"><button class="link" data-act="list-edit" data-id="${l.id}">${ic('edit')}Renommer</button><button class="link danger" data-act="list-del" data-id="${l.id}">${ic('trash')}Supprimer la liste</button></p>` : ''}
     ${v === 'board' && (open.length || done.length) ? boardBody() : listBody()}`;
   return {
     title: 'Tâches', tab: 'taches', fab: 'task-new', html,
     after(root) {
-      if (q.new) setTimeout(() => taskSheet({ list: lid }), 60);
+      if (q.new) setTimeout(() => taskSheet({ list: lid, project: pid }), 60);
       if (v === 'board') return enableDnD(root.querySelector('.tboard'), { key: 'col', onDrop: moveTask, onLong: (id) => moveSheet(id) });
     },
   };
@@ -182,9 +197,11 @@ const chipDays = () => {
   const mon = t0 + (((8 - new Date().getDay()) % 7) || 7) * DAY;
   return [['Aujourd\'hui', t0 + 18 * 3600e3], ['Demain', t0 + DAY + 9 * 3600e3], ['Lundi', mon + 9 * 3600e3], ['Sans date', '']];
 };
-export function taskSheet({ pid = '', task = null, list = '', title = '' } = {}) {
+export function taskSheet({ pid = '', task = null, list = '', title = '', project = '' } = {}) {
   const s = S();
-  const t = task || { title: title || (pid ? `Rappeler ${getProspect(pid)?.entreprise || ''}` : ''), kind: pid ? 'appel' : 'tache', due: pid ? startOfDay() + DAY + 10 * 3600e3 : null, prospectId: pid, list: list || null, prio: 0, notes: '', sub: [] };
+  const t = task || { title: title || (pid ? `Rappeler ${getProspect(pid)?.entreprise || ''}` : ''), kind: pid ? 'appel' : 'tache', due: pid ? startOfDay() + DAY + 10 * 3600e3 : null, prospectId: pid || getProject(project)?.prospectId || '', projectId: project || null, list: list || null, prio: 0, status: 'todo', notes: '', sub: [] };
+  const st = t.done ? 'done' : t.status === 'doing' ? 'doing' : 'todo';
+  const projects = s.projects.filter((x) => x.status !== 'termine' || x.id === t.projectId);
   const crm = on('clients') || on('prospecter');
   const subRow = (x, i) => `<li class="sub-r"><input type="checkbox" name="sub.${i}.done" ${x.done ? 'checked' : ''} aria-label="Sous-tâche faite"><input class="inp" name="sub.${i}.x" value="${esc(x.x)}" placeholder="Sous-tâche" aria-label="Sous-tâche"><button type="button" class="icon-btn sm" data-act="sub-del" aria-label="Retirer la sous-tâche">${ic('x')}</button></li>`;
   sheet(`${sheetHead(task ? 'Modifier la tâche' : 'Nouvelle tâche')}
@@ -194,7 +211,8 @@ export function taskSheet({ pid = '', task = null, list = '', title = '' } = {})
         <div class="chips-wrap due-chips">${chipDays().map(([l, v]) => `<button type="button" class="chip-btn" data-act="due-chip" data-v="${v}">${l}</button>`).join('')}</div>
         <input class="inp" type="datetime-local" name="due" value="${t.due ? toLocalInput(t.due) : ''}" aria-label="Date et heure">
         <span class="field-h">Sans heure précise : laissez 00:00, aucune notification ne sera envoyée.</span></div>
-      <div class="form-2">${field('Liste', select('list', [['', 'Aucune'], ...s.lists.map((x) => [x.id, x.name])], t.list || ''))}${field('Priorité', select('prio', PRIO, String(t.prio || 0)))}</div>
+      <div class="form-2">${field('Projet', select('projectId', [['', 'Aucun projet'], ...projects.map((x) => [x.id, x.name])], t.projectId || ''), projects.length ? '' : '<button type="button" class="link" data-act="go-projects">Créer un projet</button>')}${field('Statut', select('status', TSTATUS, st))}</div>
+      <div class="form-2">${field('Priorité', select('prio', PRIO, String(t.prio || 0)))}${field('Liste', select('list', [['', 'Aucune'], ...s.lists.map((x) => [x.id, x.name])], t.list || ''))}</div>
       ${crm ? `<div class="form-2">${field('Type', select('kind', [['tache', 'Tâche'], ['appel', 'Appel'], ['relance', 'Relance'], ['rdv', 'Rendez-vous']], t.kind || 'tache'))}${field(`Fiche (${esc(s.crm.noun.toLowerCase())})`, select('prospectId', [['', 'Aucune'], ...s.prospects.map((x) => [x.id, x.entreprise])], t.prospectId || ''))}</div>` : ''}
       <div class="field"><span class="field-l">Sous-tâches</span><ul class="subs-l">${(t.sub || []).map(subRow).join('')}</ul><button type="button" class="link" data-act="sub-add">${ic('plus')}Ajouter une sous-tâche</button></div>
       ${field('Notes', `<textarea class="inp" name="notes" rows="3" placeholder="Détails, liens, numéro…">${esc(t.notes || '')}</textarea>`)}
@@ -220,7 +238,9 @@ register({
     const bits = previewOf(r);
     f.querySelector('.qadd-p').innerHTML = el.value.trim() && bits.length ? `${ic('calendar')}<span>${bits.map(esc).join(' · ')}</span>` : '';
   },
-  'task-new': (b) => taskSheet({ pid: b.dataset.pid || '', list: b.dataset.list || '' }),
+  'task-new': (b) => taskSheet({ pid: b?.dataset?.pid || '', list: b?.dataset?.list || '', project: b?.dataset?.project || (location.hash.match(/^#\/projet\/([\w-]+)/) || [])[1] || '' }),
+  'tasks-project': (el) => { const base = el.dataset.base; location.hash = el.value ? `${base}${base.includes('?') ? '&' : '?'}p=${el.value}` : base; },
+  'go-projects': () => { closeSheet(); location.hash = '#/projets'; },
   'task-open': (b, e) => { e?.preventDefault?.(); const t = S().tasks.find((x) => x.id === b.dataset.id); if (t) taskSheet({ task: t }); },
   'task-edit': (b) => taskSheet({ task: S().tasks.find((t) => t.id === b.dataset.id) }),
   'task-toggle': (b) => {
@@ -284,7 +304,8 @@ register({
     const r = parseQuick(d.title);
     if (!r.title) return;
     const due = r.due ?? (d.due ? +d.due : null);
-    addTask({ title: r.title, due, prio: r.prio, list: r.list || d.list || null });
+    const projectId = r.project || d.project || null;
+    addTask({ title: r.title, due, prio: r.prio, list: r.list || d.list || null, projectId, prospectId: getProject(projectId)?.prospectId || null });
     f.reset(); f.querySelector('.qadd-p').innerHTML = ''; f.querySelector('.qadd-go').disabled = true;
     if (f.closest('dialog')) closeSheet();
     toast(`« ${esc(r.title)} »${due ? ` · ${when(due)}` : ''}`, { title: 'Tâche ajoutée', ms: 1800 });
@@ -295,16 +316,21 @@ register({
     for (const k of Object.keys(data)) { const m = k.match(/^sub\.(\d+)\.x$/); if (m && data[k].trim()) sub.push({ id: 's' + m[1], x: data[k].trim(), done: data[`sub.${m[1]}.done`] === 'on' }); }
     const patch = {
       title: data.title.trim(), due: fromLocalInput(data.due), list: data.list || null, prio: Number(data.prio) || 0,
-      notes: (data.notes || '').trim(), sub, kind: data.kind || 'tache', prospectId: data.prospectId || null,
+      notes: (data.notes || '').trim(), sub, kind: data.kind || 'tache', projectId: data.projectId || null,
+      status: ['todo', 'doing', 'done'].includes(data.status) ? data.status : 'todo',
     };
+    patch.prospectId = ('prospectId' in data ? data.prospectId : f.dataset.id && S().tasks.find((x) => x.id === f.dataset.id)?.prospectId) || getProject(patch.projectId)?.prospectId || null;
     if (!patch.title) return;
     if (f.dataset.id) {
       update((s) => {
         const t = s.tasks.find((x) => x.id === f.dataset.id);
+        if (patch.status === 'done' && !t.done) patch.doneAt = Date.now();
+        patch.done = patch.status === 'done';
+        if (!patch.done) patch.doneAt = null;
         Object.assign(t, patch);
         s.prospects.forEach((p) => { if (p.next?.taskId === t.id) p.next = { ...p.next, label: t.title, due: t.due }; });
       });
-    } else addTask(patch);
+    } else addTask({ ...patch, done: patch.status === 'done', doneAt: patch.status === 'done' ? Date.now() : null });
     clearDraft(f.dataset.draft);
     closeSheet(); toast(f.dataset.id ? 'Tâche enregistrée' : `« ${esc(patch.title)} »${patch.due ? ` · ${when(patch.due)}` : ''}`, { title: f.dataset.id ? '' : 'Tâche ajoutée' });
   },

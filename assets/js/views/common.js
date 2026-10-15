@@ -4,16 +4,16 @@ import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
 import { flower } from './flowers.js';
 
 // Positionnement : une phrase, un public, trois bénéfices, un exemple. Repris partout.
-export const PROMISE = 'Vos tâches, vos notes et vos clients, au même endroit.';
-export const PITCH = 'L\'application d\'organisation des indépendants : votre journée sur un écran, un CRM qui parle votre métier, des notes en pages, et des quiz pour progresser.';
-export const AUDIENCE = 'Pour les indépendants et les petites équipes : freelances, commerçants, artisans, consultants, agences.';
+export const PROMISE = 'Vos tâches, vos projets, vos notes et vos clients, au même endroit.';
+export const PITCH = 'L\'application d\'organisation pour tout le monde : réviser un examen, mener un projet de code, gérer son travail, son budget ou ses clients. Des tâches reliées à des projets qui avancent tout seuls, des notes en pages, des quiz, et un CRM qui parle votre métier.';
+export const AUDIENCE = 'Pour les étudiants qui révisent, les salariés, les développeurs, les indépendants, les commerçants et les petites équipes.';
 export const BENEFITS = [
-  ['checkSquare', 'blue', 'Une journée claire', 'Les tâches du jour, les rendez-vous et les relances sur un seul écran. On écrit « Rappeler Marc demain 14h », la date se règle toute seule.'],
-  ['users', 'olive', 'Des clients bien suivis', 'Un CRM qui s\'adapte à votre métier : vos étapes, vos champs, votre équipe, et une relance datée pour chaque fiche.'],
-  ['page', 'navy', 'Tout ce que vous savez, rangé', 'Des pages et sous-pages comme dans un carnet, des modèles, et des quiz pour retenir l\'essentiel.'],
+  ['checkSquare', 'blue', 'Une journée claire', 'Les tâches du jour, les rendez-vous et les échéances sur un seul écran. On écrit « Réviser le chapitre 3 demain 18h », la date se règle toute seule.'],
+  ['folder', 'olive', 'Des projets qui avancent', 'Un examen, une application, un client, un déménagement : chaque projet regroupe ses tâches, et sa progression se calcule toute seule.'],
+  ['page', 'navy', 'Tout ce que vous savez, rangé', 'Des pages et sous-pages comme dans un carnet, des modèles (cours, budget, réunion), et des quiz pour retenir l\'essentiel.'],
 ];
-export const EXAMPLE = 'Un matin type : vous ouvrez l\'application, vous voyez vos trois tâches du jour et le client à relancer, vous ouvrez le compte rendu de votre dernier rendez-vous, et vous cochez au fil de la journée.';
-export const WHY_ONE = 'Une tâche peut pointer vers un client, une page de notes vers sa fiche, et le résultat d\'un appel crée la relance tout seul : rien à recopier d\'un outil à l\'autre.';
+export const EXAMPLE = 'Un matin type : vous ouvrez l\'application, vous voyez vos trois tâches du jour, votre projet à 60 %, et la notification du devis à relancer. Vous cochez au fil de la journée.';
+export const WHY_ONE = 'Une tâche appartient à un projet, une page de notes à une fiche, et un devis accepté transforme le prospect en client : rien à recopier d\'un outil à l\'autre.';
 
 export function pageHead(title, { kicker = '', actions = '', back = '' } = {}) {
   return `<header class="ph">
@@ -29,12 +29,12 @@ const FEATURE_TEXT = {
   myQuiz: ['Vos propres quiz avec Pro', 'Créez des quiz sur votre métier, vos tarifs ou vos procédures, pour vous entraîner ou former votre équipe.'],
   scriptsAll: ['Tous les formats sont inclus dans Pro', 'Répondeur, visite, e-mail, SMS, Instagram, relances, rendez-vous, objections et signature — pour chaque secteur.'],
   callMode: ['Le mode appel est inclus dans Pro', 'Le script s\'affiche étape par étape pendant l\'appel, et le résultat s\'enregistre dans la fiche en un geste.'],
-  projects: ['Le suivi de projets est inclus dans Pro', 'Chaque client signé devient un projet, avec ses étapes et son délai.'],
+  projectsUnlimited: ['Projets illimités avec Pro', 'La version gratuite suit 3 projets en cours. Avec Pro, suivez autant de projets que vous voulez, chacun avec ses tâches et sa progression.'],
   academy: ['L\'Académie complète est incluse dans Pro', 'Tous les guides pratiques : organisation, rendez-vous, voix, prix, relances, horaires par secteur…'],
   messages: ['Le générateur de messages est inclus dans Pro', 'Des e-mails et SMS prêts à envoyer, remplis avec la fiche.'],
   audit: ['L\'audit express est inclus dans Pro', 'Une note sur 10 de la présence en ligne d\'une entreprise, et les points à aborder.'],
   import: ['L\'import est inclus dans Pro', 'Collez une liste depuis un tableur : elle devient des fiches prêtes à suivre.'],
-  quote: ['Les devis sont inclus dans Premium', 'Un devis propre, calculé et imprimable en PDF en deux minutes.'],
+  quote: ['Les devis sont inclus dans Pro', 'Un devis par client, calculé et imprimable en PDF, suivi de brouillon à accepté. Un devis accepté fait passer la fiche en client.'],
   myScripts: ['Les scripts sur mesure sont inclus dans Premium', 'Écrivez vos propres scripts et créez vos secteurs : l\'application génère tous les formats.'],
   training: ['L\'entraînement est inclus dans Premium', 'Des objections tirées au hasard pour répondre du tac au tac.'],
   stats: ['Les statistiques sont incluses dans Premium', 'Vos vrais taux, étape par étape, et vos objectifs du mois.'],

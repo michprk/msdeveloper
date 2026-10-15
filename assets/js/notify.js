@@ -43,7 +43,7 @@ function check() {
   const now = Date.now();
   const sent = s.notified || {};
   const timed = (t) => { const d = new Date(t.due); return d.getHours() || d.getMinutes(); };
-  const due = s.prefs.notifs === false ? [] : s.tasks.filter((t) => !t.done && t.due && timed(t) && !sent[t.id] && t.due - now <= 10 * 60e3 && now - t.due < 60 * 60e3);
+  const due = s.prefs.notifs === false || s.prefs.notifCats?.rappels === false ? [] : s.tasks.filter((t) => !t.done && t.due && timed(t) && !sent[t.id] && t.due - now <= 10 * 60e3 && now - t.due < 60 * 60e3);
   if (due.length) {
     update((st) => { st.notified = { ...(st.notified || {}) }; due.forEach((t) => { st.notified[t.id] = now; }); }, { silent: true });
     due.slice(0, 3).forEach((t) => {
