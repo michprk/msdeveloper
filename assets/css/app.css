@@ -2594,3 +2594,89 @@ body[data-mode="full"] .fab, body.is-locked .fab { display: none !important; }
 .cal-demo div { display: grid; gap: 4px; align-content: start; }
 .cal-demo em { font-style: normal; font-size: 11.5px; color: var(--muted); text-align: center; }
 .cal-demo span { padding: 6px; border-radius: 7px; background: var(--k-bg); border-left: 3px solid var(--k); font-size: 11.5px; font-weight: 600; }
+
+/* ========== v1.6 : moteur de dessin et tableau blanc ========== */
+.dw-svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; }
+.dw-svg[data-tool="select"] { cursor: default; }
+.dw-svg[data-tool="hand"] { cursor: grab; }
+.dw-svg[data-tool="pen"], .dw-svg[data-tool="highlighter"], .dw-svg[data-tool="underline"], .dw-svg[data-tool="line"], .dw-svg[data-tool="arrow"], .dw-svg[data-tool="rect"], .dw-svg[data-tool="ellipse"], .dw-svg[data-tool="chart"], .dw-svg[data-tool="timeline"], .dw-svg[data-tool="sticky"], .dw-svg[data-tool="bubble"] { cursor: crosshair; }
+.dw-svg[data-tool="text"] { cursor: text; }
+.dw-svg[data-tool="eraser"] { cursor: cell; }
+.dw-svg[data-tool="check"], .dw-svg[data-tool="stamp"] { cursor: copy; }
+.dw-i { cursor: inherit; }
+.dw-svg[data-tool="select"] .dw-i { cursor: move; }
+.dw-t { width: 100%; line-height: 1.35; white-space: normal; word-wrap: break-word; overflow-wrap: anywhere; box-sizing: border-box; }
+.dw-box { fill: none; stroke: var(--blue); pointer-events: none; }
+.dw-h { fill: #ffffff; stroke: var(--blue); cursor: nwse-resize; }
+.dw-h[data-h="ne"], .dw-h[data-h="sw"] { cursor: nesw-resize; }
+.dw-h[data-h="p1"], .dw-h[data-h="p2"] { cursor: move; }
+.dw-marq { fill: rgba(21, 94, 239, .08); stroke: var(--blue); pointer-events: none; }
+.dw-edit { position: absolute; z-index: 20; resize: none; border: 2px solid var(--blue); border-radius: 8px; background: rgba(255, 253, 248, .96); padding: 2px 4px; line-height: 1.35; outline: none; box-shadow: 0 6px 22px -10px rgba(15, 30, 61, .5); overflow: hidden; }
+/* Barres d'outils */
+.dw-tools { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+.dw-tool { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: var(--ink-2); transition: background .15s, color .15s, transform .12s; flex: none; }
+.dw-tool .ic { width: 21px; height: 21px; }
+.dw-tool:hover { background: var(--bg-2); color: var(--ink); }
+.dw-tool.is-on { background: var(--navy); color: var(--on-navy); }
+.dw-tool:disabled { opacity: .35; pointer-events: none; }
+.dw-sep { display: block; width: 24px; height: 1px; background: var(--line-2); margin: 3px 0; flex: none; }
+.dw-props { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-height: 52px; padding: 6px 10px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.dw-props::-webkit-scrollbar { display: none; }
+.dw-props .dw-sep { width: 1px; height: 24px; margin: 0 2px; }
+.dw-sw { display: flex; gap: 4px; flex: none; }
+.dw-c { width: 24px; height: 24px; border-radius: 50%; background: var(--c); border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--line-2); flex: none; transition: transform .12s; }
+.dw-c:hover { transform: scale(1.12); }
+.dw-c.is-on { box-shadow: 0 0 0 2px var(--blue); }
+.dw-c.is-none { background: linear-gradient(135deg, transparent 45%, var(--rose) 45%, var(--rose) 55%, transparent 55%), var(--card); }
+.dw-lbl { font-size: 12px; color: var(--muted); flex: none; }
+.dw-f { display: inline-flex; align-items: center; gap: 4px; flex: none; color: var(--muted); }
+.dw-f .ic { width: 16px; height: 16px; }
+.dw-f select { height: 32px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); font: inherit; font-size: 13px; padding: 0 6px; }
+.dw-tog { min-width: 32px; height: 32px; padding: 0 6px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); font-size: 16px; flex: none; }
+.dw-tog .ic { width: 17px; height: 17px; }
+.dw-tog:hover { background: var(--bg-2); }
+.dw-tog.is-on { background: var(--navy); color: var(--on-navy); }
+.dw-tog.is-danger { color: var(--rose); }
+.dw-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 9px; background: var(--sky-2); color: var(--sky-ink); font-weight: 600; font-size: 13px; flex: none; }
+.dw-btn .ic { width: 15px; height: 15px; }
+.dw-hint { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.dw-zoom { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); z-index: 5; }
+.dw-zoom button { min-width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 12.5px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.dw-zoom button:hover { background: var(--bg-2); }
+.dw-zoom .ic { width: 16px; height: 16px; }
+.dw-zv { min-width: 58px !important; }
+/* Tableau blanc : liste */
+.bd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+.bd-grid .card + .card { margin-top: 0; }
+.bd-card { display: grid; gap: 10px; padding: 10px; transition: transform .2s var(--ease), border-color .2s; }
+.bd-card:hover { transform: translateY(-1px); border-color: var(--line-2); }
+.bd-th { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 10px; background: #fffdf8 radial-gradient(#e3ddd1 1px, transparent 1.2px) 0 0 / 16px 16px; border: 1px solid var(--line); }
+.bd-th.is-empty { display: grid; place-items: center; color: var(--muted); }
+.bd-b { display: grid; padding: 0 4px 4px; }
+.bd-b b { font-weight: 600; }
+.bd-b span { font-size: 13px; color: var(--muted); }
+.bd-demo { display: block; width: 100%; height: auto; background: #fffdf8; border-radius: 10px; }
+/* Tableau blanc : éditeur */
+body[data-mode="board"] .main { max-width: none; padding: 0; height: 100dvh; }
+body[data-mode="board"] .tabbar, body[data-mode="board"] .fab { display: none !important; }
+.bd-ed { display: grid; grid-template-rows: auto auto minmax(0, 1fr); height: 100dvh; gap: 8px; padding: calc(var(--safe-t) + 8px) 10px calc(var(--safe-b) + 10px); background: var(--bg); }
+.bd-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.bd-title { flex: 1; min-width: 0; border: 0; background: transparent; font: 500 22px/1.2 var(--display); color: var(--ink); padding: 6px 4px; border-radius: 8px; }
+.bd-title:focus { outline: none; background: var(--card); }
+.bd-saved { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 600px) { .bd-saved { display: none; } .bd-title { font-size: 18px; } }
+.bd-sel select { height: 38px; border-radius: 11px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); font: inherit; font-size: 13.5px; padding: 0 8px; }
+.bd-body { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; min-height: 0; }
+.bd-tools { overflow-y: auto; scrollbar-width: none; max-height: 100%; }
+.bd-tools::-webkit-scrollbar { display: none; }
+.bd-stage { position: relative; min-height: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #fffdf8; box-shadow: var(--shadow); }
+@media (max-width: 700px) {
+  .bd-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .bd-tools { flex-direction: row; overflow-x: auto; overflow-y: hidden; order: 2; padding: 6px; }
+  .bd-tools .dw-sep { width: 1px; height: 24px; margin: 0 3px; }
+}
+@media (min-width: 960px) { .bd-ed { padding: 16px 20px 18px; } }
+/* Données d'un graphique */
+.dt-list { display: grid; gap: 8px; }
+.dt-row { display: grid; grid-template-columns: 1fr 120px 32px; gap: 6px; align-items: center; }
+@media (max-height: 900px) and (min-width: 701px) { .dw-tool { width: 36px; height: 36px; } .dw-tool .ic { width: 19px; height: 19px; } .dw-tools { gap: 2px; padding: 6px 5px; } }

@@ -13,6 +13,7 @@ import { notificationsView, unreadCount } from './views/notifications.js';
 import { connectorsView } from './views/connect.js';
 import { privacyView } from './views/privacy.js';
 import { studiesView, timetableView, examsView, gradesView, revisionView, focusView } from './views/studies.js';
+import { boardsView, boardView } from './views/boards.js';
 import { tasksView } from './views/tasks.js';
 import { notesHome, noteView } from './views/notes.js';
 import { quizHome, quizPlay, quizCards, quizEdit } from './views/quiz.js';
@@ -59,6 +60,8 @@ const ROUTES = [
   [/^etudes\/moyennes$/, gradesView],
   [/^etudes\/revision$/, revisionView],
   [/^concentration$/, focusView],
+  [/^tableaux$/, boardsView],
+  [/^tableau\/([\w-]+)$/, boardView],
   [/^outils$/, hub],
   [/^outils\/devis$/, quotesView],
   [/^outils\/messages$/, messages],
@@ -186,7 +189,7 @@ function render({ keepScroll = false } = {}) {
   cleanup?.(); cleanup = null;
   const changed = location.hash !== lastHash;
   const y = window.scrollY;
-  document.body.dataset.mode = v.full ? 'full' : '';
+  document.body.dataset.mode = v.full === 'board' ? 'board' : v.full ? 'full' : '';
   document.body.dataset.fab = v.fab ? '1' : '';
   const fab = root.querySelector('.fab');
   fab.dataset.act = typeof v.fab === 'string' ? v.fab : 'create';
@@ -212,7 +215,8 @@ function render({ keepScroll = false } = {}) {
 }
 
 // Pendant la frappe dans une page de notes, on ne redessine pas l'écran (le curseur resterait perdu).
-const editing = () => !!document.activeElement?.closest?.('.note');
+// … et pendant qu'on dessine sur un tableau blanc ou qu'on écrit dans un texte du dessin.
+const editing = () => !!document.activeElement?.closest?.('.note, .bd-ed') || !!document.querySelector('.dw-edit');
 let queued = false;
 const rerender = () => { if (queued) return; queued = true; queueMicrotask(() => { queued = false; if (editing()) { drawNav(); return; } render({ keepScroll: true }); }); };
 setCallRerender(rerender);
