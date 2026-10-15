@@ -2680,3 +2680,59 @@ body[data-mode="board"] .tabbar, body[data-mode="board"] .fab { display: none !i
 .dt-list { display: grid; gap: 8px; }
 .dt-row { display: grid; grid-template-columns: 1fr 120px 32px; gap: 6px; align-items: center; }
 @media (max-height: 900px) and (min-width: 701px) { .dw-tool { width: 36px; height: 36px; } .dw-tool .ic { width: 19px; height: 19px; } .dw-tools { gap: 2px; padding: 6px 5px; } }
+
+/* ========== v1.6 : éditeur de notes mis en forme + calque de dessin ========== */
+div.blk-in { min-height: 1.6em; white-space: pre-wrap; word-break: break-word; cursor: text; }
+div.blk-in:empty::before { content: attr(data-ph); color: transparent; pointer-events: none; }
+div.blk-in:focus:empty::before, .blk:only-child div.blk-in:empty::before { color: color-mix(in srgb, var(--muted) 70%, transparent); }
+.blk-todo.is-done div.blk-in:not(:empty) { text-decoration: line-through; color: var(--muted); }
+div.blk-in b { font-weight: 700; }
+div.blk-in mark { padding: 0 2px; border-radius: 3px; }
+/* Cadres et alignement par bloc */
+.blk.fr > div.blk-in, .blk.fr > .qa-w { border: 2px solid var(--frc); border-radius: 12px; padding: 10px 14px; margin: 6px 0; }
+.blk.fr-ink { --frc: var(--ink); } .blk.fr-blue { --frc: var(--blue); } .blk.fr-olive { --frc: var(--olive-2); } .blk.fr-red { --frc: #d92d20; } .blk.fr-sand { --frc: var(--sand); }
+.blk.fr-fill > div.blk-in { border-color: transparent; background: var(--sky-3); }
+.blk.al-center div.blk-in { text-align: center; } .blk.al-right div.blk-in { text-align: right; }
+/* Barre de mise en forme */
+.nt-bar { position: sticky; top: calc(var(--safe-t) + 6px); z-index: 25; display: flex; align-items: center; gap: 8px; max-width: 820px; margin: 0 auto 14px; padding: 6px 8px; background: color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.nt-fmt { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.nt-fmt::-webkit-scrollbar { display: none; }
+.nt-s { position: relative; flex: none; }
+.nt-s select { height: 34px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); font: inherit; font-size: 13px; padding: 0 6px; max-width: 120px; }
+.nt-s .nt-lock { position: absolute; right: -4px; top: -4px; }
+.nt-sep { width: 1px; height: 22px; background: var(--line-2); margin: 0 2px; flex: none; }
+.nt-b { position: relative; width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); flex: none; }
+.nt-b:hover { background: var(--bg-2); color: var(--ink); }
+.nt-b .ic { width: 18px; height: 18px; }
+.nt-a { font: 700 16px/1 var(--display); border-bottom: 3px solid #d92d20; padding: 0 2px 1px; }
+.nt-red .ic { color: #d92d20; }
+.nt-lock { position: absolute; right: 1px; top: 1px; width: 13px; height: 13px; border-radius: 50%; background: var(--sand-3); color: var(--sand); display: grid; place-items: center; }
+.nt-lock .ic { width: 8px; height: 8px; stroke-width: 3; }
+.nt-pw { position: relative; flex: none; }
+.nt-pop { position: fixed; z-index: 60; display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; width: 196px; margin-top: 6px; background: var(--card); border: 1px solid var(--line-2); border-radius: 14px; box-shadow: var(--shadow-lg); }
+.nt-sw { width: 28px; height: 28px; border-radius: 50%; background: var(--c); border: 2px solid var(--card); box-shadow: 0 0 0 1px var(--line-2); }
+.nt-sw.is-none { background: linear-gradient(135deg, transparent 45%, var(--rose) 45%, var(--rose) 55%, transparent 55%), var(--card); }
+.nt-frames { width: 210px; display: grid; gap: 4px; }
+.nt-fr { text-align: left; padding: 8px 10px; border-radius: 9px; font-size: 13.5px; border: 2px solid transparent; }
+.nt-fr:hover { background: var(--bg-2); }
+.nt-fr.fr-ink { border-color: var(--ink); } .nt-fr.fr-blue { border-color: var(--blue); } .nt-fr.fr-olive { border-color: var(--olive-2); } .nt-fr.fr-red { border-color: #d92d20; } .nt-fr.fr-sand { border-color: var(--sand); } .nt-fr.fr-fill { background: var(--sky-3); }
+.nt-drawbtn { flex: none; background: var(--navy); color: var(--on-navy); position: relative; }
+.nt-drawbtn:hover { background: var(--navy-2); }
+.nt-drawbtn .nt-lock { right: -4px; top: -4px; }
+@media (max-width: 640px) { .nt-drawbtn span { display: none; } .nt-drawbtn { width: 38px; padding: 0; justify-content: center; } }
+/* Calque de dessin */
+.nt-ink { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.nt-ink .dw-svg { pointer-events: none; }
+.nt-ink .dw-svg .dw-i { pointer-events: none; }
+.note.is-drawing .nt-ink { pointer-events: auto; }
+.note.is-drawing .nt-ink .dw-svg, .note.is-drawing .nt-ink .dw-i { pointer-events: auto; }
+.note.is-drawing { outline: 2px dashed color-mix(in srgb, var(--blue) 45%, transparent); outline-offset: 10px; border-radius: 6px; }
+.nt-draw { position: sticky; top: calc(var(--safe-t) + 6px); z-index: 25; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; max-width: 820px; margin: 0 auto 14px; }
+.nt-draw[hidden] { display: none; }
+.nt-dtools { flex-direction: row; overflow-x: auto; scrollbar-width: none; padding: 5px; grid-column: 1 / -1; }
+.nt-dtools::-webkit-scrollbar { display: none; }
+.nt-dtools .dw-sep { width: 1px; height: 24px; margin: 0 3px; }
+.nt-dprops { min-height: 46px; }
+.nt-done { height: 46px; }
+@media (min-width: 900px) { .nt-bar { max-width: 900px; } .nt-fmt { flex-wrap: wrap; overflow: visible; row-gap: 4px; } }
+.nt-s select { max-width: 112px; }

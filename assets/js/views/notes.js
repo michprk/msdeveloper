@@ -5,6 +5,9 @@
 import { S, update, on, can, addPage, getPage, getProspect, getProject, pageFamily, canAddPage, bid, addTask, LIMITS } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, ago, dateLong, copyText, download, select } from '../ui.js';
 import { pageHead, paywall } from './common.js';
+import { clean, plain, hasFormat, caretOffset, caretAtEnd, setCaret, splitAtCaret, wrapSelection } from '../rich.js';
+import { mountCanvas, FONTS } from '../draw.js';
+import { dataSheet } from './boards.js';
 import { TEMPLATES, template } from '../data/templates.js';
 
 export const BLOCKS = [
@@ -91,20 +94,54 @@ export function notesHome(params, q) {
 }
 
 // ---------- Éditeur ----------
+// Chaque bloc est un champ de texte mis en forme (gras, italique, souligné, barré, couleurs,
+// surligneur, souligné rouge, police, taille), avec cadre et alignement par bloc. Par-dessus la
+// page, un calque de dessin : stylo, surligneur, formes, flèches, bulles, coches, post-it.
+const TC = [['#131a2a', 'Encre'], ['#155eef', 'Bleu'], ['#d92d20', 'Rouge'], ['#2f9e44', 'Vert'], ['#616b33', 'Olive'], ['#f08c00', 'Orange'], ['#7048e8', 'Violet'], ['#8f6420', 'Brun'], ['#676d7e', 'Gris']];
+const HC = [['#ffe066', 'Jaune'], ['#b2f2bb', 'Vert'], ['#a5d8ff', 'Bleu'], ['#ffc9c9', 'Rose'], ['#d0bfff', 'Violet'], ['transparent', 'Sans surlignage']];
+const FRAMES = [['', 'Sans cadre'], ['ink', 'Cadre encre'], ['blue', 'Cadre bleu'], ['olive', 'Cadre olive'], ['red', 'Cadre rouge'], ['sand', 'Cadre sable'], ['fill', 'Fond bleu clair']];
+const htmlText = (html) => { const t = document.createElement('template'); t.innerHTML = String(html || '').replace(/<br\s*\/?>/gi, '\n'); return t.content.textContent; };
+const blockInner = (b, k) => { const hk = k === 'a' ? 'ha' : 'h'; return b[hk] ? clean(b[hk]) : esc(b[k] || '').replace(/\n/g, '<br>'); };
 function blockHtml(b, n) {
-  const tb = (cls = '', k = 'x', ph = PH[b.t] || '') => `<textarea class="blk-in ${cls}" rows="1" data-k="${k}" placeholder="${esc(ph)}" spellcheck="true" aria-label="${esc(BL[b.t]?.[1] || 'Texte')}">${esc(b[k] || '')}</textarea>`;
+  const ce = (cls, k, ph) => `<div class="blk-in ${cls}" contenteditable="true" data-k="${k}" data-ph="${esc(ph)}" spellcheck="true" role="textbox" aria-multiline="true" aria-label="${esc(BL[b.t]?.[1] || 'Texte')}">${blockInner(b, k)}</div>`;
   const lead = b.t === 'todo' ? `<button class="tick blk-ck ${b.c ? 'is-done' : ''}" data-act="blk-check" aria-pressed="${!!b.c}" aria-label="Cocher"></button>`
     : b.t === 'ul' ? '<span class="blk-bul" aria-hidden="true"></span>'
       : b.t === 'ol' ? `<span class="blk-num" aria-hidden="true">${n}.</span>`
         : b.t === 'callout' ? `<span class="blk-cic">${ic('callout')}</span>` : '';
   const body = b.t === 'divider' ? '<hr class="blk-hr">'
-    : b.t === 'qa' ? `<div class="qa-w"><span class="qa-k">Question</span>${tb('qa-q', 'x', 'La question')}<span class="qa-k">Réponse</span>${tb('qa-a', 'a', 'La réponse')}</div>`
-      : tb();
-  return `<div class="blk blk-${b.t} ${b.c ? 'is-done' : ''}" data-bid="${b.id}"><button class="blk-h" data-act="blk-menu" aria-label="Options du bloc" tabindex="-1">${ic('drag')}</button>${lead}${body}</div>`;
+    : b.t === 'qa' ? `<div class="qa-w"><span class="qa-k">Question</span>${ce('qa-q', 'x', 'La question')}<span class="qa-k">Réponse</span>${ce('qa-a', 'a', 'La réponse')}</div>`
+      : ce('', 'x', PH[b.t] || '');
+  const st = b.st || {};
+  return `<div class="blk blk-${b.t} ${b.c ? 'is-done' : ''} ${st.fr ? `fr fr-${st.fr}` : ''} ${st.al ? `al-${st.al}` : ''}" data-bid="${b.id}"><button class="blk-h" data-act="blk-menu" aria-label="Options du bloc" tabindex="-1">${ic('drag')}</button>${lead}${body}</div>`;
 }
 function blocksHtml(p) {
   let n = 0;
   return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return blockHtml(b, n); }).join('');
+}
+const swatchPop = (cmd, list) => `<div class="nt-pop" data-pop="${cmd}" hidden>${list.map(([c, l]) => `<button type="button" class="nt-sw ${c === 'transparent' ? 'is-none' : ''}" data-fmt="${cmd}" data-v="${c}" title="${l}" aria-label="${l}" style="--c:${c}"></button>`).join('')}</div>`;
+const lockIc = () => (can('notesDraw') ? '' : `<i class="nt-lock">${ic('lock')}</i>`);
+function formatBar() {
+  return `<div class="nt-bar" role="toolbar" aria-label="Mise en forme">
+    <div class="nt-fmt">
+      <label class="nt-s"><select data-fmt="block" aria-label="Type de bloc"><option value="">Bloc</option>${BLOCKS.filter(([t]) => t !== 'divider').map(([t, l]) => `<option value="${t}">${l}</option>`).join('')}</select></label>
+      <label class="nt-s">${lockIc()}<select data-fmt="font" aria-label="Police"><option value="">Police</option>${Object.values(FONTS).map(([l, f]) => `<option value="${esc(f)}">${l}</option>`).join('')}</select></label>
+      <label class="nt-s">${lockIc()}<select data-fmt="size" aria-label="Taille"><option value="">Taille</option>${[['2', 'Petit'], ['3', 'Normal'], ['5', 'Grand'], ['6', 'Très grand']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
+      <i class="nt-sep"></i>
+      <button type="button" class="nt-b" data-fmt="b" title="Gras (Ctrl B)" aria-label="Gras">${ic('bold')}</button>
+      <button type="button" class="nt-b" data-fmt="i" title="Italique (Ctrl I)" aria-label="Italique">${ic('italic')}</button>
+      <button type="button" class="nt-b" data-fmt="u" title="Souligné (Ctrl U)" aria-label="Souligné">${ic('underline')}</button>
+      <button type="button" class="nt-b" data-fmt="s" title="Barré" aria-label="Barré">${ic('strike')}</button>
+      <i class="nt-sep"></i>
+      <span class="nt-pw"><button type="button" class="nt-b" data-fmt="pop" data-v="color" title="Couleur du texte" aria-label="Couleur du texte"><span class="nt-a">A</span>${lockIc()}</button>${swatchPop('color', TC)}</span>
+      <span class="nt-pw"><button type="button" class="nt-b" data-fmt="pop" data-v="hl" title="Surligner" aria-label="Surligner">${ic('highlighter')}${lockIc()}</button>${swatchPop('hl', HC)}</span>
+      <button type="button" class="nt-b nt-red" data-fmt="red" title="Souligner en rouge" aria-label="Souligner en rouge">${ic('underline')}${lockIc()}</button>
+      <span class="nt-pw"><button type="button" class="nt-b" data-fmt="pop" data-v="frame" title="Encadrer le bloc" aria-label="Encadrer le bloc">${ic('frame')}${lockIc()}</button><div class="nt-pop nt-frames" data-pop="frame" hidden>${FRAMES.map(([v, l]) => `<button type="button" class="nt-fr fr-${v || 'none'}" data-fmt="frame" data-v="${v}">${l}</button>`).join('')}</div></span>
+      <button type="button" class="nt-b" data-fmt="align" title="Alignement du bloc" aria-label="Alignement">${ic('align')}</button>
+      <button type="button" class="nt-b" data-fmt="clear" title="Effacer la mise en forme" aria-label="Effacer la mise en forme">${ic('x')}</button>
+    </div>
+    <button type="button" class="btn btn-sm nt-drawbtn" data-fmt="draw" aria-pressed="false">${ic('pen')}<span>Dessiner sur la page</span>${lockIc()}</button>
+  </div>
+  <div class="nt-draw" hidden><div class="dw-tools nt-dtools" role="toolbar" aria-label="Outils de dessin"></div><div class="dw-props nt-dprops" role="toolbar" aria-label="Réglages du dessin"></div><button type="button" class="btn btn-primary btn-sm nt-done" data-fmt="draw">${ic('check')}<span>Terminé</span></button></div>`;
 }
 
 export function noteView([id]) {
@@ -123,11 +160,13 @@ export function noteView([id]) {
         <button class="icon-btn" data-act="page-menu" data-id="${p.id}" aria-label="Options de la page">${ic('more')}</button>
       </div>
     </div>
+    ${formatBar()}
     <article class="note" data-pid="${p.id}">
+      <div class="nt-ink" aria-hidden="${(p.ink || []).length ? 'false' : 'true'}"></div>
       ${crumbs.length ? `<p class="note-crumbs">${crumbs.map((c) => `<a href="#/note/${c.id}">${esc(c.title || 'Sans titre')}</a>`).join('<span>/</span>')}</p>` : ''}
       <button class="note-icon" data-act="page-icon" data-id="${p.id}" aria-label="Changer l'icône">${ic(p.icon || 'page')}</button>
       <textarea class="note-title" rows="1" placeholder="Sans titre" aria-label="Titre de la page" maxlength="140">${esc(p.title)}</textarea>
-      <p class="note-meta"><span class="note-saved">Enregistrée</span> · modifiée ${ago(p.updatedAt)} · <span class="note-words">${words(p)} mot${words(p) > 1 ? 's' : ''}</span>${pr ? ` · <a href="#/fiche/${pr.id}">${ic('user')}${esc(pr.entreprise)}</a>` : ''}</p>
+      <p class="note-meta"><span class="note-saved">Enregistrée</span> · modifiée ${ago(p.updatedAt)} · <span class="note-words">${words(p)} mot${words(p) > 1 ? 's' : ''}</span>${pr ? ` · <a href="#/fiche/${pr.id}">${ic('user')}${esc(pr.entreprise)}</a>` : ''}${(p.ink || []).length ? ` · ${ic('pen')} ${(p.ink || []).length} annotation${(p.ink || []).length > 1 ? 's' : ''}` : ''}</p>
       <div class="blocks" role="list">${blocksHtml(p)}</div>
       <button class="add-blk" data-act="blk-add-end">${ic('plus')}<span>Ajouter un bloc</span></button>
       <section class="subpages">
@@ -150,24 +189,25 @@ function editor(root, pid) {
   const wrap = root.querySelector('.blocks');
   const slash = root.querySelector('.slash');
   const saved = root.querySelector('.note-saved');
+  const bar = root.querySelector('.nt-bar');
+  const drawPanel = root.querySelector('.nt-draw');
   const page = () => getPage(pid);
   const title = root.querySelector('.note-title');
-  let slashFor = null, slashIdx = 0;
+  let slashFor = null, slashIdx = 0, lastEl = null, savedRange = null;
 
-  const fit = () => root.querySelectorAll('.note textarea').forEach(autosize);
-  requestAnimationFrame(fit);
+  requestAnimationFrame(() => autosize(title));
   const flash = () => { saved.textContent = 'Enregistrement…'; clearTimeout(saveT); saveT = setTimeout(() => { saved.textContent = 'Enregistrée'; const w = words(page()); root.querySelector('.note-words').textContent = `${w} mot${w > 1 ? 's' : ''}`; }, 500); };
-  const paint = (focusId, pos = 'end', k = 'x') => {
-    wrap.innerHTML = blocksHtml(page());
-    fit();
-    if (focusId) focusBlock(focusId, pos, k);
-  };
-  const focusBlock = (id, pos = 'end', k = 'x') => {
-    const el = wrap.querySelector(`.blk[data-bid="${id}"] textarea[data-k="${k}"]`) || wrap.querySelector(`.blk[data-bid="${id}"] textarea`);
-    if (!el) return;
-    el.focus();
-    const p = pos === 'end' ? el.value.length : pos === 'start' ? 0 : Math.min(pos, el.value.length);
-    el.setSelectionRange(p, p);
+  const elOf = (id, k = 'x') => wrap.querySelector(`.blk[data-bid="${id}"] [data-k="${k}"]`) || wrap.querySelector(`.blk[data-bid="${id}"] [contenteditable]`);
+  const focusBlock = (id, pos = 'end', k = 'x') => { const el = elOf(id, k); if (el) setCaret(el, pos); };
+  const paint = (focusId, pos = 'end', k = 'x') => { wrap.innerHTML = blocksHtml(page()); if (focusId) focusBlock(focusId, pos, k); };
+  // Enregistre le contenu d'un champ : texte brut (recherche, export, révision) + mise en forme
+  const save = (el) => {
+    const id = el.closest('.blk')?.dataset.bid; if (!id) return;
+    const k = el.dataset.k, hk = k === 'a' ? 'ha' : 'h';
+    const html = clean(el.innerHTML);
+    const text = plain(el);
+    mutate(pid, (p) => { const b = p.blocks.find((x) => x.id === id); if (!b) return; b[k] = text; if (hasFormat(html)) b[hk] = html; else delete b[hk]; });
+    flash();
   };
   root._paint = paint;
   if (!page().title) setTimeout(() => title.focus(), 60);
@@ -193,12 +233,12 @@ function editor(root, pid) {
     let focusId = bidv;
     mutate(pid, (p) => {
       const i = p.blocks.findIndex((b) => b.id === bidv);
-      const b = p.blocks[i];
-      b.x = (b.x || '').replace(/^\/\S*\s?/, '');
+      const b = p.blocks[i]; if (!b) return;
+      if (/^\/\S*/.test(b.x || '')) { b.x = (b.x || '').replace(/^\/\S*\s?/, ''); delete b.h; }
       b.t = t;
       if (t === 'todo') b.c = !!b.c;
       if (t === 'qa') b.a = b.a || '';
-      if (t === 'divider') { b.x = ''; const nb = { id: bid(), t: 'p', x: '' }; p.blocks.splice(i + 1, 0, nb); focusId = nb.id; }
+      if (t === 'divider') { b.x = ''; delete b.h; const nb = { id: bid(), t: 'p', x: '' }; p.blocks.splice(i + 1, 0, nb); focusId = nb.id; }
     });
     closeSlash(); paint(focusId);
     flash();
@@ -207,70 +247,147 @@ function editor(root, pid) {
   slash.addEventListener('click', (e) => { const b = e.target.closest('.slash-i'); if (b && slashFor) applyType(slashFor, b.dataset.t); });
 
   wrap.addEventListener('input', (e) => {
-    const ta = e.target.closest('textarea'); if (!ta) return;
-    const blk = ta.closest('.blk'); const id = blk.dataset.bid; const k = ta.dataset.k;
-    autosize(ta);
-    const v = ta.value;
-    // Raccourcis Markdown en début de bloc
+    const el = e.target.closest('[contenteditable]'); if (!el) return;
+    const id = el.closest('.blk').dataset.bid, k = el.dataset.k;
     if (k === 'x') {
       const b = page().blocks.find((x) => x.id === id);
-      if (v === '---' || v === '—-') { mutate(pid, (p) => { p.blocks.find((x) => x.id === id).x = ''; }); applyType(id, 'divider'); return; }
+      const v = plain(el);
+      if (v === '---' || v === '—-') { mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); x.x = ''; delete x.h; }); applyType(id, 'divider'); return; }
       for (const [re, t] of MD) {
-        if (re.test(v) && b.t === 'p') { const rest = v.replace(re, ''); const caret = Math.max(0, ta.selectionStart - (v.length - rest.length)); mutate(pid, (p) => { p.blocks.find((x) => x.id === id).x = rest; }); applyType(id, t); focusBlock(id, caret); return; }
+        if (re.test(v) && b.t === 'p') { const rest = v.replace(re, ''); const caret = Math.max(0, caretOffset(el) - (v.length - rest.length)); mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); x.x = rest; delete x.h; }); applyType(id, t); focusBlock(id, caret); return; }
       }
       if (v.startsWith('/') && !/\s/.test(v.slice(1, 12)) && b.t !== 'qa') openSlash(id, v.slice(1)); else if (slashFor) closeSlash();
     }
-    mutate(pid, (p) => { const b = p.blocks.find((x) => x.id === id); if (b) b[k] = v; });
-    flash();
+    save(el);
   });
-
+  wrap.addEventListener('paste', (e) => {
+    const el = e.target.closest('[contenteditable]'); if (!el) return;
+    e.preventDefault();
+    const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, t);
+  });
   wrap.addEventListener('keydown', (e) => {
-    const ta = e.target.closest('textarea'); if (!ta) return;
-    const blk = ta.closest('.blk'); const id = blk.dataset.bid; const k = ta.dataset.k;
+    const el = e.target.closest('[contenteditable]'); if (!el) return;
+    const id = el.closest('.blk').dataset.bid, k = el.dataset.k;
     const p = page(); const i = p.blocks.findIndex((b) => b.id === id); const b = p.blocks[i];
     if (slashFor && !slash.hidden) {
       const items = [...slash.querySelectorAll('.slash-i')];
-      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); slashIdx = (slashIdx + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; openSlash(slashFor, ta.value.slice(1)); return; }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); slashIdx = (slashIdx + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; openSlash(slashFor, plain(el).slice(1)); return; }
       if (e.key === 'Enter') { e.preventDefault(); applyType(slashFor, items[slashIdx]?.dataset.t || 'p'); return; }
       if (e.key === 'Escape') { e.preventDefault(); closeSlash(); return; }
     }
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) { e.preventDefault(); fmt(e.key.toLowerCase()); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       if (b.t === 'qa' && k === 'x') { focusBlock(id, 'end', 'a'); return; }
-      const pos = ta.selectionStart;
-      const before = ta.value.slice(0, pos), after = ta.value.slice(ta.selectionEnd);
       const listy = ['ul', 'ol', 'todo', 'qa'].includes(b.t);
-      if (listy && !ta.value.trim() && (b.t !== 'qa' || !(b.x || '').trim())) { mutate(pid, (pp) => { const x = pp.blocks[i]; x.t = 'p'; x.x = ''; delete x.a; }); paint(id, 'start'); return; }
-      const nb = { id: bid(), t: listy ? b.t : 'p', x: b.t === 'qa' ? '' : after, ...(b.t === 'todo' ? { c: false } : {}), ...(b.t === 'qa' ? { a: '' } : {}) };
-      mutate(pid, (pp) => { if (b.t !== 'qa') pp.blocks[i].x = before; pp.blocks.splice(i + 1, 0, nb); });
+      if (listy && !plain(el).trim() && (b.t !== 'qa' || !(b.x || '').trim())) { mutate(pid, (pp) => { const x = pp.blocks[i]; x.t = 'p'; x.x = ''; delete x.h; delete x.a; delete x.ha; }); paint(id, 'start'); return; }
+      const afterHtml = b.t === 'qa' ? '' : splitAtCaret(el);
+      if (b.t !== 'qa') save(el);
+      const nb = { id: bid(), t: listy ? b.t : 'p', x: htmlText(afterHtml), ...(hasFormat(afterHtml) ? { h: afterHtml } : {}), ...(b.t === 'todo' ? { c: false } : {}), ...(b.t === 'qa' ? { a: '' } : {}) };
+      mutate(pid, (pp) => { pp.blocks.splice(i + 1, 0, nb); });
       paint(nb.id, 'start'); flash();
       return;
     }
-    if (e.key === 'Backspace' && ta.selectionStart === 0 && ta.selectionEnd === 0) {
+    const sel = getSelection();
+    if (e.key === 'Backspace' && sel.isCollapsed && caretOffset(el) === 0) {
       if (k === 'a') { e.preventDefault(); focusBlock(id, 'end', 'x'); return; }
-      if (b.t !== 'p') { e.preventDefault(); mutate(pid, (pp) => { const x = pp.blocks[i]; if (x.t === 'qa') x.x = [x.x, x.a].filter(Boolean).join(' '); x.t = 'p'; delete x.a; }); paint(id, 'start'); flash(); return; }
+      if (b.t !== 'p') { e.preventDefault(); mutate(pid, (pp) => { const x = pp.blocks[i]; if (x.t === 'qa') { x.x = [x.x, x.a].filter(Boolean).join(' '); delete x.ha; } x.t = 'p'; delete x.a; }); paint(id, 'start'); flash(); return; }
       const prev = p.blocks[i - 1];
       if (!prev) return;
       e.preventDefault();
       if (prev.t === 'divider') { mutate(pid, (pp) => { pp.blocks.splice(i - 1, 1); }); paint(id, 'start'); flash(); return; }
-      const join = (prev.t === 'qa' ? prev.a : prev.x || '').length;
-      mutate(pid, (pp) => { const pv = pp.blocks[i - 1]; if (pv.t === 'qa') pv.a = (pv.a || '') + b.x; else pv.x = (pv.x || '') + b.x; pp.blocks.splice(i, 1); });
-      paint(prev.id, join, prev.t === 'qa' ? 'a' : 'x'); flash();
+      const pk = prev.t === 'qa' ? 'a' : 'x';
+      const join = (prev[pk] || '').length;
+      const merged = blockInner(prev, pk) + clean(el.innerHTML);
+      mutate(pid, (pp) => { const pv = pp.blocks[i - 1]; const hk = pk === 'a' ? 'ha' : 'h'; pv[pk] = htmlText(merged); if (hasFormat(merged)) pv[hk] = merged; else delete pv[hk]; pp.blocks.splice(i, 1); });
+      paint(prev.id, join, pk); flash();
       return;
     }
-    if (e.key === 'ArrowUp' && ta.selectionStart === 0 && i > 0) {
+    if (e.key === 'ArrowUp' && sel.isCollapsed && caretOffset(el) === 0 && i > 0) {
       const prev = [...p.blocks.slice(0, i)].reverse().find((x) => x.t !== 'divider');
       if (prev) { e.preventDefault(); focusBlock(prev.id, 'end', prev.t === 'qa' ? 'a' : 'x'); }
     }
-    if (e.key === 'ArrowDown' && ta.selectionEnd === ta.value.length) {
+    if (e.key === 'ArrowDown' && caretAtEnd(el)) {
       const next = p.blocks.slice(i + 1).find((x) => x.t !== 'divider');
       if (next) { e.preventDefault(); focusBlock(next.id, 'start'); }
     }
   });
+  wrap.addEventListener('focusin', (e) => { const el = e.target.closest('[contenteditable]'); if (el) lastEl = el; });
   wrap.addEventListener('focusout', () => setTimeout(() => { if (!wrap.contains(document.activeElement)) closeSlash(); }, 120));
-  const onResize = () => fit();
-  window.addEventListener('resize', onResize);
-  return () => { window.removeEventListener('resize', onResize); delete root._paint; };
+  const onSel = () => { const s = getSelection(); if (s.rangeCount && lastEl && lastEl.contains(s.anchorNode)) savedRange = s.getRangeAt(0).cloneRange(); };
+  document.addEventListener('selectionchange', onSel);
+
+  // Barre de mise en forme
+  const popClose = () => bar.querySelectorAll('.nt-pop').forEach((x) => { x.hidden = true; });
+  const restore = () => {
+    if (!lastEl || !document.contains(lastEl)) return false;
+    const s = getSelection();
+    if (s.rangeCount && lastEl.contains(s.anchorNode)) return true;
+    lastEl.focus({ preventScroll: true });
+    if (savedRange && document.contains(savedRange.startContainer)) { s.removeAllRanges(); s.addRange(savedRange); }
+    return true;
+  };
+  const curBlock = () => lastEl?.closest('.blk')?.dataset.bid;
+  function fmt(cmd, v) {
+    if (['font', 'size', 'color', 'hl', 'red', 'frame', 'draw', 'pop'].includes(cmd) && !can('notesDraw')) { popClose(); sheet(`${sheetHead('Éditeur complet')}<div class="sheet-body">${paywall('notesDraw', { compact: true })}</div>`, { cls: 'sheet-sm' }); return; }
+    if (cmd === 'pop') {
+      const pop = bar.querySelector(`[data-pop="${v}"]`); const was = pop.hidden; popClose(); pop.hidden = !was;
+      // La barre (flou d'arrière-plan) sert de repère aux menus : on les place sous leur bouton
+      const br = bar.getBoundingClientRect(), bt = bar.querySelector(`[data-fmt="pop"][data-v="${v}"]`).getBoundingClientRect();
+      pop.style.left = `${Math.max(4, Math.min(bt.left - br.left, br.width - pop.offsetWidth - 4))}px`; pop.style.top = `${bt.bottom - br.top}px`;
+      return;
+    }
+    popClose();
+    if (cmd === 'draw') { toggleDraw(); return; }
+    const id = curBlock();
+    if (cmd === 'block') { if (id) applyType(id, v); return; }
+    if (cmd === 'frame' || cmd === 'align') {
+      if (!id) { toast('Placez le curseur dans un bloc.'); return; }
+      mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); x.st = { ...(x.st || {}) }; if (cmd === 'frame') x.st.fr = v; else x.st.al = x.st.al === 'center' ? 'right' : x.st.al === 'right' ? '' : 'center'; if (!x.st.fr) delete x.st.fr; if (!x.st.al) delete x.st.al; });
+      const off = lastEl ? caretOffset(lastEl) : 0; const k = lastEl?.dataset.k || 'x';
+      paint(id, off, k); flash();
+      return;
+    }
+    if (!restore()) { toast('Sélectionnez d\'abord du texte dans la page.'); return; }
+    const exec = (c, val = null, css = false) => { document.execCommand('styleWithCSS', false, css); document.execCommand(c, false, val); };
+    if (cmd === 'b') exec('bold');
+    else if (cmd === 'i') exec('italic');
+    else if (cmd === 'u') exec('underline');
+    else if (cmd === 's') exec('strikeThrough');
+    else if (cmd === 'clear') exec('removeFormat');
+    else if (cmd === 'color') exec('foreColor', v, true);
+    else if (cmd === 'hl') exec('hiliteColor', v, true);
+    else if (cmd === 'font') exec('fontName', v, true);
+    else if (cmd === 'size') exec('fontSize', v, true);
+    else if (cmd === 'red') { if (!wrapSelection({ 'text-decoration-line': 'underline', 'text-decoration-color': '#d92d20', 'text-decoration-thickness': '2px' })) toast('Sélectionnez les mots à souligner.'); }
+    if (lastEl) save(lastEl);
+  }
+  bar.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
+  bar.addEventListener('click', (e) => { const b = e.target.closest('[data-fmt]'); if (b && b.tagName === 'BUTTON') fmt(b.dataset.fmt, b.dataset.v); });
+  bar.addEventListener('change', (e) => { const s2 = e.target.closest('select[data-fmt]'); if (s2 && s2.value) { const v = s2.value; s2.value = ''; fmt(s2.dataset.fmt, v); } });
+  const outside = (e) => { if (!e.target.closest('.nt-pw')) popClose(); };
+  document.addEventListener('pointerdown', outside);
+
+  // Calque de dessin sur la page
+  const ink = mountCanvas({
+    stage: root.querySelector('.nt-ink'), tools: root.querySelector('.nt-dtools'), props: root.querySelector('.nt-dprops'),
+    mode: 'overlay', items: page().ink || [], bg: 'blank',
+    onChange: (items) => { mutate(pid, (p) => { p.ink = items; }); flash(); },
+    onEditData: (it, done) => dataSheet(it, done),
+  });
+  function toggleDraw(force) {
+    const on2 = force ?? drawPanel.hidden;
+    drawPanel.hidden = !on2; bar.hidden = on2;
+    art.classList.toggle('is-drawing', on2);
+    ink.setActive(on2);
+    if (on2) { ink.setTool('pen'); toast('Dessinez, surlignez, encadrez directement sur la page. « Terminé » pour revenir au texte.', { title: 'Mode dessin', ms: 2600 }); }
+  }
+  drawPanel.addEventListener('click', (e) => { const b = e.target.closest('.nt-done'); if (b) toggleDraw(false); });
+  ink.setActive(false);
+
+  return () => { ink.destroy(); document.removeEventListener('selectionchange', onSel); document.removeEventListener('pointerdown', outside); delete root._paint; };
 }
 
 // ---------- Menus ----------

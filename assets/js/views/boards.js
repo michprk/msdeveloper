@@ -91,7 +91,7 @@ export function boardView([id]) {
 }
 
 // Données d'un graphique ou d'une frise
-function dataSheet(it, done) {
+export function dataSheet(it, done) {
   const isChart = it.t === 'chart';
   const rows = isChart ? it.data || [] : it.steps || [];
   const row = (r, i) => `<li class="dt-row"><input class="inp" name="l.${i}" value="${esc(r.l || '')}" placeholder="${isChart ? 'Libellé' : 'Étape'}" aria-label="${isChart ? 'Libellé' : 'Étape'}" maxlength="30"><input class="inp" name="v.${i}" value="${esc(isChart ? r.v ?? '' : r.d || '')}" ${isChart ? 'type="number" step="any" inputmode="decimal" placeholder="Valeur"' : 'placeholder="Date"'} aria-label="${isChart ? 'Valeur' : 'Date'}" maxlength="20"><button type="button" class="icon-btn sm" data-act="dt-del" aria-label="Retirer">${ic('x')}</button></li>`;

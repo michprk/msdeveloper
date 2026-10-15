@@ -384,7 +384,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     if (e.target.closest('.dw-edit')) return;
     svg.focus({ preventScroll: true });
     pointers.set(e.pointerId, [e.clientX, e.clientY]);
-    svg.setPointerCapture?.(e.pointerId);
+    try { svg.setPointerCapture(e.pointerId); } catch (err) { /* pointeur déjà relâché */ }
     if (pointers.size === 2 && mode === 'board') { const [a, b] = [...pointers.values()]; action = { kind: 'pinch', d: Math.hypot(a[0] - b[0], a[1] - b[1]), mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2 }; gLive.innerHTML = ''; return; }
     if (pointers.size > 1) return;
     if (editing) finishEdit();
