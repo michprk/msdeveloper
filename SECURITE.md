@@ -1,6 +1,6 @@
 # Sécurité — MindView
 
-## Où on en est (version 1.6, 15 octobre 2026)
+## Où on en est (version 1.7, 16 octobre 2026)
 
 L'application n'a **ni serveur, ni base de données, ni compte en ligne**. Tout est enregistré dans le navigateur de l'appareil (localStorage) : tâches, pages de notes, fiches, quiz, réglages. C'est volontaire pour la première version, et c'est dit clairement dans l'application (Compte, Abonnement, accueil).
 
@@ -30,6 +30,9 @@ Ce qui est en place :
 | Tableau blanc et dessin sur les pages (1.6) | Tout est dessiné en SVG à partir de données vérifiées : couleurs (codes couleur uniquement), nombres, polices et formes sont contrôlés juste avant l'affichage, les textes sont échappés. Une sauvegarde modifiée à la main ne peut rien injecter. |
 | Connecteurs (1.6) | Les fichiers (Notion .zip, .ics, .csv, Trello, Quizlet, Anki) sont lus sur l'appareil : rien n'est envoyé. Le .zip est décompressé par le navigateur, sans bibliothèque externe, avec des plafonds (200 Mo en entrée, 25 Mo décompressés par fichier, 40 archives imbriquées). Aperçus intégrés limités dans la CSP (`frame-src`) à Figma, Canva, Miro, Google Docs, YouTube (sans cookies) et Loom, chargés seulement au clic, dans un `iframe` isolé. |
 | Se connecter / se déconnecter (1.6) | Utilise le compte en ligne de la 1.5 (code par e-mail ; la déconnexion supprime le jeton de session). Tant que les comptes sont éteints, aucun identifiant n'est demandé : le bouton propose le code de verrouillage local et la sauvegarde. |
+| Lecture de l'écriture (1.7) | Entièrement sur l'appareil : moteur intégré (modèles de lettres et dictionnaire chargés depuis l'application) dans un fil séparé, ou l'API du navigateur quand elle existe (elle aussi locale). Aucun tracé ni aucun texte n'est envoyé. Les mots corrigés sont gardés dans les données locales (`hwrWords`, 600 au plus) pour mieux lire la fois suivante. |
+| Tableau blanc (1.7) | Les textes mis en forme passent par le même nettoyage par liste blanche que les notes, à l'enregistrement et à l'affichage ; couleurs, nombres, polices et formes de chaque élément sont vérifiés avant d'être dessinés. L'impression et l'export intègrent les polices de l'application (fichiers locaux), sans appel extérieur. |
+| Création du compte à l'accueil (1.7) | L'adresse e-mail est enregistrée dans le profil, sur l'appareil. Quand les comptes en ligne sont allumés, l'adresse reçoit un code à 6 chiffres (pas de mot de passe stocké) ; tant qu'ils sont éteints, l'écran dit clairement que le compte reste sur l'appareil. |
 | RGPD (1.4) | Page Confidentialité (`#/confidentialite`) : données, stockage, droits, contacts du CRM, tiers. À faire relire, et coordonnées du responsable du traitement à compléter avant le lancement. |
 
 ## Avant la commercialisation (comptes en ligne et paiement)

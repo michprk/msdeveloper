@@ -77,12 +77,14 @@ export function authButton(cls = '') {
   const u = cloudUser();
   if (u) return `<button class="${cls}" data-act="auth-out">${ic('logout')}<span>Se déconnecter</span></button>`;
   if (!cloudReady() && hasLock()) return `<button class="${cls}" data-act="auth-lock">${ic('lock')}<span>Verrouiller la session</span></button>`;
+  if (!cloudReady() && S().account?.email) return `<button class="${cls}" data-act="auth-in">${ic('user')}<span>Mon compte</span></button>`;
   return `<button class="${cls}" data-act="auth-in">${ic('user')}<span>Se connecter</span></button>`;
 }
 function offlineSheet() {
   sheet(`${sheetHead('Se connecter', 'Votre compte MindView')}
     <div class="sheet-body">
-      <p class="sheet-p">Les comptes en ligne ouvrent avec l'abonnement : ils servent à retrouver votre abonnement sur tous vos appareils. Aujourd'hui, vos tâches, notes et tableaux restent sur cet appareil, sans mot de passe à retenir.</p>
+      ${S().account?.email ? `<p class="sheet-p acc-local">${ic('checkCircle')}<span>Votre compte : <b>${esc(S().account.email)}</b>, enregistré sur cet appareil.</span></p>` : ''}
+      <p class="sheet-p">Les comptes en ligne ouvrent avec l'abonnement : la même adresse vous connectera alors sur tous vos appareils. Aujourd'hui, vos tâches, notes et tableaux restent sur cet appareil, sans mot de passe à retenir.</p>
       <p class="sheet-p">Pour protéger l'application et pouvoir « fermer » votre session, activez un code à quatre chiffres : il sera demandé à chaque ouverture.</p>
       <div class="btn-list"><a class="btn btn-primary" href="#/reglages?s=securite" data-act="close-sheet-go" data-h="#/reglages?s=securite">${ic('lock')}<span>Activer un code de verrouillage</span></a>
       <button class="btn btn-ghost" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde</span></button></div>

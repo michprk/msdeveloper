@@ -108,7 +108,7 @@ const SCENARIOS = [
     set({ trialStart: Date.now() - 30 * DAY });
     c('Gratuit : CRM, devis, emploi du temps et pages illimitées verrouillés', !can('crm') && !can('quote') && !can('timetable') && !can('notesUnlimited'));
     subscribe('pro');
-    c('Pro : CRM, devis, emploi du temps et tableaux blancs ouverts ; planificateur verrouillé', can('crm') && can('quote') && can('timetable') && can('boardsUnlimited') && !can('planner') && !can('stats'));
+    c('Pro : CRM, devis, emploi du temps et tableaux blancs ouverts ; planificateur verrouillé', can('crm') && can('quote') && can('timetable') && can('boards') && !can('planner') && !can('stats'));
     changePlan('premium');
     c('Premium : tout est ouvert, y compris planificateur et révision espacée', can('stats') && can('export') && can('planner') && can('spaced'));
   }],

@@ -136,6 +136,13 @@ const P = {
   palette: '<path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.3 0 1.8-.9 1.8-1.8 0-1.4-1.2-1.7-1.2-3 0-1 .8-1.7 1.8-1.7h2.4a3.7 3.7 0 0 0 3.7-3.7C20.5 6.6 16.7 3.5 12 3.5z"/><circle cx="7.6" cy="11" r="1"/><circle cx="10" cy="7.4" r="1"/><circle cx="14.4" cy="7.4" r="1"/>',
   fit: '<path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15"/>',
   image: '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M20.5 16.5 15.5 11.5 6 19.5"/>',
+  signature: '<path d="M3.5 16.5c2.4-.3 3.5-3 4.4-6.4.6-2.3 1.5-4.4 2.6-4.1 1.4.4-.1 6.4-1.1 9.4-.5 1.5.3 2 1.4 1 1.4-1.3 2.2-3.7 3.3-3.5 1.1.2-.2 2.9.9 3.1.9.2 1.7-1.1 2.5-1.6"/><path d="M3.5 20.5h17"/>',
+  shapes: '<rect x="3.5" y="12.5" width="8" height="8" rx="1.5"/><circle cx="16.8" cy="16.5" r="3.8"/><path d="m12 3.5 4.6 7.2H7.4z"/>',
+  print: '<path d="M7 9V3.5h10V9"/><rect x="3.5" y="9" width="17" height="8" rx="2"/><path d="M7 14h10v6.5H7z"/>',
+  listCheck: '<rect x="3.5" y="4.5" width="5.5" height="5.5" rx="1.3"/><path d="m4.9 7.3 1.2 1.2 2-2.3"/><rect x="3.5" y="14" width="5.5" height="5.5" rx="1.3"/><path d="M12 7.3h8.5M12 16.8h8.5"/>',
+  cube: '<path d="M12 3.5 19.5 7.5v9L12 20.5l-7.5-4v-9z"/><path d="M4.5 7.5 12 11.5l7.5-4M12 11.5v9"/>',
+  magic: '<path d="m4 20 10-10M14.5 4.5v3M13 6h3M19 9.5v3M17.5 11h3M18.5 3.5v2M17.5 4.5h2"/>',
+  shadow: '<rect x="3.5" y="3.5" width="12.5" height="12.5" rx="2.2"/><path d="M19.5 8.5v9a2 2 0 0 1-2 2h-9"/>',
 };
 
 export const ic = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[name] || P.note}</svg>`;

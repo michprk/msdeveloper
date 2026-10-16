@@ -22,7 +22,7 @@ export const OFFER = [
   ['Projets reliés aux tâches, progression automatique', `${LIMITS.freeProjects} projet`, 'Illimités', 'Illimités'],
   ['Notes en pages et sous-pages, modèles', `${LIMITS.freePages} pages`, 'Illimitées', 'Illimitées'],
   ['Éditeur complet : polices, couleurs, surligneur, encadrés, dessin sur la page', 'Gras, italique, souligné', true, true],
-  ['Tableau blanc : dessin, formes, textes, graphiques, évolutions', `${LIMITS.freeBoards} tableau`, 'Illimités', 'Illimités + export en image'],
+  ['Tableau blanc : écriture à la main transformée en texte, formes parfaites, volumes, surligneur, cases à cocher, graphiques, impression', false, 'Illimités', 'Illimités + export PNG haute définition'],
   ['Connecteurs : Notion, Figma, Canva, Google, Trello, Quizlet, agendas…', 'Liens', 'Imports et aperçus', 'Imports et aperçus'],
   ['Notifications et recherche globale', true, true, true],
   ['Quiz intégrés, quiz du jour, révision des notes', true, true, true],
@@ -46,7 +46,7 @@ export const offerRows = () => OFFER.filter((r) => (!r[4] || on(r[4])) && !(r[0]
 const cell = (v) => (v === true ? `<span class="ok">${ic('check')}<span class="sr-only">Inclus</span></span>` : v === false ? '<span class="no" aria-label="Non inclus">—</span>' : `<span class="txt">${esc(v)}</span>`);
 
 const STATUS = {
-  free: () => ['Version gratuite', `Tâches, calendrier, quiz, ${LIMITS.freeProjects} projet, ${LIMITS.freePages} pages de notes et ${LIMITS.freeBoards} tableau blanc. Essayez tout le reste pendant ${TRIAL_DAYS} jours, sans carte.`],
+  free: () => ['Version gratuite', `Tâches, calendrier, quiz, ${LIMITS.freeProjects} projet et ${LIMITS.freePages} pages de notes. Essayez tout le reste pendant ${TRIAL_DAYS} jours, sans carte.`],
   trial: () => ['Essai gratuit', `Toutes les fonctions jusqu'au ${dl(trialEnd())} (encore ${trialLeft()} jour${trialLeft() > 1 ? 's' : ''}). Sans carte : à la fin, l'application repasse en version gratuite si vous ne choisissez rien.`],
   trial_ended: () => ['Version gratuite', `Votre essai s'est terminé le ${dl(trialEnd())}. Vos fiches, vos pages et vos tâches sont conservées.`],
   active: (s) => [`${PLANS[s.plan].name} · actif`, `Prochain prélèvement : ${price(PLANS[s.pending || s.plan].price)} € le ${dl(s.periodEnd)}.${s.pending ? ` Passage à ${PLANS[s.pending].name} à cette date.` : ''}`],

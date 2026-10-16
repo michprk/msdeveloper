@@ -29,7 +29,7 @@ const FEATURE_TEXT = {
   scriptsAll: ['Tous les formats sont inclus dans Pro', 'Répondeur, visite, e-mail, SMS, Instagram, relances, rendez-vous, objections et signature — pour chaque secteur.'],
   callMode: ['Le mode appel est inclus dans Pro', 'Le script s\'affiche étape par étape pendant l\'appel, et le résultat s\'enregistre dans la fiche en un geste.'],
   projectsUnlimited: ['Projets illimités avec Pro', 'La version gratuite suit un projet en cours. Avec Pro, suivez autant de projets que vous voulez, chacun avec ses tâches et sa progression.'],
-  boardsUnlimited: ['Tableaux blancs illimités avec Pro', 'La version gratuite garde un tableau blanc. Avec Pro, créez-en autant que vous voulez : cours, projets, schémas, graphiques.'],
+  boards: ['Le tableau blanc est inclus dans Pro et Premium', 'Écrivez à la main et votre écriture devient du texte, tracez des formes parfaites et des volumes, surlignez de toutes les couleurs, cochez, imprimez.'],
   notesDraw: ['L\'éditeur complet est inclus dans Pro', 'Polices, tailles, couleurs, surligneur, encadrés, et des outils pour dessiner, souligner et annoter directement sur vos pages.'],
   calendarFull: ['Le calendrier complet est inclus dans Pro', 'Vues semaine et jour avec les heures, glisser-déposer des tâches, et votre emploi du temps directement dans le calendrier.'],
   connectors: ['Les imports sont inclus dans Pro', 'Importez vos pages Notion, vos tableaux Trello, vos listes Todoist, vos agendas et vos cartes Quizlet en un geste.'],

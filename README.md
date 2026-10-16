@@ -18,6 +18,20 @@
 
 **Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche appartient à un projet, une page de notes à une fiche, un devis accepté transforme le prospect en client et crée son projet : rien à recopier d'un outil à l'autre.
 
+## Nouveautés 1.7 (16/10/2026)
+
+- **Tableau blanc refait** (Pro et Premium ; sans abonnement, les tableaux restent lisibles) :
+  - **Écriture à la main → texte** : on écrit au doigt ou au stylet, on lève le doigt, et au bout d'une seconde l'écriture devient du texte, au même endroit et à la même taille, dans l'une des trois polices : Naturelle (Caveat), Attachée (Playwrite France Moderne, le modèle d'écriture de l'école française) ou Appliquée (Playpen Sans). En touchant le texte : les autres lectures possibles, « Corriger » au clavier, ou « Mon écriture » pour revenir au tracé. La lecture se fait **sur l'appareil**, sans rien envoyer.
+  - **Encre** à épaisseur variable (pression du stylet, vitesse du doigt), traits lissés. **Formes parfaites** : on trace un rond, un carré, un triangle ou un trait et on garde le doigt appuyé une demi-seconde.
+  - **15 formes**, dont **6 volumes** (cube, pavé, cylindre, cône, sphère, pyramide) en perspective cavalière, arêtes cachées en pointillés, relief et ombre.
+  - **Surligneur** en 8 couleurs fluo plus une couleur libre, **gomme précise** (elle coupe un trait) ou « objet entier », soulignement bien droit.
+  - **Texte comme dans un traitement de texte** : gras, italique, souligné, barré, couleur, surlignage et police d'un passage ou de tout le texte, taille, alignement, encadré, ombre ; on élargit le cadre par les côtés.
+  - **Cases à cocher** en liste (un toucher coche), post-it, bulles, tampons, graphiques, frises, modèles (page de cahier Seyès, géométrie des volumes, schéma de cours…).
+  - Outils nommés en bas, réglages juste au-dessus, barre de l'élément choisi, guides d'alignement, deux doigts pour zoomer, paume ignorée au stylet, guide de démarrage, **impression ou PDF**, export en image avec les polices.
+- **Accueil : « Créez votre compte »** avec son adresse e-mail. Quand les comptes en ligne sont allumés, un code à 6 chiffres arrive par e-mail ; en attendant, le compte est enregistré sur l'appareil (c'est dit à l'écran).
+
+**Lecture de l'écriture, mesurée** (banc d'essai `_msdeveloper-src/tools/hwr-eval.html`, 250 mots écrits dans 5 styles d'écriture simulés, déformés : inclinaison, tremblement, tailles et écarts variables) : 84 % lus du premier coup, 91 % dans les trois propositions, environ 0,2 s par mot sur ordinateur. Une vraie écriture au doigt varie davantage : d'où les autres lectures, la correction et le retour au tracé. Les mots corrigés et le vocabulaire de l'utilisateur (matières, projets, notes) sont reconnus en priorité.
+
 ## Nouveautés 1.6 (15/10/2026)
 
 - **Logo MindView** : un cerveau bleu clair avec deux yeux, dont un doré, qui cligne, regarde autour et lève un sourcil (écran de démarrage, barre latérale, icônes de l'application). Les animations suivent le réglage « Mouvement ».
@@ -93,7 +107,7 @@
 | Projets reliés aux tâches | 1 | Illimités | Illimités |
 | Notes en pages | 5 pages | Illimitées | Illimitées |
 | Éditeur complet (polices, couleurs, surligneur, encadrés, dessin) | Gras, italique, souligné | ✓ | ✓ |
-| Tableau blanc | 1 tableau | Illimités | Illimités + export PNG |
+| Tableau blanc (écriture → texte, formes, volumes, impression) | — | Illimités | Illimités + export PNG |
 | Connecteurs | Liens | Imports et aperçus | Imports et aperçus |
 | Notifications, recherche | ✓ | ✓ | ✓ |
 | Quiz intégrés, quiz du jour, révision des notes | ✓ | ✓ | ✓ |
@@ -138,9 +152,16 @@ assets/js/views/studies.js études : matières, emploi du temps, examens, moyenn
 assets/js/views/agenda.js calendrier (mois, semaine, jour, liste, glisser-déposer)
 assets/js/views/boards.js tableaux blancs et modèles
 assets/js/draw.js         moteur de dessin partagé (tableau blanc et dessin sur les pages)
+assets/js/hwr.js          lecture de l'écriture à la main, sur l'appareil (hwr-worker.js : dans un fil séparé)
+assets/js/data/hwr-*.js   modèles de lettres et dictionnaire de la lecture de l'écriture
 assets/js/rich.js         texte mis en forme des notes : nettoyage du HTML par liste blanche
 assets/js/views/privacy.js confidentialité et RGPD
 assets/js/data/           secteurs, scripts, quiz, modèles de pages, modèles de CRM, guides
 ```
 
 Voir aussi [SECURITE.md](SECURITE.md) et [TEST-UTILISATEURS.md](TEST-UTILISATEURS.md).
+
+## Crédits
+
+- Polices : Fraunces, Instrument Sans, Caveat, Playwrite France Moderne (TypeTogether), Playpen Sans (TypeTogether), toutes sous SIL Open Font License, servies depuis l'application.
+- Lecture de l'écriture : modèles de lettres tirés des polices à un trait Hershey (domaine public) et EMS (SIL Open Font License, Evil Mad Scientist). Dictionnaire : fréquences Hermit Dave, FrequencyWords (OpenSubtitles 2018), licence CC BY-SA 4.0, complétées d'un vocabulaire scolaire ; le fichier `assets/js/data/hwr-lexique.js` est distribué sous la même licence.

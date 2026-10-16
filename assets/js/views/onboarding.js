@@ -10,9 +10,11 @@ import { PRESETS, preset } from '../data/presets.js';
 import { askNotifications, notifSupport } from '../notify.js';
 import { PROMISE, PITCH, AUDIENCE } from './common.js';
 import { applyPreset } from './crm.js';
+import { cloudReady, sendCode, verifyCode, cloudMessage } from '../cloud.js';
+import { accountSheet } from './account.js';
 import { sparkline } from '../charts.js';
 
-const STEPS = ['welcome', 'tour', 'you', 'goals', 'ready'];
+const STEPS = ['welcome', 'tour', 'you', 'account', 'goals', 'ready'];
 const ob = { i: 0, dir: 1, anim: true, replay: false, d: null, slide: 0 };
 const price = (n) => n.toFixed(2).replace('.', ',');
 
@@ -61,7 +63,7 @@ const modulesFor = (defis, sit = '') => {
 function data() {
   if (!ob.d) {
     const p = S().profile;
-    ob.d = { prenom: p.prenom || '', societe: p.societe || '', situation: p.situation || '', equipe: p.equipe || 'solo', defis: [...(p.defis || [])], metier: p.metier || S().crm.preset || '', service: p.service || 'offre', sugg: {} };
+    ob.d = { email: p.email || S().account?.email || '', acc: S().account?.email ? 'done' : '', code: false, prenom: p.prenom || '', societe: p.societe || '', situation: p.situation || '', equipe: p.equipe || 'solo', defis: [...(p.defis || [])], metier: p.metier || S().crm.preset || '', service: p.service || 'offre', sugg: {} };
   }
   return ob.d;
 }
@@ -150,6 +152,32 @@ export function onboarding() {
         <div class="seg ob-seg" role="radiogroup" aria-label="Vous travaillez">${[['solo', 'En solo', 'user'], ['equipe', 'En équipe', 'users']].map(([v, l, i]) => `<label class="seg-i"><input type="radio" name="equipe" value="${v}" ${d.equipe === v ? 'checked' : ''}>${ic(i)}<span>${l}</span></label>`).join('')}</div>
       </form>
       <div class="ob-foot"><button class="btn btn-apple" type="submit" form="ob-form" data-needs="prenom" ${d.prenom ? '' : 'disabled'}>Continuer</button></div>`;
+  } else if (step === 'account') {
+    // Créer son compte avec son adresse e-mail : un code à 6 chiffres, pas de mot de passe
+    const cloud = cloudReady();
+    const done = d.acc === 'done';
+    body = `<form class="ob-page ob-acc" data-form="ob-account" id="ob-form" data-validate novalidate>
+        <span class="ob-acc-ic">${ic(done ? 'checkCircle' : 'mail')}</span>
+        <h1 class="ob-h">${done ? 'Votre compte est créé' : 'Créez votre compte'}</h1>
+        <p class="ob-p">${done ? `Bonjour ${esc(d.prenom || '')}, votre compte MindView est lié à <b>${esc(d.email)}</b>.` : 'Votre adresse e-mail suffit. Pas de mot de passe à retenir : pour vous connecter, un code à 6 chiffres arrive par e-mail.'}</p>
+        ${done ? '' : `<div class="group">
+          <label class="group-r"><span>E-mail</span><input name="email" type="email" inputmode="email" value="${esc(d.email)}" placeholder="vous@exemple.be" autocomplete="email" required ${d.code ? 'readonly' : ''}></label>
+          ${d.code ? `<label class="group-r"><span>Code reçu</span><input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6 chiffres" required autofocus></label>` : ''}
+        </div>
+        <p class="co-err ob-err" role="alert" hidden></p>`}
+        <ul class="ob-acc-list">
+          <li>${ic('check')}<span>${cloud ? 'Vos abonnements et vos factures, retrouvés sur tous vos appareils' : 'Votre profil, vos réglages et votre essai gratuit liés à cette adresse'}</span></li>
+          <li>${ic('check')}<span>Vos tâches, notes et tableaux restent sur votre appareil : vous seul y avez accès</span></li>
+          <li>${ic('check')}<span>Jamais de publicité, jamais de revente de votre adresse</span></li>
+        </ul>
+        ${cloud || done ? '' : '<p class="ob-acc-n">Les comptes en ligne ouvrent avec l\'abonnement : la même adresse vous connectera alors sur tous vos appareils. En attendant, votre compte est enregistré sur cet appareil.</p>'}
+      </form>
+      <div class="ob-foot">
+        ${done ? '<button class="btn btn-apple" data-act="ob-next">Continuer</button><button class="btn-text" data-act="ob-acc-change">Changer d\'adresse</button>'
+          : `<button class="btn btn-apple" type="submit" form="ob-form" data-needs="${d.code ? 'code' : 'email'}" ${d.code || d.email ? '' : 'disabled'}>${d.code ? 'Créer mon compte' : cloud ? 'Recevoir mon code' : 'Créer mon compte'}</button>
+          <button class="btn-text" data-act="ob-next">Plus tard</button>
+          ${cloud ? '<button class="btn-text ob-acc-in" data-act="ob-acc-login">J\'ai déjà un compte · Se connecter</button>' : ''}`}
+      </div>`;
   } else if (step === 'goals') {
     const mods = modulesFor(d.defis, d.situation);
     const showMetier = d.defis.includes('clients') || d.defis.includes('trouver');
@@ -245,6 +273,7 @@ function finish(trial) {
   const metier = d.metier || sit?.[4] || '';
   update((s) => {
     s.profile.prenom = d.prenom.trim(); s.profile.societe = d.societe.trim();
+    if (d.email && d.acc === 'done') { s.profile.email = d.email; s.account = { email: d.email, at: s.account?.at || Date.now(), cloud: !!d.cloud }; }
     s.profile.situation = d.situation; s.profile.equipe = d.equipe; s.profile.defis = [...d.defis];
     s.profile.usages = modulesFor(d.defis, d.situation);
     s.profile.metier = metier;
@@ -286,8 +315,11 @@ register({
     const d = data();
     if (f?.dataset.form === 'ob-you') { d.prenom = f.elements.prenom.value; d.societe = f.elements.societe.value; d.situation = f.elements.situation.value || d.situation; d.equipe = f.elements.equipe.value || d.equipe; }
     if (f?.dataset.form === 'ob-goals') { d.defis = readDefis(f); d.metier = f.elements.metier.value; }
+    if (f?.dataset.form === 'ob-account' && f.elements.email) d.email = f.elements.email.value.trim();
     go(-1);
   },
+  'ob-acc-change': () => { const d = data(); d.acc = ''; d.code = false; rr(); },
+  'ob-acc-login': () => accountSheet(),
   'ob-tour-next': () => { if (ob.slide < SLIDES.length - 1) goSlide(ob.slide + 1); else go(1); },
   'ob-slide': (b) => goSlide(+b.dataset.k),
   'ob-quit': () => { ob.replay = false; ob.d = null; ob.i = 0; try { sessionStorage.setItem('msdev:intro', '1'); } catch (e) { /* rien */ } location.hash = '#/'; },
@@ -326,6 +358,25 @@ register({
     const sit = SITUATIONS.find((x) => x[0] === d.situation);
     if (sit?.[4] && !d.metier) d.metier = sit[4];
     go(1);
+  },
+  'ob-account': async (f, form) => {
+    const d = data();
+    const err = (m) => { const box = form.querySelector('.ob-err'); if (box) { box.textContent = m; box.hidden = false; } };
+    const email = (f.email || d.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) { err('Cette adresse e-mail ne semble pas complète (exemple : prenom@gmail.com).'); return; }
+    d.email = email;
+    const btn = document.querySelector('.ob-foot [type=submit]');
+    if (!cloudReady()) { d.acc = 'done'; d.cloud = false; update((s) => { s.profile.email = email; s.account = { email, at: Date.now(), cloud: false }; }); rr(); return; }
+    try {
+      if (!d.code) { btn.disabled = true; btn.textContent = 'Envoi du code…'; await sendCode(email); d.code = true; rr(); return; }
+      const code = (f.code || '').replace(/\D/g, '');
+      if (code.length !== 6) { err('Le code compte 6 chiffres.'); return; }
+      btn.disabled = true; btn.textContent = 'Création du compte…';
+      await verifyCode(email, code);
+      d.acc = 'done'; d.cloud = true; d.code = false;
+      update((s) => { s.profile.email = email; s.account = { email, at: Date.now(), cloud: true }; });
+      rr();
+    } catch (e) { btn.disabled = false; btn.textContent = d.code ? 'Créer mon compte' : 'Recevoir mon code'; err(cloudMessage(e)); }
   },
   'ob-goals': (f, form) => {
     const d = data();
