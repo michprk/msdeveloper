@@ -36,21 +36,27 @@ self.onmessage = async (e) => {
   try {
     if (warm) { await preload(); reply({ r: null }); return; }
     if (kind === 'install') {
-      // Téléchargement unique du modèle (environ 90 Mo), avec progression
+      // Téléchargement unique du modèle (environ 55 Mo téléchargés), avec progression
       // Tailles connues : moteur 21,6 Mo, vocabulaire 4,5 Mo, modèle 23 + 40,5 Mo
-      const seen = { wasm: [0, 21.6e6], 'tokenizer.json': [0, 4.5e6], enc: [0, 23.1e6], dec: [0, 40.5e6] };
-      const key = (f) => (/encoder/.test(f) ? 'enc' : /decoder/.test(f) ? 'dec' : f);
-      const tell = () => { const tot = Object.values(seen).reduce((a, b) => [a[0] + b[0], a[1] + b[1]], [0, 0]); reply({ progress: Math.min(0.999, tot[0] / tot[1]), loaded: tot[0] }); };
-      // Le moteur d'exécution d'abord (fichier le plus long), lu en continu pour afficher la progression
+      // Part de chaque fichier dans le téléchargement (tailles décompressées : le serveur compresse, d'où des
+      // octets lus supérieurs à la taille annoncée ; chaque part est donc bornée à 100 %)
+      const W = { wasm: 21.6e6, tok: 4.5e6, enc: 23.1e6, dec: 40.5e6 };
+      const done = { wasm: 0, tok: 0, enc: 0, dec: 0 };
+      const key = (f) => (/encoder/.test(f) ? 'enc' : /decoder/.test(f) ? 'dec' : /tokenizer\.json/.test(f) ? 'tok' : '');
+      let last = -1;
+      const tell = () => { const p = Object.keys(W).reduce((a, k) => a + done[k] * W[k], 0) / Object.values(W).reduce((a, b) => a + b, 0); if (p - last >= 0.005) { last = p; reply({ progress: Math.min(0.999, p) }); } };
+      // Le moteur d'exécution d'abord, lu en continu pour afficher la progression
       try {
         const res = await fetch(VENDOR + 'ort-wasm-simd-threaded.jsep.wasm');
-        const total = +res.headers.get('content-length') || 21.6e6; seen.wasm = [0, total];
         const rd = res.body.getReader(); let n = 0;
-        for (;;) { const { done, value } = await rd.read(); if (done) break; n += value.length; seen.wasm[0] = n; tell(); }
+        for (;;) { const { done: end, value } = await rd.read(); if (end) break; n += value.length; done.wasm = Math.min(1, n / W.wasm); tell(); }
       } catch (err) { /* le moteur sera chargé par la bibliothèque */ }
-      seen.wasm[0] = seen.wasm[1];
+      done.wasm = 1; tell();
       await loadOCR((p) => {
-        if (p.status === 'progress' && p.total) { seen[key(p.file)] = [p.loaded, p.total]; tell(); }
+        const k = key(p.file || '');
+        if (!k) return;
+        if (p.status === 'progress') { done[k] = Math.min(1, (p.progress || 0) / 100); tell(); }
+        if (p.status === 'done') { done[k] = 1; tell(); }
       });
       reply({ r: { ok: 1 } });
       return;

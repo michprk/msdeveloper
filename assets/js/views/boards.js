@@ -260,7 +260,7 @@ register({
   },
   'board-help': () => sheet(`${sheetHead('Gestes et raccourcis')}<div class="sheet-body bd-help">
     <h3>Au doigt ou au stylet</h3>
-    <ul><li><b>Écriture</b> : écrivez, levez le doigt, le texte apparaît (écritures ${HAND_FONTS.map((k) => HAND_NICK[k]).join(', ')}, et ${Object.keys(FONTS).length - 3} autres polices au choix). La première fois, la lecture précise s'installe sur l'appareil (environ 90 Mo). Touchez-le avec Choisir pour voir les autres lectures, corriger ou retrouver votre écriture.</li>
+    <ul><li><b>Écriture</b> : écrivez, levez le doigt, le texte apparaît (écritures ${HAND_FONTS.map((k) => HAND_NICK[k]).join(', ')}, et ${Object.keys(FONTS).length - 3} autres polices au choix). La première fois, la lecture précise s'installe sur l'appareil (environ 55 Mo téléchargés). Touchez-le avec Choisir pour voir les autres lectures, corriger ou retrouver votre écriture.</li>
     <li><b>Forme parfaite</b> : au stylo ou au surligneur, gardez le doigt appuyé une demi-seconde à la fin du trait.</li>
     <li><b>Deux doigts</b> : pincer pour zoomer, glisser pour se déplacer. Au stylet, la paume posée est ignorée.</li>
     <li><b>Cases</b> : un toucher sur la case la coche ou la décoche.</li>

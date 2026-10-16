@@ -1075,7 +1075,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     stage.insertAdjacentHTML('beforeend', `<div class="dw-card" role="dialog" aria-label="Lecture précise de l'écriture"><div class="dw-card-in">
       <span class="dw-card-ic">${ic('signature')}</span>
       <h3>Lecture précise de l'écriture</h3>
-      <p>Pour que votre écriture devienne le bon texte, MindView installe une seule fois un modèle d'intelligence artificielle entraîné sur de vraies écritures : environ 90 Mo, de préférence en Wi-Fi. Il reste sur votre appareil, rien n'est envoyé.</p>
+      <p>Pour que votre écriture devienne le bon texte, MindView installe une seule fois un modèle d'intelligence artificielle entraîné sur de vraies écritures : environ 55 Mo à télécharger, de préférence en Wi-Fi. Il reste sur votre appareil, rien n'est envoyé.</p>
       <div class="dw-card-bar" hidden><i></i></div>
       <div class="dw-card-a"><button type="button" class="btn btn-primary" data-cmd="ocr-install">${ic('download')}<span>Installer maintenant</span></button><button type="button" class="btn btn-ghost" data-cmd="ocr-later">Plus tard</button></div>
     </div></div>`);
