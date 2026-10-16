@@ -6,7 +6,7 @@ import { S, update, on, can, schoolOnly, addPage, getPage, getProspect, getProje
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, ago, dateLong, copyText, download, select } from '../ui.js';
 import { pageHead, paywall } from './common.js';
 import { clean, plain, hasFormat, caretOffset, caretAtEnd, setCaret, splitAtCaret, wrapSelection } from '../rich.js';
-import { mountCanvas, FONTS } from '../draw.js';
+import { mountCanvas, FONTS, FONT_GROUPS } from '../draw.js';
 import { dataSheet } from './boards.js';
 import { TEMPLATES, template } from '../data/templates.js';
 // Modèles proposés : à l'école d'abord ceux qui servent aux cours ; jamais de compte rendu client sans CRM
@@ -127,7 +127,7 @@ function formatBar() {
   return `<div class="nt-bar" role="toolbar" aria-label="Mise en forme">
     <div class="nt-fmt">
       <label class="nt-s"><select data-fmt="block" aria-label="Type de bloc"><option value="">Bloc</option>${BLOCKS.filter(([t]) => t !== 'divider').map(([t, l]) => `<option value="${t}">${l}</option>`).join('')}</select></label>
-      <label class="nt-s">${lockIc()}<select data-fmt="font" aria-label="Police"><option value="">Police</option>${Object.values(FONTS).map(([l, f]) => `<option value="${esc(f)}">${l}</option>`).join('')}</select></label>
+      <label class="nt-s">${lockIc()}<select data-fmt="font" aria-label="Police"><option value="">Police</option>${FONT_GROUPS.map((g) => `<optgroup label="${g}">${Object.values(FONTS).filter((v) => v[3] === g).map(([l, f]) => `<option value="${esc(f)}">${l}</option>`).join('')}</optgroup>`).join('')}</select></label>
       <label class="nt-s">${lockIc()}<select data-fmt="size" aria-label="Taille"><option value="">Taille</option>${[['2', 'Petit'], ['3', 'Normal'], ['5', 'Grand'], ['6', 'Très grand']].map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
       <i class="nt-sep"></i>
       <button type="button" class="nt-b" data-fmt="b" title="Gras (Ctrl B)" aria-label="Gras">${ic('bold')}</button>

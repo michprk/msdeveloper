@@ -4,7 +4,7 @@
 import { S, update, can, uid, canAddBoard } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, ago, download } from '../ui.js';
 import { pageHead, paywall } from './common.js';
-import { mountCanvas, renderItem, itemsBox, exportSVGFull, exportPNG, exportSVG, FONTS, HAND_FONTS } from '../draw.js';
+import { mountCanvas, renderItem, itemsBox, exportSVGFull, exportPNG, exportSVG, settle, FONTS, HAND_FONTS, HAND_NICK } from '../draw.js';
 
 const BGS = [['dots', 'Points'], ['grid', 'Quadrillage'], ['seyes', 'Cahier (Seyès)'], ['lines', 'Lignes'], ['blank', 'Blanc']];
 const id9 = () => 'd' + Math.random().toString(36).slice(2, 9);
@@ -15,17 +15,34 @@ const TEMPLATES = {
     { id: id9(), t: 'text', x: 64, y: 40, w2: 640, h: 56, txt: 'Leçon du jour', size: 40, font: 'cursive', c: '#155eef' },
     { id: id9(), t: 'pen', pts: [[64, 104], [420, 104]], c: '#d92d20', w: 3 },
   ], 'seyes'],
-  volumes: ['Géométrie : les volumes', 'cube', 'Cube, pavé, cylindre, cône, sphère, pyramide', () => {
-    const k = [['cube', 'Cube'], ['pave', 'Pavé droit'], ['cyl', 'Cylindre'], ['cone', 'Cône'], ['sphere', 'Sphère'], ['pyr', 'Pyramide']];
-    const col = ['#155eef', '#2f9e44', '#f08c00', '#7048e8', '#e64980', '#0f1e3d'], fill = ['#dbe4ff', '#d3f9d8', '#ffd8a8', '#e5dbff', '#ffe3e3', '#ede7da'];
-    return [{ id: id9(), t: 'text', x: 60, y: 24, w2: 700, h: 52, txt: 'Les solides', size: 36, font: 'serif', b: 1, c: '#0f1e3d' },
-      ...k.flatMap(([kk, n], i) => { const x = 60 + (i % 3) * 300, y = 110 + Math.floor(i / 3) * 290; const w = kk === 'pave' ? 220 : 170, h = kk === 'pave' ? 150 : 170; return [{ id: id9(), t: 'shape', k: kk, x, y, w2: w, h, c: col[i], w: 2.5, f: fill[i], vol: 1 }, { id: id9(), t: 'text', x, y: y + h + 14, w2: 220, h: 38, txt: n, size: 26, font: 'hand', c: '#131a2a' }]; })];
-  }],
+  cornell: ['Prise de notes Cornell', 'page', 'Mots-clés, notes, résumé : la méthode des étudiants', () => [
+    { id: id9(), t: 'text', x: 40, y: 20, w2: 760, h: 52, txt: 'Titre du cours', size: 34, font: 'serif', b: 1, c: '#0f1e3d' },
+    { id: id9(), t: 'line', x1: 40, y1: 86, x2: 980, y2: 86, c: '#155eef', w: 2.5, arrow: 0, dash: 0 },
+    { id: id9(), t: 'line', x1: 290, y1: 86, x2: 290, y2: 620, c: '#d92d20', w: 2, arrow: 0, dash: 0 },
+    { id: id9(), t: 'line', x1: 40, y1: 620, x2: 980, y2: 620, c: '#155eef', w: 2.5, arrow: 0, dash: 0 },
+    { id: id9(), t: 'text', x: 52, y: 100, w2: 220, h: 34, txt: 'Mots-clés, questions', size: 20, font: 'sans', b: 1, c: '#868e96' },
+    { id: id9(), t: 'text', x: 310, y: 100, w2: 400, h: 34, txt: 'Notes', size: 20, font: 'sans', b: 1, c: '#868e96' },
+    { id: id9(), t: 'text', x: 52, y: 636, w2: 400, h: 34, txt: 'Résumé en trois phrases', size: 20, font: 'sans', b: 1, c: '#868e96' },
+  ], 'lines'],
+  kanban: ['Tableau des tâches', 'board', 'À faire, en cours, fait : en post-it', () => [
+    ...[['À faire', '#dbe4ff'], ['En cours', '#fff3bf'], ['Fait', '#d3f9d8']].flatMap(([t, f], i) => [
+      { id: id9(), t: 'rect', x: 40 + i * 330, y: 40, w2: 300, h: 560, c: '#e3ddd1', w: 1.5, f: '#fffdf8', round: 22, txt: '', size: 18 },
+      { id: id9(), t: 'text', x: 64 + i * 330, y: 58, w2: 250, h: 40, txt: t, size: 26, font: 'serif', b: 1, c: '#0f1e3d' },
+      { id: id9(), t: 'sticky', x: 70 + i * 330, y: 120, w2: 240, h: 120, f, txt: ['Réviser le chapitre 4', 'Exposé d\'histoire', 'Fiche de vocabulaire'][i], size: 22, font: 'hand', c: '#131a2a' },
+    ]),
+  ]],
+  swot: ['Analyse SWOT', 'grid', 'Forces, faiblesses, opportunités, menaces', () => [
+    { id: id9(), t: 'text', x: 60, y: 20, w2: 700, h: 52, txt: 'Mon projet : analyse SWOT', size: 32, font: 'serif', b: 1, c: '#0f1e3d' },
+    ...[['Forces', '#d3f9d8', '#2f9e44'], ['Faiblesses', '#ffe3e3', '#d92d20'], ['Opportunités', '#dbe4ff', '#155eef'], ['Menaces', '#fff3bf', '#f08c00']].flatMap(([t, f, c], i) => [
+      { id: id9(), t: 'rect', x: 60 + (i % 2) * 450, y: 100 + Math.floor(i / 2) * 290, w2: 430, h: 270, c, w: 2.5, f, round: 22, txt: '', size: 18 },
+      { id: id9(), t: 'text', x: 84 + (i % 2) * 450, y: 118 + Math.floor(i / 2) * 290, w2: 380, h: 40, txt: t, size: 26, font: 'hand', b: 1, c },
+    ]),
+  ]],
   carte: ['Carte mentale', 'layers', 'Un sujet, quatre idées reliées', () => {
     const c = { id: id9(), t: 'ellipse', x: 380, y: 260, w2: 240, h: 110, c: '#155eef', w: 3, f: '#dbe4ff', txt: 'Sujet central', size: 22, font: 'serif', b: 1 };
     const pos = [[80, 80], [700, 80], [80, 460], [700, 460]];
     const ideas = pos.map(([x, y], i) => ({ id: id9(), t: 'rect', x, y, w2: 200, h: 80, c: ['#eb6834', '#1baf7a', '#eda100', '#e87ba4'][i], w: 2.5, f: '#ffffff', txt: `Idée ${i + 1}`, size: 18, font: 'sans' }));
-    const links = pos.map(([x, y]) => ({ id: id9(), t: 'line', x1: 500, y1: 315, x2: x + 100, y2: y + 40, c: '#a8a39a', w: 2, arrow: 0, dash: 0 }));
+    const links = pos.map(([x, y], i) => ({ id: id9(), t: 'line', x1: 500, y1: 315, x2: x + 100, y2: y + 40, c: '#a8a39a', w: 2, arrow: 1, dash: 0, a1: c.id, a2: ideas[i].id, bend: i % 2 ? -30 : 30 }));
     return [...links, c, ...ideas];
   }],
   frise: ['Frise chronologique', 'trend', 'Les grandes dates, dans l\'ordre', () => [
@@ -38,23 +55,28 @@ const TEMPLATES = {
     { id: id9(), t: 'chart', x: 560, y: 100, w2: 460, h: 280, kind: 'line', title: 'Mes notes', data: [{ l: 'Sept', v: 11 }, { l: 'Oct', v: 12.5 }, { l: 'Nov', v: 12 }, { l: 'Déc', v: 14 }] },
   ]],
   idees: ['Brainstorming', 'sticky', 'Six post-it de couleur', () => ['Idée', 'Question', 'À vérifier', 'Prochaine étape', 'Inspiration', 'Décision'].map((t, i) => ({ id: id9(), t: 'sticky', x: 60 + (i % 3) * 250, y: 60 + Math.floor(i / 3) * 220, w2: 210, h: 170, f: ['#fff3bf', '#d3f9d8', '#dbe4ff', '#ffe3e3', '#fff3bf', '#d3f9d8'][i], txt: t, size: 22, font: 'hand', c: '#131a2a' }))],
-  cours: ['Schéma de cours', 'listCheck', 'Schéma annoté, surligné, à cocher', () => [
-    { id: id9(), t: 'text', x: 60, y: 40, w2: 700, h: 44, txt: 'Chapitre 3 — la cellule', size: 30, font: 'serif', b: 1, c: '#0f1e3d' },
-    { id: id9(), t: 'ellipse', x: 120, y: 140, w2: 320, h: 220, c: '#2f9e44', w: 3, f: '#d3f9d8', txt: '', size: 18 },
-    { id: id9(), t: 'ellipse', x: 230, y: 210, w2: 90, h: 70, c: '#7048e8', w: 2.5, f: '#e5dbff', txt: 'Noyau', size: 16 },
-    { id: id9(), t: 'line', x1: 330, y1: 245, x2: 560, y2: 180, c: '#131a2a', w: 2, arrow: 1, dash: 0 },
-    { id: id9(), t: 'text', x: 570, y: 160, w2: 280, h: 40, txt: 'Contient l\'ADN', size: 26, font: 'hand', c: '#131a2a', bg: '#ffe066' },
-    { id: id9(), t: 'list', x: 570, y: 260, w2: 340, c: '#1baf7a', size: 20, font: 'sans', rows: [{ t: 'Savoir le schéma par cœur', d: 0 }, { t: 'Refaire l\'exercice 4', d: 1 }, { t: 'Définition de la membrane', d: 0 }] },
-  ]],
+  cours: ['Schéma de cours', 'listCheck', 'Formes, flèches accrochées, surligné, à cocher', () => {
+    const cell = { id: id9(), t: 'ellipse', x: 120, y: 140, w2: 320, h: 220, c: '#2f9e44', w: 3, f: '#d3f9d8', txt: '', size: 18 };
+    const noy = { id: id9(), t: 'ellipse', x: 230, y: 210, w2: 90, h: 70, c: '#7048e8', w: 2.5, f: '#e5dbff', txt: 'Noyau', size: 16 };
+    const adn = { id: id9(), t: 'text', x: 570, y: 160, w2: 210, h: 40, txt: 'Contient l\'ADN', size: 28, font: 'hand', c: '#131a2a', bg: '#ffe066' };
+    const mem = { id: id9(), t: 'text', x: 520, y: 380, w2: 240, h: 40, txt: 'Membrane', size: 28, font: 'hand', c: '#2f9e44' };
+    return [
+      { id: id9(), t: 'text', x: 60, y: 40, w2: 700, h: 44, txt: 'Chapitre 3 — la cellule', size: 30, font: 'serif', b: 1, c: '#0f1e3d' },
+      cell, noy, adn, mem,
+      { id: id9(), t: 'line', x1: 330, y1: 245, x2: 560, y2: 180, c: '#131a2a', w: 2, arrow: 1, dash: 0, a1: noy.id, a2: adn.id, bend: -24 },
+      { id: id9(), t: 'line', x1: 430, y1: 320, x2: 520, y2: 400, c: '#2f9e44', w: 2, arrow: 1, dash: 0, a1: cell.id, a2: mem.id },
+      { id: id9(), t: 'list', x: 840, y: 160, w2: 340, c: '#1baf7a', size: 20, font: 'sans', rows: [{ t: 'Savoir le schéma par cœur', d: 0 }, { t: 'Refaire l\'exercice 4', d: 1 }, { t: 'Définition de la membrane', d: 0 }] },
+    ];
+  }],
 };
 
-const thumb = (b) => { const items = b.items || []; if (!items.length) return `<div class="bd-th is-empty">${ic('compose')}</div>`; const bx = itemsBox(items), m = 30; return `<svg class="bd-th" viewBox="${bx.x - m} ${bx.y - m} ${bx.w + m * 2} ${bx.h + m * 2}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${items.slice(0, 160).map(renderItem).join('')}</svg>`; };
+const thumb = (b) => { const items = b.items || []; if (!items.length) return `<div class="bd-th is-empty">${ic('compose')}</div>`; const bx = itemsBox(items), m = 30; return `<svg class="bd-th" viewBox="${bx.x - m} ${bx.y - m} ${bx.w + m * 2} ${bx.h + m * 2}" preserveAspectRatio="xMidYMid meet" aria-hidden="true">${settle(JSON.parse(JSON.stringify(items.slice(0, 160)))).map(renderItem).join('')}</svg>`; };
 
 export function boardsView() {
   const s = S();
   const list = [...s.boards].sort((a, b) => b.updatedAt - a.updatedAt);
   const allowed = can('boards');
-  const demo = `<div class="demo-preview bd-hero" aria-hidden="true"><span class="tag">Exemple</span><svg viewBox="40 0 960 720" class="bd-demo">${TEMPLATES.volumes[3]().map(renderItem).join('')}</svg></div>`;
+  const demo = `<div class="demo-preview bd-hero" aria-hidden="true"><span class="tag">Exemple</span><svg viewBox="40 20 1160 460" class="bd-demo">${settle(TEMPLATES.cours[3]()).map(renderItem).join('')}</svg></div>`;
   const html = `${pageHead('Tableau blanc', { kicker: list.length ? `${list.length} tableau${list.length > 1 ? 'x' : ''}` : 'Écrire, dessiner, schématiser', actions: allowed ? `<button class="btn btn-primary fab-dup" data-act="board-new" data-tpl="vierge">${ic('plus')}<span>Tableau</span></button>` : '' })}
     ${allowed ? '' : `<div class="bd-lock rise">${paywall('boards')}${demo}</div>`}
     ${list.length ? `<div class="bd-grid">${list.map((b) => `<a class="card bd-card rise" href="#/tableau/${b.id}">${thumb(b)}<span class="bd-b"><b>${esc(b.title || 'Sans titre')}</b><span>${(b.items || []).length} élément${(b.items || []).length > 1 ? 's' : ''} · ${ago(b.updatedAt)}</span></span></a>`).join('')}</div>`
@@ -95,6 +117,7 @@ export function boardView([id]) {
       <a class="icon-btn" href="#/tableaux" aria-label="Tous les tableaux">${ic('chevL')}</a>
       <input class="bd-title" value="${esc(b.title || '')}" placeholder="Sans titre" aria-label="Titre du tableau" maxlength="80" data-act-input="board-title" data-id="${id}" ${allowed ? '' : 'readonly'}>
       <span class="bd-saved">Enregistré</span>
+      ${allowed ? `<button class="icon-btn" data-act="board-switch" data-id="${id}" aria-label="Mes tableaux" title="Mes tableaux">${ic('layers')}</button><button class="icon-btn bd-new" data-act="board-pick" aria-label="Nouveau tableau" title="Nouveau tableau">${ic('plus')}</button>` : ''}
       ${allowed ? `<span class="bd-hist"><button class="icon-btn" data-act="board-cmd" data-c="undo" aria-label="Annuler" title="Annuler (Ctrl Z)" disabled>${ic('undo')}</button><button class="icon-btn" data-act="board-cmd" data-c="redo" aria-label="Rétablir" title="Rétablir (Ctrl Y)" disabled>${ic('redo')}</button></span>` : ''}
       <button class="icon-btn bd-wide" data-act="board-print" data-id="${id}" aria-label="Imprimer" title="Imprimer ou enregistrer en PDF">${ic('print')}</button>
       <button class="icon-btn bd-wide" data-act="board-export" data-id="${id}" aria-label="Exporter en image" title="Exporter en image">${ic('download')}</button>
@@ -184,9 +207,22 @@ register({
   'board-new': (b) => {
     if (!canAddBoard()) { sheet(`${sheetHead('Tableau blanc')}<div class="sheet-body">${paywall('boards', { compact: true })}</div>`, { cls: 'sheet-sm' }); return; }
     const tpl = TEMPLATES[b?.dataset?.tpl] || TEMPLATES.vierge;
+    closeSheet();
     const board = { id: 'bd-' + uid(), title: tpl === TEMPLATES.vierge ? '' : tpl[0], items: tpl[3](), bg: tpl[4] || 'dots', createdAt: Date.now(), updatedAt: Date.now() };
     update((s) => { s.boards.unshift(board); });
     location.hash = `#/tableau/${board.id}`;
+  },
+  // Plusieurs tableaux : passer de l'un à l'autre, ou en commencer un nouveau, sans quitter l'écran
+  'board-switch': (b) => {
+    canvas?.flush();
+    const list = [...S().boards].sort((a, c) => c.updatedAt - a.updatedAt);
+    sheet(`${sheetHead('Mes tableaux', `${list.length} tableau${list.length > 1 ? 'x' : ''}`)}<div class="sheet-body">
+      <button class="btn btn-primary btn-block" data-act="board-pick">${ic('plus')}<span>Nouveau tableau</span></button>
+      <div class="bd-switch">${list.map((x) => `<a class="bd-sw-i ${x.id === b.dataset.id ? 'is-on' : ''}" href="#/tableau/${x.id}" data-act="close-sheet-go" data-h="#/tableau/${x.id}">${thumb(x)}<span><b>${esc(x.title || 'Sans titre')}</b><em>${ago(x.updatedAt)}</em></span></a>`).join('')}</div>
+    </div>`, { cls: 'sheet-sm' });
+  },
+  'board-pick': () => {
+    sheet(`${sheetHead('Nouveau tableau', 'Une feuille blanche ou un modèle')}<div class="sheet-body"><div class="tpl-grid is-sheet">${Object.entries(TEMPLATES).map(([k, [name, icon, sub]]) => `<button class="tpl" data-act="board-new" data-tpl="${k}"><span class="tpl-ic">${ic(icon)}</span><b>${esc(name)}</b><span>${esc(sub)}</span></button>`).join('')}</div></div>`);
   },
   'board-title': (el) => update((s) => { const x = s.boards.find((y) => y.id === el.dataset.id); if (x) { x.title = el.value; x.updatedAt = Date.now(); } }, { silent: true }),
   'board-cmd': (b) => canvas?.command(b.dataset.c),
@@ -224,7 +260,7 @@ register({
   },
   'board-help': () => sheet(`${sheetHead('Gestes et raccourcis')}<div class="sheet-body bd-help">
     <h3>Au doigt ou au stylet</h3>
-    <ul><li><b>Écriture</b> : écrivez, levez le doigt, le texte apparaît (polices ${HAND_FONTS.map((k) => FONTS[k][0]).join(', ')}). Touchez-le avec Choisir pour voir les autres lectures, corriger ou retrouver votre écriture.</li>
+    <ul><li><b>Écriture</b> : écrivez, levez le doigt, le texte apparaît (écritures ${HAND_FONTS.map((k) => HAND_NICK[k]).join(', ')}, et ${Object.keys(FONTS).length - 3} autres polices au choix). La première fois, la lecture précise s'installe sur l'appareil (environ 90 Mo). Touchez-le avec Choisir pour voir les autres lectures, corriger ou retrouver votre écriture.</li>
     <li><b>Forme parfaite</b> : au stylo ou au surligneur, gardez le doigt appuyé une demi-seconde à la fin du trait.</li>
     <li><b>Deux doigts</b> : pincer pour zoomer, glisser pour se déplacer. Au stylet, la paume posée est ignorée.</li>
     <li><b>Cases</b> : un toucher sur la case la coche ou la décoche.</li>

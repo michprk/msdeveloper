@@ -143,6 +143,19 @@ const P = {
   cube: '<path d="M12 3.5 19.5 7.5v9L12 20.5l-7.5-4v-9z"/><path d="M4.5 7.5 12 11.5l7.5-4M12 11.5v9"/>',
   magic: '<path d="m4 20 10-10M14.5 4.5v3M13 6h3M19 9.5v3M17.5 11h3M18.5 3.5v2M17.5 4.5h2"/>',
   shadow: '<rect x="3.5" y="3.5" width="12.5" height="12.5" rx="2.2"/><path d="M19.5 8.5v9a2 2 0 0 1-2 2h-9"/>',
+  alL: '<path d="M4 3.5v17"/><rect x="7" y="6" width="11" height="4.5" rx="1.2"/><rect x="7" y="13.5" width="7" height="4.5" rx="1.2"/>',
+  alCx: '<path d="M12 3.5v17"/><rect x="5.5" y="6" width="13" height="4.5" rx="1.2"/><rect x="8" y="13.5" width="8" height="4.5" rx="1.2"/>',
+  alR: '<path d="M20 3.5v17"/><rect x="6" y="6" width="11" height="4.5" rx="1.2"/><rect x="10" y="13.5" width="7" height="4.5" rx="1.2"/>',
+  alT: '<path d="M3.5 4h17"/><rect x="6" y="7" width="4.5" height="11" rx="1.2"/><rect x="13.5" y="7" width="4.5" height="7" rx="1.2"/>',
+  alCy: '<path d="M3.5 12h17"/><rect x="6" y="5.5" width="4.5" height="13" rx="1.2"/><rect x="13.5" y="8" width="4.5" height="8" rx="1.2"/>',
+  alB: '<path d="M3.5 20h17"/><rect x="6" y="6" width="4.5" height="11" rx="1.2"/><rect x="13.5" y="10" width="4.5" height="7" rx="1.2"/>',
+  distH: '<path d="M4 4v16M20 4v16"/><rect x="9.5" y="7" width="5" height="10" rx="1.2"/>',
+  distV: '<path d="M4 4h16M4 20h16"/><rect x="7" y="9.5" width="10" height="5" rx="1.2"/>',
+  group: '<rect x="3.5" y="3.5" width="17" height="17" rx="2.5" stroke-dasharray="3 2.5"/><rect x="7" y="7" width="5.5" height="5.5" rx="1"/><rect x="11.5" y="11.5" width="5.5" height="5.5" rx="1"/>',
+  unlock: '<rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8.5 11V8a3.5 3.5 0 0 1 6.8-1.2"/>',
+  lasso: '<path d="M7.2 15.3C4.6 14.2 3.2 12.3 3.5 10.1 4 6.4 8.6 4 13.2 4.4c4.4.4 7.8 3 7.2 6.4-.6 3.5-5 5.6-9.4 5.2-1.3-.1-2.6-.4-3.8-.7"/><path d="M7.2 15.3c-.8 1.5-.4 3 1 3.6 1.2.6 1 2.1-.4 2.6"/>',
+  bullets: '<circle cx="5" cy="7" r="1.2"/><circle cx="5" cy="12" r="1.2"/><circle cx="5" cy="17" r="1.2"/><path d="M9 7h11M9 12h11M9 17h11"/>',
+  paste: '<rect x="6" y="4.5" width="12" height="16" rx="2"/><path d="M9.5 4.5V3.5h5v1"/><path d="M9.5 10h5M9.5 13.5h5"/>',
 };
 
 export const ic = (name, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${P[name] || P.note}</svg>`;

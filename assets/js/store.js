@@ -12,15 +12,14 @@ export const PLANS = {
 };
 export const RANK = { free: 0, pro: 1, premium: 2 };
 // Fonction → formule minimale. L'essai gratuit donne accès à tout (Premium).
-// Gratuit : tâches, calendrier (mois), 1 projet, 5 pages, 1 tableau blanc, quiz intégrés, examens.
+// Gratuit : tâches, calendrier (mois), 1 projet, 5 pages, quiz intégrés, examens.
 export const FEATURES = {
-  // Pro : tout l'outil d'organisation, les études et l'entrepreneuriat
+  // Pro : les études et l'organisation (notes, projets, tableau blanc, outils de révision)
   notesUnlimited: 'pro', projectsUnlimited: 'pro', boards: 'pro', notesDraw: 'pro', calendarFull: 'pro', connectors: 'pro', myQuiz: 'pro',
-  timetable: 'pro', grades: 'pro', focus: 'pro',
-  crm: 'pro', quote: 'pro', scriptsAll: 'pro', callMode: 'pro', academy: 'pro', messages: 'pro', audit: 'pro', import: 'pro',
-  // Premium : ce qui fait gagner des heures
-  planner: 'premium', spaced: 'premium', focusStats: 'premium', exportsPro: 'premium',
-  myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium',
+  timetable: 'pro', grades: 'pro', focus: 'pro', planner: 'pro', spaced: 'pro', focusStats: 'pro',
+  // Premium : les études et l'entrepreneuriat (clients, devis, prospection, statistiques)
+  crm: 'premium', quote: 'premium', scriptsAll: 'premium', callMode: 'premium', academy: 'premium', messages: 'premium', audit: 'premium', import: 'premium',
+  myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium', exportsPro: 'premium',
 };
 export const LIMITS = { freePages: 5, freeProjects: 1 };
 

@@ -5,7 +5,6 @@ import { ic, esc, eur2, register, toast, sheet, sheetHead, closeSheet, confirmSh
 import { scriptCount } from '../data/scripts.js';
 import { GUIDES } from '../data/guides.js';
 import { pageHead } from './common.js';
-import { flower } from './flowers.js';
 import { isTest, PAYMENTS } from '../payments.js';
 import { runBillingChecks, CHECK_COUNT } from '../billing-check.js';
 import { cloudUser, checkout, openPortal, cloudMessage } from '../cloud.js';
@@ -21,28 +20,28 @@ export const OFFER = [
   ['Calendrier', 'Vue mois', 'Mois, semaine, jour, glisser-déposer', 'Mois, semaine, jour, glisser-déposer'],
   ['Projets reliés aux tâches, progression automatique', `${LIMITS.freeProjects} projet`, 'Illimités', 'Illimités'],
   ['Notes en pages et sous-pages, modèles', `${LIMITS.freePages} pages`, 'Illimitées', 'Illimitées'],
-  ['Éditeur complet : polices, couleurs, surligneur, encadrés, dessin sur la page', 'Gras, italique, souligné', true, true],
-  ['Tableau blanc : écriture à la main transformée en texte, formes parfaites, volumes, surligneur, cases à cocher, graphiques, impression', false, 'Illimités', 'Illimités + export PNG haute définition'],
+  ['Éditeur complet : 30 polices, couleurs, surligneur, encadrés, dessin sur la page', 'Gras, italique, souligné', true, true],
+  ['Tableau blanc : écriture à la main transformée en texte, formes, flèches, cases à cocher, impression', false, 'Illimités', 'Illimités + export PNG haute définition'],
   ['Connecteurs : Notion, Figma, Canva, Google, Trello, Quizlet, agendas…', 'Liens', 'Imports et aperçus', 'Imports et aperçus'],
   ['Notifications et recherche globale', true, true, true],
   ['Quiz intégrés, quiz du jour, révision des notes', true, true, true],
+  ['Examens et compte à rebours', true, true, true],
   ['Créer vos propres quiz', false, true, true],
-  ['Examens et compte à rebours', true, true, true, 'etudes'],
-  ['Emploi du temps, moyennes avec coefficients', false, true, true, 'etudes'],
-  ['Mode concentration (minuteur Pomodoro)', false, true, true, 'etudes'],
-  ['Planificateur de révisions automatique', false, false, true, 'etudes'],
-  ['Révision espacée : chaque carte revient au bon moment', false, false, true, 'etudes'],
-  ['Statistiques de concentration et de révision', false, false, true, 'etudes'],
-  ['CRM personnalisé : fiches, pipeline, champs, équipe', false, true, true, 'clients'],
-  ['Devis suivis (brouillon → accepté), PDF, prospect → client', false, true, true, 'clients'],
-  ['Scripts d\'appel à froid (23 secteurs)', true, true, true, 'prospecter'],
-  [`Les ${scriptCount()} scripts, situations délicates, mode appel`, false, true, true, 'prospecter'],
-  ['Messages prêts, audit express, import de listes', false, true, true, 'prospecter'],
-  ['Académie', `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.length} guides`, `${GUIDES.length} guides`, 'apprendre'],
-  ['Statistiques commerciales, export CSV', false, false, true, 'clients'],
-  ['Vos scripts et secteurs, entraînement aux objections', false, false, true, 'prospecter'],
+  ['Emploi du temps, moyennes avec coefficients', false, true, true],
+  ['Planificateur de révisions et révision espacée', false, true, true],
+  ['Mode concentration et ses statistiques', false, true, true],
+  ['Scripts d\'appel à froid (23 secteurs)', true, true, true],
+  ['CRM personnalisé : fiches, pipeline, champs, équipe', false, false, true],
+  ['Devis suivis (brouillon → accepté), PDF, prospect → client', false, false, true],
+  [`Les ${scriptCount()} scripts, situations délicates, mode appel`, false, false, true],
+  ['Messages prêts, audit express, import de listes', false, false, true],
+  ['Statistiques commerciales, export CSV', false, false, true],
+  ['Vos scripts et secteurs, entraînement aux objections', false, false, true],
+  ['Académie : les guides pour entreprendre', `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.length} guides`],
 ];
-export const offerRows = () => OFFER.filter((r) => (!r[4] || on(r[4])) && !(r[0] === 'Académie' && schoolOnly()));
+// Pro est pensé pour les études, Premium pour les études et l'entrepreneuriat : toutes les lignes sont montrées
+export const offerRows = () => OFFER;
+export const PLAN_FOR = { free: 'Pour découvrir', pro: 'Pour les études et l\'organisation', premium: 'Études + entrepreneuriat : clients, devis, prospection' };
 const cell = (v) => (v === true ? `<span class="ok">${ic('check')}<span class="sr-only">Inclus</span></span>` : v === false ? '<span class="no" aria-label="Non inclus">—</span>' : `<span class="txt">${esc(v)}</span>`);
 
 const STATUS = {
@@ -76,9 +75,9 @@ export function plans() {
       : `<button class="btn btn-ghost btn-block" data-act="sub-down" data-plan="${id}">Passer à ${PLANS[id].name}</button><p class="plan-sub">À partir du ${dl(b.periodEnd)}</p>`;
     return `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="co-open" data-plan="${id}">Choisir ${PLANS[id].name}</button>`;
   };
-  const card = (id, k) => `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''} ${id === 'pro' ? 'is-reco' : ''}">${id === 'premium' ? flower(2, 'plan-fl is-big') : ''}
-      ${id === 'pro' ? '<span class="plan-tag">Le plus choisi pour démarrer</span>' : ''}
-      <header><h2>${PLANS[id].name}</h2><p class="plan-p">${PLANS[id].price ? `<b>${price(PLANS[id].price)} €</b><span>par mois, sans engagement</span>` : '<b>0 €</b><span>pour toujours</span>'}</p></header>
+  const card = (id, k) => `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''} ${id === 'pro' ? 'is-reco' : ''}">
+      ${id === 'pro' ? '<span class="plan-tag">Idéal pour les études</span>' : id === 'premium' ? '<span class="plan-tag is-light">Pour entreprendre</span>' : ''}
+      <header><h2>${PLANS[id].name}</h2><p class="plan-for">${PLAN_FOR[id]}</p><p class="plan-p">${PLANS[id].price ? `<b>${price(PLANS[id].price)} €</b><span>par mois, sans engagement</span>` : '<b>0 €</b><span>pour toujours</span>'}</p></header>
       <ul class="plan-f">${offerRows().filter((r) => r[k + 1] && (k === 0 || r[k] !== r[k + 1])).map((r) => `<li>${ic('check')}<span>${esc(r[0])}${typeof r[k + 1] === 'string' ? ` <em>(${esc(r[k + 1])})</em>` : ''}</span></li>`).join('')}</ul>
       ${id !== 'free' ? `<p class="plan-plus">${id === 'pro' ? 'En plus de la version gratuite' : 'En plus de tout Pro'}</p>` : ''}
       ${planBtn(id)}

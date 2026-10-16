@@ -10,6 +10,31 @@
 @font-face { font-family: "Caveat"; src: url("../fonts/caveat-400-700-latin.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "Playwrite FR Moderne"; src: url("../fonts/playwrite-fr-moderne-100-400.woff2") format("woff2"); font-weight: 100 400; font-style: normal; font-display: swap; }
 @font-face { font-family: "Playpen Sans"; src: url("../fonts/playpen-sans-100-800-latin.woff2") format("woff2"); font-weight: 100 800; font-style: normal; font-display: swap; }
+/* Bibliothèque de polices du tableau blanc et des notes (Google Fonts, SIL Open Font License), chargées seulement quand elles servent */
+@font-face { font-family: "Indie Flower"; src: url("../fonts/indie-flower.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Patrick Hand"; src: url("../fonts/patrick-hand.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Kalam"; src: url("../fonts/kalam.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Shadows Into Light"; src: url("../fonts/shadows-into-light.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Gloria Hallelujah"; src: url("../fonts/gloria-hallelujah.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Homemade Apple"; src: url("../fonts/homemade-apple.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Dancing Script"; src: url("../fonts/dancing-script.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Satisfy"; src: url("../fonts/satisfy.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Architects Daughter"; src: url("../fonts/architects-daughter.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Reenie Beanie"; src: url("../fonts/reenie-beanie.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Gochi Hand"; src: url("../fonts/gochi-hand.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Pacifico"; src: url("../fonts/pacifico.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Amatic SC"; src: url("../fonts/amatic-sc.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Permanent Marker"; src: url("../fonts/permanent-marker.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Lobster"; src: url("../fonts/lobster.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Bebas Neue"; src: url("../fonts/bebas-neue.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Lora"; src: url("../fonts/lora.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Playfair Display"; src: url("../fonts/playfair-display.woff2") format("woff2"); font-weight: 400 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Nunito"; src: url("../fonts/nunito.woff2") format("woff2"); font-weight: 400 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Montserrat"; src: url("../fonts/montserrat.woff2") format("woff2"); font-weight: 400 800; font-style: normal; font-display: swap; }
+@font-face { font-family: "Roboto Slab"; src: url("../fonts/roboto-slab.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Lexend"; src: url("../fonts/lexend.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible"; src: url("../fonts/atkinson-hyperlegible.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Space Mono"; src: url("../fonts/space-mono.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
 
 :root {
   --bg: #f5f1e9; --bg-2: #ede7da; --card: #fffdf8; --card-2: #faf6ee;
@@ -2902,3 +2927,51 @@ body[data-mode="board"] .tabbar, body[data-mode="board"] .fab, body[data-mode="b
 .ob-acc-n { margin: 16px 0 0; font-size: 13px; line-height: 1.5; color: var(--muted); }
 .ob-err { margin-top: 10px; }
 .acc-local { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--sky-2); } .acc-local .ic { width: 18px; height: 18px; color: var(--navy); flex: none; }
+/* Lecture précise de l'écriture : état et installation */
+.dw-ai { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 11px; border-radius: 10px; font-size: 12.5px; font-weight: 600; white-space: nowrap; flex: none; }
+.dw-ai .ic { width: 15px; height: 15px; }
+.dw-ai.is-ok { background: color-mix(in srgb, var(--olive) 14%, transparent); color: var(--olive); }
+.dw-ai.is-off { background: var(--blue); color: #ffffff; }
+.dw-ai.is-busy { position: relative; overflow: hidden; background: var(--bg-2); color: var(--ink); }
+.dw-ai.is-busy::before { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); background: var(--sky-2); transition: width .3s; }
+.dw-ai.is-busy span { position: relative; }
+.dw-card { position: absolute; inset: 0; z-index: 41; display: grid; place-items: center; padding: 16px; background: rgba(245, 241, 233, .6); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.dw-card-in { width: 100%; max-width: 440px; padding: 22px; background: var(--card); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 24px 60px rgba(15, 30, 61, .2); animation: rise .45s var(--ease) both; }
+.dw-card-ic { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 12px; border-radius: 16px; background: var(--sky-2); color: var(--navy); }
+.dw-card-ic .ic { width: 26px; height: 26px; }
+.dw-card h3 { margin: 0 0 8px; font: 500 22px/1.2 var(--display); }
+.dw-card p { margin: 0 0 16px; font-size: 14.5px; line-height: 1.5; color: var(--ink-2); }
+.dw-card-bar { height: 8px; margin: 0 0 12px; border-radius: 99px; background: var(--bg-2); overflow: hidden; }
+.dw-card-bar i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--blue); transition: width .3s; }
+.dw-card-a { display: flex; flex-wrap: wrap; gap: 8px; }
+.dw-card-p { margin: 0 !important; font-size: 13.5px !important; color: var(--muted) !important; }
+.dw-reading-t { fill: var(--blue); font-family: "Instrument Sans", system-ui, sans-serif; font-weight: 600; pointer-events: none; }
+.dw-bind { fill: rgba(21, 94, 239, .06); stroke: var(--blue); pointer-events: none; }
+.dw-h.is-bend { fill: var(--blue); stroke: #ffffff; cursor: grab; }
+/* Bibliothèque de polices */
+.dw-fontbtn { display: inline-flex; align-items: center; gap: 6px; height: 34px; max-width: 170px; padding: 0 8px 0 11px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--card); color: var(--ink); font-size: 15px; flex: none; }
+.dw-fontbtn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dw-fontbtn .ic { width: 14px; height: 14px; color: var(--muted); flex: none; }
+.dw-fontpop { width: min(320px, calc(100vw - 40px)); max-height: min(420px, 60vh); overflow-y: auto; overscroll-behavior: contain; }
+.dw-fg { display: grid; gap: 2px; margin-bottom: 10px; }
+.dw-fg > span { position: sticky; top: -12px; padding: 6px 0 4px; background: var(--card); font-size: 11.5px; font-weight: 700; letter-spacing: .02em; color: var(--muted); }
+.dw-fo { display: block; width: 100%; padding: 8px 10px; border-radius: 9px; text-align: left; font-size: 20px; line-height: 1.2; color: var(--ink); }
+.dw-fo:hover { background: var(--bg-2); }
+.dw-fo.is-on { background: var(--sky-2); color: var(--navy); }
+.dw-fonts .dw-fontbtn { align-self: center; }
+/* Mes tableaux (depuis un tableau ouvert) */
+.bd-switch { display: grid; gap: 8px; margin-top: 12px; }
+.bd-sw-i { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: center; padding: 6px; border-radius: 14px; border: 1px solid transparent; color: inherit; }
+.bd-sw-i:hover { background: var(--bg-2); }
+.bd-sw-i.is-on { border-color: var(--blue); background: var(--sky-2); }
+.bd-sw-i .bd-th { aspect-ratio: 16 / 10; border-radius: 9px; }
+.bd-sw-i span { display: grid; gap: 2px; min-width: 0; }
+.bd-sw-i b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-sw-i em { font-style: normal; font-size: 13px; color: var(--muted); }
+.tpl-grid.is-sheet { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+/* Formules : à qui elles s'adressent */
+.plan-for { margin: 2px 0 0; font-size: 14px; line-height: 1.4; color: var(--muted); }
+.plan.is-dark .plan-for { color: var(--on-navy-2); }
+.plan-tag.is-light { background: rgba(245, 241, 233, .12); color: var(--on-navy); }
+.dw-seg button .ic { width: 15px; height: 15px; margin-right: 5px; vertical-align: -3px; }
+.dw-seg button { display: inline-flex; align-items: center; }

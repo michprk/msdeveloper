@@ -443,7 +443,7 @@ function readLine(strokes0, M, lex) {
   return { text, alts: [...new Set(alts)].slice(0, 4), xh, base, slant: sl };
 }
 // Plusieurs lignes : on regroupe les traits par bandes horizontales
-function splitLines(strokes) {
+export function splitLines(strokes) {
   const items = strokes.map((s) => ({ s, b: box(s) }));
   const ref = median(items.map((x) => Math.max(x.b.h, x.b.w))) || 1;
   // Les grands traits forment les lignes (projection verticale) ; points, accents et barres s'y rattachent ensuite

@@ -18,6 +18,15 @@
 
 **Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche appartient à un projet, une page de notes à une fiche, un devis accepté transforme le prospect en client et crée son projet : rien à recopier d'un outil à l'autre.
 
+## Nouveautés 1.8 (16/10/2026)
+
+- **Lecture précise de l'écriture** : un vrai modèle de reconnaissance entraîné sur des écritures humaines (TrOCR de Microsoft, licence MIT), exécuté **sur l'appareil** dans un fil séparé, suivi d'un correcteur français (dictionnaire de 38 000 mots + vos mots) qui rattrape « domain » → « demain », « revision » → « révision ». Il s'installe une seule fois depuis l'outil Écriture (environ 90 Mo, avec progression) et reste disponible hors ligne ; avant l'installation, l'ancien moteur simple sert de secours. Mesuré : 8 mots sur 8 écrits à la main lus justes dans l'application, environ 1,5 s de calcul par mot sur ordinateur.
+- **Formes** : les solides sont retirés. 20 formes et traits : carré, arrondi, rond, triangle, triangle rectangle, losange, parallélogramme, trapèze, pentagone, hexagone, octogone, étoile, cœur, nuage, grosse flèche, croix, trait, flèche, double flèche, flèche courbe. **Flèches accrochées** : une flèche tracée d'une forme à une autre (ou à un texte) les relie et suit quand on les déplace ; la poignée du milieu la courbe.
+- **30 polices** rangées par familles (écriture à la main, classiques, titres, très lisibles pour la dyslexie, machine à écrire), chaque nom écrit dans sa propre police, dans le tableau blanc comme dans les notes.
+- **Comme les meilleures applications** : 4 stylos (bille, plume, pinceau, feutre), aligner et répartir plusieurs éléments, grouper (Ctrl G), verrouiller, copier-coller entre tableaux (Ctrl C / Ctrl V), sélection au lasso, listes à puces.
+- **Plein de tableaux** : depuis un tableau ouvert, « Mes tableaux » pour passer de l'un à l'autre et « + » pour en commencer un nouveau. Nouveaux modèles : prise de notes Cornell, tableau des tâches, analyse SWOT ; le schéma de cours et la carte mentale utilisent les flèches accrochées.
+- **Formules** : Pro = **les études et l'organisation** (notes, projets, tableau blanc, emploi du temps, moyennes, planificateur, révision espacée, concentration) ; Premium = **études + entrepreneuriat** (CRM, devis, scripts, mode appel, statistiques, Académie, export PNG). La fleur de la carte Premium est retirée.
+
 ## Nouveautés 1.7 (16/10/2026)
 
 - **Tableau blanc refait** (Pro et Premium ; sans abonnement, les tableaux restent lisibles) :
@@ -100,27 +109,24 @@
 
 ## Formules
 
-| | Gratuit | Pro 11,99 €/mois | Premium 21,99 €/mois |
+| | Gratuit | Pro 11,99 €/mois — études et organisation | Premium 21,99 €/mois — études + entrepreneuriat |
 |---|---|---|---|
 | Tâches, listes, tableau, rappels | ✓ | ✓ | ✓ |
 | Calendrier | Mois | Mois, semaine, jour, glisser-déposer | Mois, semaine, jour, glisser-déposer |
 | Projets reliés aux tâches | 1 | Illimités | Illimités |
 | Notes en pages | 5 pages | Illimitées | Illimitées |
-| Éditeur complet (polices, couleurs, surligneur, encadrés, dessin) | Gras, italique, souligné | ✓ | ✓ |
-| Tableau blanc (écriture → texte, formes, volumes, impression) | — | Illimités | Illimités + export PNG |
+| Éditeur complet (30 polices, couleurs, surligneur, encadrés, dessin) | Gras, italique, souligné | ✓ | ✓ |
+| Tableau blanc (écriture → texte, formes, flèches, impression) | — | Illimités | Illimités + export PNG |
 | Connecteurs | Liens | Imports et aperçus | Imports et aperçus |
 | Notifications, recherche | ✓ | ✓ | ✓ |
-| Quiz intégrés, quiz du jour, révision des notes | ✓ | ✓ | ✓ |
-| Vos propres quiz | — | ✓ | ✓ |
-| Examens et compte à rebours | ✓ | ✓ | ✓ |
-| Emploi du temps, moyennes, concentration | — | ✓ | ✓ |
-| Planificateur de révisions, révision espacée, statistiques de concentration | — | — | ✓ |
-| CRM personnalisé | — | ✓ | ✓ |
-| Devis suivis, PDF, prospect → client | — | ✓ | ✓ |
-| Scripts d'appel à froid | ✓ | ✓ | ✓ |
-| Tous les scripts, mode appel | — | ✓ | ✓ |
-| Académie | 5 guides | 17 guides | 17 guides |
-| Statistiques, export CSV, scripts personnels | — | — | ✓ |
+| Quiz intégrés, quiz du jour, révision des notes, examens | ✓ | ✓ | ✓ |
+| Vos propres quiz, emploi du temps, moyennes | — | ✓ | ✓ |
+| Planificateur de révisions, révision espacée, concentration et statistiques | — | ✓ | ✓ |
+| Scripts d'appel à froid (23 secteurs) | ✓ | ✓ | ✓ |
+| CRM personnalisé, devis suivis, prospect → client | — | — | ✓ |
+| Tous les scripts, mode appel, messages, audit, import | — | — | ✓ |
+| Statistiques commerciales, export CSV, scripts personnels, entraînement | — | — | ✓ |
+| Académie (guides pour entreprendre) | 5 guides | 5 guides | 17 guides |
 
 Essai de 7 jours sans carte, avec tout Premium. Mensuel, sans engagement. Changement de formule : vers le haut tout de suite (au prorata), vers le bas à la fin de la période payée. Paiement refusé : 7 jours de délai de grâce. La répartition se règle dans `FEATURES` et `LIMITS` (`assets/js/store.js`).
 
@@ -165,3 +171,5 @@ Voir aussi [SECURITE.md](SECURITE.md) et [TEST-UTILISATEURS.md](TEST-UTILISATEUR
 
 - Polices : Fraunces, Instrument Sans, Caveat, Playwrite France Moderne (TypeTogether), Playpen Sans (TypeTogether), toutes sous SIL Open Font License, servies depuis l'application.
 - Lecture de l'écriture : modèles de lettres tirés des polices à un trait Hershey (domaine public) et EMS (SIL Open Font License, Evil Mad Scientist). Dictionnaire : fréquences Hermit Dave, FrequencyWords (OpenSubtitles 2018), licence CC BY-SA 4.0, complétées d'un vocabulaire scolaire ; le fichier `assets/js/data/hwr-lexique.js` est distribué sous la même licence.
+- Lecture de l'écriture (1.8) : modèle TrOCR small handwritten (Microsoft, licence MIT ; conversion ONNX de Xenova), exécuté avec Transformers.js 3.8.1 (Hugging Face, licence Apache 2.0) et ONNX Runtime Web (Microsoft, licence MIT), servis depuis l'application (`assets/models/`, `assets/js/vendor/`).
+- 24 polices supplémentaires de Google Fonts (Indie Flower, Patrick Hand, Kalam, Lora, Lexend, Atkinson Hyperlegible…), SIL Open Font License, servies depuis l'application.

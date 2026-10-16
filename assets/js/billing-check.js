@@ -108,9 +108,9 @@ const SCENARIOS = [
     set({ trialStart: Date.now() - 30 * DAY });
     c('Gratuit : CRM, devis, emploi du temps et pages illimitées verrouillés', !can('crm') && !can('quote') && !can('timetable') && !can('notesUnlimited'));
     subscribe('pro');
-    c('Pro : CRM, devis, emploi du temps et tableaux blancs ouverts ; planificateur verrouillé', can('crm') && can('quote') && can('timetable') && can('boards') && !can('planner') && !can('stats'));
+    c('Pro : études, planificateur et tableaux blancs ouverts ; CRM, devis et statistiques réservés à Premium', can('timetable') && can('boards') && can('planner') && can('spaced') && !can('crm') && !can('quote') && !can('stats'));
     changePlan('premium');
-    c('Premium : tout est ouvert, y compris planificateur et révision espacée', can('stats') && can('export') && can('planner') && can('spaced'));
+    c('Premium : tout est ouvert, études et entrepreneuriat (CRM, devis, statistiques)', can('stats') && can('export') && can('crm') && can('quote') && can('planner'));
   }],
   ['Dates d\'échéance (mois courts, années bissextiles)', (c) => {
     const d = (y, m, day, h = 10) => new Date(y, m, day, h).getTime();
