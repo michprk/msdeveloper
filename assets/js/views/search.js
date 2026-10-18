@@ -168,7 +168,7 @@ export function createSheet() {
     on('organiser') && ['page-templates', 'layers', 'Depuis un modèle', 'Réunion, projet, journal, révision…'],
     on('clients') && (can('crm') ? ['prospect-new', 'users', 'Fiche', S().crm.noun || 'Clients', {}] : ['go', 'users', 'Fiche', 'CRM inclus dans Pro', { h: '#/crm' }]),
     on('prospecter') && ['go', 'headset', 'Session d\'appels', 'Le script pas à pas', { h: '#/appel' }],
-    on('apprendre') && ['go', 'quiz', 'Quiz', can('myQuiz') ? 'Vos propres questions' : 'Inclus dans Pro', { h: '#/quiz/nouveau' }],
+    on('apprendre') && ['go', 'quiz', 'Quiz', 'Vos quiz sur Quizlet, vos cartes de révision', { h: '#/quiz' }],
   ].filter(Boolean);
   sheet(`${sheetHead('Créer')}<div class="sheet-body">
       ${on('organiser') ? `<p class="field-l">Une tâche</p>${quickAdd({ placeholder: 'Ex. « Appeler Marc demain 14h #travail »' })}` : ''}

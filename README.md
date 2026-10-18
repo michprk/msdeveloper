@@ -18,6 +18,18 @@
 
 **Pourquoi une seule application plutôt que Notion + un tableur + une app de rappels.** Une tâche appartient à un projet, une page de notes à une fiche, un devis accepté transforme le prospect en client et crée son projet : rien à recopier d'un outil à l'autre.
 
+## Nouveautés 1.9 (18/10/2026)
+
+- **Accueil et connexion** : premier écran bleu nuit avec l'application sur un Mac et un iPhone (vraies captures de la vue d'ensemble), « Créer mon compte », « Se connecter », « Découvrir la présentation ». Écran de connexion `#/connexion` dans le même décor.
+- **Un vrai compte** : prénom, e-mail et **mot de passe**, et le choix **En solo / En équipe** (avec le nom de l'équipe). Quand un compte existe sur l'appareil, l'application s'ouvre sur la connexion ; « Se déconnecter » y ramène. Mot de passe oublié : lien par e-mail avec les comptes en ligne ; sur l'appareil, restauration d'une sauvegarde ou effacement.
+- **Essai gratuit avec moyen de paiement** : à la fin de l'accueil, on choisit Pro ou Premium et on ajoute son moyen de paiement ; rien n'est prélevé pendant 7 jours, le premier prélèvement a lieu à la fin de l'essai sauf annulation. En ligne : Stripe Checkout (`trial_period_days: 7`, carte obligatoire). La version gratuite limitée reste accessible par un lien discret.
+- **Vue d'ensemble façon tableau de bord** : barres hachurées par semaine ou par mois (la période en cours en bleu), calendrier du mois en plages de couleur (importantes, à faire, en retard, échéances), jauge de régularité, carte de formule, accès rapide, note de la journée.
+- **Notes : des fiches finies** : couverture de page (7 couleurs), encadrés en 5 tons (information, à retenir, attention, astuce, exemple), **définitions** (terme / définition, deviennent des cartes de révision), **tableaux** (une colonne « Fait » devient des cases à cocher), **barre d'avancement**. Modèles refaits : fiche de cours, fiche de révision, planning de révision, vocabulaire, plan de la semaine, etc.
+- **Examens** : grande carte du prochain examen (compte à rebours, chapitres révisés), jauge des révisions avec la prochaine séance, les 14 prochains jours en couleur, tous les examens en cartes.
+- **Concentration** : Pomodoro, **minuteur à la durée choisie** (de 1 minute à 12 heures), **chronomètre** avec tours, et une **calculatrice** (priorités, parenthèses, puissances, racine, pourcentage, clavier).
+- **Quiz** : vos propres quiz se font sur **Quizlet** (gratuit) : « Commencer » l'ouvre, et « Envoyer mes cartes » copie vos questions / réponses au format d'import Quizlet. Kahoot! et Anki proposés aussi. MindView ne crée plus de quiz personnels ; les quiz intégrés restent.
+- **Tableau blanc** : la galerie des modèles montre un aperçu de chaque modèle.
+
 ## Nouveautés 1.8 (16/10/2026)
 
 - **Lecture précise de l'écriture** : un vrai modèle de reconnaissance entraîné sur des écritures humaines (TrOCR de Microsoft, licence MIT), exécuté **sur l'appareil** dans un fil séparé, suivi d'un correcteur français (dictionnaire de 38 000 mots + vos mots) qui rattrape « domain » → « demain », « revision » → « révision ». Il s'installe une seule fois depuis l'outil Écriture (environ 55 Mo à télécharger, 90 Mo une fois installé, avec progression) et reste disponible hors ligne ; avant l'installation, l'ancien moteur simple sert de secours. Mesuré : 8 mots sur 8 écrits à la main lus justes dans l'application, environ 1,5 s de calcul par mot sur ordinateur.
@@ -120,7 +132,8 @@
 | Connecteurs | Liens | Imports et aperçus | Imports et aperçus |
 | Notifications, recherche | ✓ | ✓ | ✓ |
 | Quiz intégrés, quiz du jour, révision des notes, examens | ✓ | ✓ | ✓ |
-| Vos propres quiz, emploi du temps, moyennes | — | ✓ | ✓ |
+| Vos propres quiz sur Quizlet (lien et envoi de vos cartes) | ✓ | ✓ | ✓ |
+| Emploi du temps, moyennes | — | ✓ | ✓ |
 | Planificateur de révisions, révision espacée, concentration et statistiques | — | ✓ | ✓ |
 | Scripts d'appel à froid (23 secteurs) | ✓ | ✓ | ✓ |
 | CRM personnalisé, devis suivis, prospect → client | — | — | ✓ |
@@ -128,7 +141,7 @@
 | Statistiques commerciales, export CSV, scripts personnels, entraînement | — | — | ✓ |
 | Académie (guides pour entreprendre) | 5 guides | 5 guides | 17 guides |
 
-Essai de 7 jours sans carte, avec tout Premium. Mensuel, sans engagement. Changement de formule : vers le haut tout de suite (au prorata), vers le bas à la fin de la période payée. Paiement refusé : 7 jours de délai de grâce. La répartition se règle dans `FEATURES` et `LIMITS` (`assets/js/store.js`).
+Essai de 7 jours de la formule choisie (Pro ou Premium), avec moyen de paiement : rien n'est prélevé pendant l'essai, le premier mois est prélevé à la fin sauf annulation. Mensuel, sans engagement. Changement de formule : vers le haut tout de suite (au prorata), vers le bas à la fin de la période payée. Paiement refusé : 7 jours de délai de grâce. La répartition se règle dans `FEATURES` et `LIMITS` (`assets/js/store.js`).
 
 **Paiement : mode test.** Tout le parcours fonctionne, sans carte et sans prélèvement. Pour encaisser réellement, il faut un compte Stripe et un petit serveur : voir [PAIEMENTS.md](PAIEMENTS.md).
 

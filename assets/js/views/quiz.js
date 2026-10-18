@@ -11,6 +11,10 @@ const T = (s) => esc(typo(String(s || '')));
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+// Vos propres quiz se font dans une application connue et gratuite (MindView n'en crée plus)
+export const QUIZ_APPS = { quizlet: 'https://quizlet.com/create-set', kahoot: 'https://create.kahoot.it/', anki: 'https://apps.ankiweb.net/' };
+// Cartes des notes au format d'import Quizlet : « terme <tabulation> définition », une carte par ligne
+const quizletText = () => S().pages.flatMap((p) => qaCards(p)).map((c) => `${(c.x || '').replace(/\s+/g, ' ').trim()}\t${(c.a || '').replace(/\s+/g, ' ').trim()}`).join('\n');
 
 // Quiz du jour : un quiz différent chaque jour, pris dans les modules utilisés
 export function dailyQuiz() {
@@ -40,6 +44,7 @@ export function quizHome() {
   const passed = QUIZZES.filter((q) => (result(q.id)?.best || 0) >= 80).length;
   const streak = quizStreak();
   const notePages = s.pages.filter((p) => qaCards(p).length);
+  const cardsN = notePages.reduce((n, p) => n + qaCards(p).length, 0);
   const mods = s.profile.usages || MODULE_IDS;
   const ordered = [...QUIZZES.filter((q) => mods.includes(q.mod)), ...QUIZZES.filter((q) => !mods.includes(q.mod))];
   const tile = (q, i) => {
@@ -51,24 +56,27 @@ export function quizHome() {
     </a>`;
   };
   const html = `
-    ${pageHead('Quiz', { kicker: `${QUIZZES.length} quiz · ${QUESTION_COUNT} questions, chacune expliquée` })}
+    ${pageHead('Quiz', { kicker: 'Vos quiz sur Quizlet, vos cartes de révision et les quiz MindView' })}
+    <section class="card qz-ext rise">
+      <div class="qz-ext-t"><p class="hero-k">Vos propres quiz</p><h2>Créez et jouez vos quiz sur Quizlet</h2>
+        <p>L'application de quiz la plus utilisée par les élèves et les étudiants, gratuite. Cartes, tests, jeux : vos quiz se créent là-bas, en quelques minutes.</p></div>
+      <div class="qz-ext-a">
+        <a class="btn btn-sky btn-lg" href="${QUIZ_APPS.quizlet}" target="_blank" rel="noopener noreferrer">${ic('external')}<span>Commencer</span></a>
+        ${cardsN ? `<button class="btn qz-ext-b" data-act="qz-export">${ic('upload')}<span>Envoyer mes ${cardsN} carte${cardsN > 1 ? 's' : ''} vers Quizlet</span></button>` : ''}
+      </div>
+      <p class="qz-alt">Autres applications gratuites : <a href="${QUIZ_APPS.kahoot}" target="_blank" rel="noopener noreferrer">Kahoot!</a> · <a href="${QUIZ_APPS.anki}" target="_blank" rel="noopener noreferrer">Anki</a></p>
+    </section>
+    ${s.quiz.mine.length ? `<h2 class="sec-title">Vos anciens quiz</h2><section class="card rise"><ul class="rows">${s.quiz.mine.map((m) => `<li><a class="row" href="#/quiz/${m.id}?restart=1"><span class="menu-ic">${ic('edit')}</span><span class="row-b"><b>${esc(m.title)}</b><span>${m.questions.length} question${m.questions.length > 1 ? 's' : ''}${result(m.id) ? ` · meilleur score ${result(m.id).best} %` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul></section>` : ''}
+    <h2 class="sec-title">Les quiz MindView</h2>
     <section class="card qz-daily rise">
       <div class="qz-daily-t"><p class="hero-k">Quiz du jour</p><h2>${T(daily.title)}</h2><p>${doneToday ? `Fait aujourd'hui : ${dr.last} %. Un nouveau quiz demain.` : `${daily.qs.length} questions, environ ${Math.ceil(daily.qs.length * 0.4)} minutes.`}</p></div>
-      <a class="btn btn-sky btn-lg" href="#/quiz/${daily.id}?restart=1">${ic(doneToday ? 'repeat' : 'play')}<span>${doneToday ? 'Refaire' : 'Commencer'}</span></a>
+      <a class="btn btn-sky" href="#/quiz/${daily.id}?restart=1">${ic(doneToday ? 'repeat' : 'play')}<span>${doneToday ? 'Refaire' : 'Jouer'}</span></a>
     </section>
     <section class="qz-stats rise">
       <div><b>${passed}</b><span>quiz réussis sur ${QUIZZES.length}</span>${bar(passed, QUIZZES.length, 'olive')}</div>
       <div><b>${streak}</b><span>jour${streak > 1 ? 's' : ''} d'affilée</span><i class="qz-flame">${ic('flame')}</i></div>
     </section>
-    <h2 class="sec-title">Tous les quiz</h2>
     <div class="qz-grid">${ordered.map(tile).join('')}</div>
-    <h2 class="sec-title">Vos quiz</h2>
-    <section class="card rise">
-      ${s.quiz.mine.length ? `<ul class="rows">${s.quiz.mine.map((m) => `<li><a class="row" href="#/quiz/${m.id}?restart=1"><span class="menu-ic">${ic('edit')}</span><span class="row-b"><b>${esc(m.title)}</b><span>${m.questions.length} question${m.questions.length > 1 ? 's' : ''}${result(m.id) ? ` · meilleur score ${result(m.id).best} %` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`
-        : `<p class="muted pad">Créez un quiz pour vous entraîner sur votre métier, ou pour former quelqu'un de votre équipe.</p>
-          <div class="demo-preview dp-mini" aria-hidden="true"><span class="tag">Exemple</span><div class="dp-line"><span class="menu-ic">${ic('edit')}</span><span><b>Nos tarifs 2027</b><em>8 questions · meilleur score 75 %</em></span></div><div class="dp-line"><span class="menu-ic">${ic('edit')}</span><span><b>Accueil d'un nouveau client</b><em>5 questions · pour former l'équipe</em></span></div></div>`}
-      <div class="act-row"><a class="btn ${can('myQuiz') ? 'btn-primary' : 'btn-ghost'}" href="#/quiz/nouveau">${ic('plus')}<span>Créer un quiz</span>${can('myQuiz') ? '' : '<span class="badge b-pro">Pro</span>'}</a></div>
-    </section>
     ${on('organiser') ? `<h2 class="sec-title">À réviser depuis vos notes</h2>
     <section class="card rise">${notePages.length ? `<ul class="rows">${notePages.map((p) => `<li><a class="row" href="#/quiz/note/${p.id}?restart=1"><span class="menu-ic">${ic('cards')}</span><span class="row-b"><b>${esc(p.title || 'Sans titre')}</b><span>${qaCards(p).length} carte${qaCards(p).length > 1 ? 's' : ''}${result('note:' + p.id) ? ` · ${result('note:' + p.id).last} % la dernière fois` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`
       : `<div class="mini-empty">${ic('cards')}<p>Dans une page de notes, ajoutez des blocs « Question / réponse » (ou le modèle Fiche de révision) : ils deviennent des cartes à réviser ici.</p></div>
@@ -223,6 +231,13 @@ export function quizEdit([id]) {
 }
 
 register({
+  // Copie les cartes (copie immédiate, dans le geste), puis ouvre Quizlet : « Importer » et coller
+  'qz-export': () => {
+    const ta = document.createElement('textarea'); ta.value = quizletText(); ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    window.open(QUIZ_APPS.quizlet, '_blank', 'noopener');
+    toast('Sur Quizlet, cliquez sur « Importer », puis collez (Ctrl V) : chaque question et sa réponse deviennent une carte.', { title: 'Cartes copiées', ms: 7000 });
+  },
   'qz-pick': (b) => { if (!run || run.picks[run.i] !== undefined) return; run.picks[run.i] = +b.dataset.pos; if (navigator.userActivation?.isActive) navigator.vibrate?.(8); rr(); },
   'qz-next': () => { if (!run) return; if (run.i + 1 < run.order.length) run.i++; else run.finished = true; rr(); window.scrollTo(0, 0); },
   'fc-show': () => { if (deck) { deck.shown = true; rr(); } },

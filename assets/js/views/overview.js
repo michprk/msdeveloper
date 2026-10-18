@@ -1,6 +1,6 @@
 // Vue d'ensemble : les chiffres de l'utilisateur (aucune donnée inventée) — cartes avec
 // évolution par rapport à la période précédente, courbe, activité récente, répartition.
-import { S, on, can, schoolOnly, DAY, startOfDay, dayKey, stageOf, OUTCOME, SOURCES } from '../store.js';
+import { S, update, on, can, schoolOnly, DAY, startOfDay, dayKey, stageOf, OUTCOME, SOURCES } from '../store.js';
 import { ic, esc, eur, num, ago, register } from '../ui.js';
 import { sparkline, lineChart, donut } from '../charts.js';
 import { pageHead } from './common.js';
@@ -125,6 +125,109 @@ function breakdown() {
   return null;
 }
 
+// ---------- Tableau de bord (dans l'esprit FocusFlow) ----------
+const mdf = new Intl.DateTimeFormat('fr-BE', { month: 'long' });
+const sdf = new Intl.DateTimeFormat('fr-BE', { day: '2-digit', month: 'short' });
+// Barres hachurées : tâches terminées par semaine ou par mois, la période en cours pleine, avec sa bulle
+function progressCard(mode) {
+  const s = st(), now = Date.now();
+  const n = 5, bars = [];
+  for (let k = n - 1; k >= 0; k--) {
+    let a, b, label;
+    if (mode === 'mois') { const d = new Date(now); a = new Date(d.getFullYear(), d.getMonth() - k, 1).getTime(); b = new Date(d.getFullYear(), d.getMonth() - k + 1, 1).getTime(); label = cap(mdf.format(a)); }
+    else { const w0 = startOfDay() - ((new Date().getDay() + 6) % 7) * DAY; a = w0 - k * 7 * DAY; b = a + 7 * DAY; label = `${new Date(a).getDate()}–${sdf.format(b - DAY)}`; }
+    bars.push({ a, b, label, v: s.tasks.filter((t) => t.done && inR(t.doneAt, [a, b])).length });
+  }
+  const max = Math.max(1, ...bars.map((x) => x.v));
+  const cur = bars[n - 1];
+  const due = s.tasks.filter((t) => t.due && inR(t.due, [cur.a, cur.b])).length;
+  const rate = due ? Math.round((s.tasks.filter((t) => t.done && t.due && inR(t.due, [cur.a, cur.b])).length / due) * 100) : null;
+  const chg = (i) => { if (!i) return ''; const p = bars[i - 1].v; const v = bars[i].v; if (!p) return v ? 'nouveau' : '—'; const d = Math.round(((v - p) / p) * 100); return `${d > 0 ? '+' : ''}${d} %`; };
+  return `<section class="card fx fx-prog rise">
+    <header class="fx-h"><span class="fx-ic">${ic('chart')}</span><h2>Progression des tâches</h2>
+      <nav class="fx-seg" aria-label="Période"><a class="${mode !== 'mois' ? 'on' : ''}" href="#/apercu">Semaines</a><a class="${mode === 'mois' ? 'on' : ''}" href="#/apercu?vue=mois">Mois</a></nav></header>
+    <div class="fx-bars" role="img" aria-label="Tâches terminées : ${bars.map((x) => `${x.label} ${x.v}`).join(', ')}">
+      <div class="fx-line" aria-hidden="true"></div>
+      <span class="fx-tip"><b>${cur.v} tâche${cur.v > 1 ? 's' : ''} terminée${cur.v > 1 ? 's' : ''}</b><span>${sdf.format(cur.a)} – ${sdf.format(cur.b - DAY)}</span>${rate !== null ? `<span><em>${rate} %</em>des tâches prévues</span>` : ''}</span>
+      ${bars.map((x, i) => `<div class="fx-col ${i === n - 1 ? 'is-cur' : ''}">
+        <span class="fx-chg ${i === n - 1 ? 'is-cur' : ''}">${chg(i)}${i === n - 1 && bars[i - 1] && x.v > bars[i - 1].v ? ic('arrowR', 'up-ic') : ''}</span>
+        <span class="fx-bar" style="--h:${Math.max(8, Math.round((x.v / max) * 100))}%"><i></i></span>
+        <span class="fx-lb">${esc(x.label)}</span>
+
+      </div>`).join('')}
+    </div>
+  </section>`;
+}
+// Calendrier du mois : plages colorées (importantes, à faire, en retard hachurées, examens et échéances)
+function calendarCard() {
+  const s = st(), now = Date.now(), d0 = new Date(now);
+  const first = new Date(d0.getFullYear(), d0.getMonth(), 1), days = new Date(d0.getFullYear(), d0.getMonth() + 1, 0).getDate();
+  const kind = (t0) => {
+    const t1 = t0 + DAY;
+    if ((s.exams || []).some((x) => inR(x.date, [t0, t1])) || s.projects.some((p) => p.due && p.status !== 'termine' && inR(p.due, [t0, t1]))) return 'team';
+    const ts = s.tasks.filter((t) => !t.done && t.due && inR(t.due, [t0, t1]));
+    if (!ts.length) return '';
+    if (ts.some((t) => t.due < now && t1 <= startOfDay() + DAY)) return 'late';
+    if (ts.some((t) => t.prio)) return 'imp';
+    return 'day';
+  };
+  const cells = [];
+  const lead = (first.getDay() + 6) % 7;
+  for (let i = 0; i < lead; i++) cells.push({ empty: 1 });
+  for (let dd = 1; dd <= days; dd++) { const t0 = new Date(d0.getFullYear(), d0.getMonth(), dd).getTime(); cells.push({ dd, t0, k: kind(t0), today: dd === d0.getDate() }); }
+  // Jours voisins de même catégorie : une seule plage arrondie
+  cells.forEach((c, i) => { if (!c.k) return; const prev = cells[i - 1], next = cells[i + 1]; c.l = !(prev?.k === c.k && i % 7 !== 0); c.r = !(next?.k === c.k && (i + 1) % 7 !== 0); });
+  return `<section class="card fx fx-cal rise">
+    <header class="fx-h"><span class="fx-ic">${ic('calendar')}</span><h2>Calendrier</h2><a class="fx-pill" href="#/agenda?v=mois">${cap(mdf.format(now))}${ic('chevD')}</a></header>
+    <div class="fx-days">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((x) => `<span class="fx-dn">${x}</span>`).join('')}
+      ${cells.map((c) => (c.empty ? '<span></span>' : `<a class="fx-d ${c.k ? `k-${c.k}` : ''} ${c.l ? 'is-l' : ''} ${c.r ? 'is-r' : ''} ${c.today ? 'is-today' : ''}" href="#/agenda?v=jour&d=${dayKey(c.t0)}" aria-label="${cap(dfl.format(c.t0))}"><span>${String(c.dd).padStart(2, '0')}</span></a>`)).join('')}</div>
+    <ul class="fx-leg"><li><i class="k-imp"></i>Importantes</li><li><i class="k-day"></i>À faire</li><li><i class="k-late"></i>En retard</li><li><i class="k-team"></i>${on('etudes') ? 'Examens, échéances' : 'Échéances'}</li></ul>
+  </section>`;
+}
+// Jauge de régularité : 10 points par tâche terminée, 1 par minute de travail, 2 par carte révisée (7 derniers jours)
+function score(r) { const s = st(); return METRICS.done.get(s, r) * 10 + METRICS.focus.get(s, r) + METRICS.reviews.get(s, r) * 2; }
+function gaugeCard() {
+  const cur = score(period(7)), prev = score(period(7, 1));
+  const goal = Math.max(200, Math.ceil(Math.max(cur, prev) * 1.25 / 50) * 50);
+  const p = Math.min(1, cur / goal);
+  const R = 80, L = Math.PI * R;
+  const diff = prev ? Math.round(((cur - prev) / prev) * 100) : null;
+  return `<section class="card fx fx-gauge rise">
+    <header class="fx-h"><span class="fx-ic">${ic('bolt')}</span><h2>Votre régularité</h2></header>
+    <div class="fx-g"><svg viewBox="0 0 200 112" aria-hidden="true"><defs><pattern id="fx-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#eef0fb"/><line x1="0" y1="0" x2="0" y2="8" stroke="#d5d9f3" stroke-width="3"/></pattern></defs>
+      <path d="M20 100A80 80 0 0 1 180 100" fill="none" stroke="url(#fx-hatch)" stroke-width="26" stroke-linecap="round"/>
+      <path d="M20 100A80 80 0 0 1 180 100" fill="none" stroke="var(--fx-lav)" stroke-width="26" stroke-linecap="round" stroke-dasharray="${(L * p).toFixed(1)} ${L.toFixed(1)}"/></svg>
+      <p class="fx-gv"><b>${num(cur)}</b><span>points cette semaine</span></p></div>
+    <p class="fx-gn">${diff === null ? `<span class="fx-badge">${ic('bolt')}</span>Votre première semaine : chaque tâche terminée compte.` : `<span class="fx-badge ${diff >= 0 ? '' : 'is-down'}">${ic('arrowR', diff >= 0 ? 'up-ic' : 'down-ic')}</span>${diff >= 0 ? `${diff} % de plus que la semaine dernière` : `${Math.abs(diff)} % de moins que la semaine dernière`}`}</p>
+    <p class="fx-gh">10 points par tâche terminée, 1 par minute de travail, 2 par carte révisée.</p>
+  </section>`;
+}
+function upgradeCard() {
+  if (can('crm') && can('planner')) return `<a class="card fx fx-up is-done rise" href="#/tableaux"><h2>Tout est ouvert</h2><p>Premium : études et entrepreneuriat. Un tableau blanc vous attend.</p><span class="fx-up-b">Ouvrir le tableau blanc</span></a>`;
+  const target = can('planner') ? 'premium' : 'pro';
+  return `<a class="card fx fx-up rise" href="#/abonnement"><h2>${target === 'pro' ? 'Passez à Pro' : 'Passez à Premium'}</h2><p>${target === 'pro' ? 'Notes, tableaux blancs et outils de révision sans limite.' : 'Ajoutez l\'entrepreneuriat : clients, devis, prospection.'}</p><span class="fx-up-b">Voir les formules</span></a>`;
+}
+function quickCard() {
+  const items = [['#/taches?new=1', 'checkSquare', 'Tâche'], ['#/notes', 'page', 'Note'], ['#/tableaux', 'compose', 'Tableau'], ['#/projets', 'folder', 'Projet'], [on('etudes') ? '#/concentration' : '#/agenda', on('etudes') ? 'hourglass' : 'calendar', on('etudes') ? 'Minuteur' : 'Agenda']];
+  return `<section class="card fx fx-quick rise"><h2>Accès rapide</h2><div class="fx-q">${items.map(([h, i, l]) => `<a href="${h}" aria-label="${l}"><span>${ic(i)}</span><em>${l}</em></a>`).join('')}</div></section>`;
+}
+function moodCard() {
+  const v = (S().moods || {})[dayKey()];
+  return `<section class="card fx fx-mood rise"><div class="fx-dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
+    <h2>${v ? 'Merci, c\'est noté' : 'Comment s\'est passée votre journée ?'}</h2>
+    <div class="fx-rate" role="radiogroup" aria-label="Votre journée, de 1 à 5">${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="${v === n ? 'on' : ''}" role="radio" aria-checked="${v === n}" data-act="ov-mood" data-v="${n}">${n}</button>`).join('')}</div>
+  </section>`;
+}
+function dashboard(q) {
+  return `<div class="fx-grid">
+    ${progressCard(q.vue)}
+    ${calendarCard()}
+    ${gaugeCard()}
+    ${upgradeCard()}
+    <div class="fx-side">${quickCard()}${moodCard()}</div>
+  </div>`;
+}
+
 // ---------- Page ----------
 export function overview(params, q) {
   const example = !hasData(S());
@@ -151,6 +254,8 @@ function overviewView(q, example) {
         <div class="end-a"><a class="btn btn-primary btn-sm" href="#/taches?new=1">${ic('plus')}<span>Créer ma première tâche</span></a>${on('clients') ? `<a class="btn btn-ghost btn-sm" href="#/crm?new=1">${ic('users')}<span>Ajouter un client</span></a>` : ''}</div>
       </section>` : ''}
     <div class="${example ? 'is-example' : ''}">
+    ${dashboard(q)}
+    <h2 class="sec-title ov-detail">Le détail</h2>
     <p class="ov-range">${rangeLabel(period(days))}, comparé au ${rangeLabel(period(days, 1))}</p>
     <div class="kpi-grid n${ids.length}">${ids.map((id) => kpiCard(id, days, { href: chartIds.includes(id) ? href({ m: id }) : '#/apercu' })).join('')}</div>
     ${m ? `<section class="card ov-chart rise">
@@ -188,6 +293,7 @@ function overviewView(q, example) {
 }
 
 register({
+  'ov-mood': (b) => { const v = +b.dataset.v; update((s) => { s.moods = { ...(s.moods || {}), [dayKey()]: v }; }); },
   'ov-metric': (el) => { const p = new URLSearchParams(location.hash.split('?')[1] || ''); p.set('m', el.value); location.hash = `#/apercu?${p}`; },
   'ov-table': (b) => {
     const card = b.closest('.card'); const on2 = b.getAttribute('aria-pressed') !== 'true';

@@ -168,34 +168,93 @@ const examRow = (x) => {
   return `<li><a class="row ex-row" href="#/etudes/examens?e=${x.id}"><span class="ex-cd ${d <= 3 && d >= 0 ? 'is-soon' : ''}">${countdown(x.date)}</span>
     <span class="row-b"><b>${esc(x.title)}</b><span>${subject(x.subjectId) ? `${esc(subject(x.subjectId).name)} · ` : ''}${dateShort(x.date)}${g?.total ? ` · ${g.pct} % révisé` : ''}</span>${g?.total ? bar(g.done, g.total, 'olive') : ''}</span>${ic('chevR', 'chev')}</a></li>`;
 };
+// Séances de révision d'un examen : tâches du planning (examId) et du projet de révision
+const examTasks = (x) => S().tasks.filter((t) => t.examId === x.id || (x.projectId && t.projectId === x.projectId));
+const chapterDone = (x, ch) => examTasks(x).some((t) => t.done && t.title.toLowerCase().includes(String(ch).toLowerCase()));
+function examStats(x) {
+  const ts = examTasks(x);
+  const done = ts.filter((t) => t.done).length;
+  const next = ts.filter((t) => !t.done && t.due).sort((a, b) => a.due - b.due)[0] || null;
+  return { total: ts.length, done, pct: ts.length ? Math.round((done / ts.length) * 100) : 0, next };
+}
+const when = (t) => { const d = new Date(t); return `${dateShort(t)}${d.getHours() ? ` · ${hhmm(d.getHours() * 60 + d.getMinutes())}` : ''}`; };
+// Demi-cercle hachuré, rempli selon l'avancement des révisions
+const gauge = (p) => {
+  const R = 80, L = Math.PI * R;
+  return `<svg viewBox="0 0 200 112" aria-hidden="true"><defs><pattern id="xm-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#eef0fb"/><line x1="0" y1="0" x2="0" y2="8" stroke="#d5d9f3" stroke-width="3"/></pattern></defs>
+    <path d="M20 100A80 80 0 0 1 180 100" fill="none" stroke="url(#xm-hatch)" stroke-width="24" stroke-linecap="round"/>
+    <path d="M20 100A80 80 0 0 1 180 100" fill="none" stroke="#3d63f5" stroke-width="24" stroke-linecap="round" stroke-dasharray="${(L * Math.min(1, p / 100)).toFixed(1)} ${L.toFixed(1)}"/></svg>`;
+};
+// Les 14 prochains jours : séances prévues (citron), jour de l'examen (bleu)
+function daysStrip(x) {
+  const t0 = startOfDay();
+  const ts = examTasks(x).filter((t) => t.due);
+  const exD = startOfDay(x.date);
+  const fmt = new Intl.DateTimeFormat('fr-BE', { weekday: 'narrow' });
+  return Array.from({ length: 14 }, (_, i) => {
+    const b0 = new Date(t0); const d = new Date(b0.getFullYear(), b0.getMonth(), b0.getDate() + i).getTime();
+    const n = ts.filter((t) => startOfDay(t.due) === d);
+    const k = d === exD ? 'k-imp' : n.length ? (n.every((t) => t.done) ? 'k-team' : 'k-day') : '';
+    return `<span class="xm-day ${k} ${i === 0 ? 'is-today' : ''}" title="${dateShort(d)}${n.length ? ` · ${n.length} séance${n.length > 1 ? 's' : ''}` : ''}${d === exD ? ' · examen' : ''}"><em>${fmt.format(d).toUpperCase()}</em><b>${new Date(d).getDate()}</b>${n.length && d !== exD ? `<i>${n.length}</i>` : ''}</span>`;
+  }).join('');
+}
+function examHero(x) {
+  const d = left(x.date);
+  const g = examStats(x);
+  const planned = S().tasks.some((t) => t.examId === x.id);
+  const chs = (x.chapters || []).filter(Boolean);
+  return `<section class="xm-hero rise" id="${x.id}">
+      <header class="xm-h"><span class="xm-kick">${ic('target')}Prochain examen</span><button class="xm-edit" data-act="exam-edit" data-id="${x.id}" aria-label="Modifier l'examen">${ic('edit')}</button></header>
+      <div class="xm-main">
+        <div class="xm-cd ${d <= 3 ? 'is-soon' : ''}"><b>${d === 0 ? 'J' : d}</b><span>${d === 0 ? 'C\'est aujourd\'hui' : d === 1 ? 'jour' : 'jours'}</span></div>
+        <div class="xm-info"><h2>${esc(x.title)}</h2><p>${subjChip(x.subjectId)}<span>${dateLong(x.date)}${new Date(x.date).getHours() ? ` · ${hhmm(new Date(x.date).getHours() * 60 + new Date(x.date).getMinutes())}` : ''}</span></p></div>
+      </div>
+      ${chs.length ? `<div class="xm-chaps">${chs.map((c) => `<span class="${chapterDone(x, c) ? 'is-done' : ''}">${ic('check')}${esc(c)}</span>`).join('')}</div>` : ''}
+      <div class="xm-act">
+        ${d >= 1 ? `<button class="xm-b1" data-act="exam-plan" data-id="${x.id}">${ic('sliders')}<span>${planned ? 'Refaire mon planning' : 'Planifier mes révisions'}</span></button>` : ''}
+        <a class="xm-b2" href="#/concentration">${ic('hourglass')}<span>Lancer une séance</span></a>
+        ${x.projectId && getProject(x.projectId) ? `<a class="xm-b2" href="#/projet/${x.projectId}">${ic('folder')}<span>Projet</span></a>` : ''}
+      </div>
+    </section>
+    <section class="card fx xm-gauge rise">
+      <header class="fx-h"><span class="fx-ic">${ic('book')}</span><h2>Révisions</h2></header>
+      <div class="fx-g">${gauge(g.pct)}<p class="fx-gv"><b>${g.pct} %</b><span>${g.total ? `${g.done} séance${g.done > 1 ? 's' : ''} sur ${g.total}` : 'Aucune séance prévue'}</span></p></div>
+      <p class="fx-gn">${g.next ? `<span class="fx-badge">${ic('clock')}</span><span>Prochaine : ${esc(g.next.title)} · ${when(g.next.due)}</span>` : g.total && g.done === g.total ? `<span class="fx-badge">${ic('check')}</span><span>Tout est révisé. Un dernier quiz ?</span>` : `<span class="fx-badge">${ic('sliders')}</span><span>Planifiez vos révisions : une séance par chapitre.</span>`}</p>
+    </section>
+    <section class="card fx xm-days-c rise">
+      <header class="fx-h"><span class="fx-ic">${ic('calendar')}</span><h2>Les 14 prochains jours</h2></header>
+      <div class="xm-days">${daysStrip(x)}</div>
+      <ul class="fx-leg"><li><i class="k-day"></i>Séance prévue</li><li><i class="k-team"></i>Séances faites</li><li><i class="k-imp"></i>Examen</li></ul>
+    </section>`;
+}
+const examCard = (x) => {
+  const d = left(x.date);
+  const g = examStats(x);
+  const span = Math.min(1, Math.max(0, d) / 30);
+  return `<a class="card xm-card rise ${d <= 3 ? 'is-soon' : ''}" href="#/etudes/examens?e=${x.id}" id="${x.id}">
+    <span class="xm-c-cd"><b>${d === 0 ? 'J' : d}</b><em>${d === 1 ? 'jour' : d === 0 ? 'aujourd\'hui' : 'jours'}</em></span>
+    <span class="xm-c-b"><b>${esc(x.title)}</b><span>${subject(x.subjectId) ? `${esc(subject(x.subjectId).name)} · ` : ''}${dateShort(x.date)}</span>
+      <span class="xm-c-bar" style="--p:${g.pct}%;--t:${(1 - span) * 100}%"><i></i></span>
+      <em>${g.total ? `${g.pct} % révisé` : 'Pas encore de séance'}</em></span>
+    ${ic('chevR', 'chev')}</a>`;
+};
 export function examsView(params, q = {}) {
   const s = S(), t0 = startOfDay();
   const up = s.exams.filter((x) => x.date >= t0).sort((a, b) => a.date - b.date);
   const past = s.exams.filter((x) => x.date < t0).sort((a, b) => b.date - a.date);
-  const card = (x) => {
-    const pr = x.projectId && getProject(x.projectId);
-    const g = pr ? projectProgress(pr.id) : null;
-    const d = left(x.date);
-    const planned = s.tasks.filter((t) => t.examId === x.id).length;
-    return `<section class="card ex-card rise ${d < 0 ? 'is-past' : ''}" id="${x.id}">
-      <div class="ex-top"><div class="ex-big ${d <= 3 && d >= 0 ? 'is-soon' : ''}"><b>${d < 0 ? '✓' : d === 0 ? 'Jour J' : d}</b><span>${d < 0 ? 'passé' : d === 0 ? '' : d === 1 ? 'jour' : 'jours'}</span></div>
-        <div class="ex-b"><h2>${esc(x.title)}</h2><p>${subjChip(x.subjectId)}${dateLong(x.date)}${new Date(x.date).getHours() ? ` · ${hhmm(new Date(x.date).getHours() * 60 + new Date(x.date).getMinutes())}` : ''}</p></div>
-        <button class="icon-btn" data-act="exam-edit" data-id="${x.id}" aria-label="Modifier l'examen">${ic('edit')}</button></div>
-      ${x.chapters?.length ? `<p class="ex-ch">${x.chapters.map((c) => `<span>${esc(c)}</span>`).join('')}</p>` : ''}
-      ${g?.total ? `<div class="ex-prog"><span>${g.done} / ${g.total} tâches de révision</span><b>${g.pct} %</b></div>${bar(g.done, g.total, 'olive')}` : ''}
-      <div class="act-row">${d >= 1 ? `<button class="btn ${planned ? 'btn-ghost' : 'btn-primary'} btn-sm" data-act="exam-plan" data-id="${x.id}">${ic('sliders')}<span>${planned ? 'Refaire mon planning' : 'Planifier mes révisions'}</span>${can('planner') ? '' : '<span class="badge b-premium">Premium</span>'}</button>` : ''}${pr ? `<a class="btn btn-ghost btn-sm" href="#/projet/${pr.id}">${ic('folder')}<span>Projet de révision</span></a>` : ''}</div>
-    </section>`;
-  };
+  const focus = (q.e && up.find((x) => x.id === q.e)) || up[0];
   const html = `${pageHead('Examens', { back: '#/etudes', kicker: up.length ? `${up.length} à venir` : 'Compte à rebours et révisions', actions: `<button class="btn btn-primary fab-dup" data-act="exam-new">${ic('plus')}<span>Examen</span></button>` })}
-    ${s.exams.length ? `${up.map(card).join('')}${past.length ? `<h2 class="sec-title">Passés</h2>${past.slice(0, 6).map(card).join('')}` : ''}`
-      : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('target')}</span><h2>Ajoutez votre premier examen</h2>
-        <p>La date, la matière et les chapitres : MindView compte les jours, crée un projet de révision avec une tâche par chapitre, et peut répartir vos révisions jour par jour.</p>
+    ${focus ? `<div class="xm-grid">${examHero(focus)}</div>` : ''}
+    ${up.length > 1 ? `<h2 class="sec-title">Tous vos examens</h2><div class="xm-list">${up.map(examCard).join('')}</div>` : ''}
+    ${past.length ? `<h2 class="sec-title">Passés</h2><ul class="rows card">${past.slice(0, 8).map((x) => `<li><div class="row"><span class="menu-ic">${ic('checkCircle')}</span><span class="row-b"><b>${esc(x.title)}</b><span>${subject(x.subjectId) ? `${esc(subject(x.subjectId).name)} · ` : ''}${dateShort(x.date)}</span></span><button class="icon-btn" data-act="exam-edit" data-id="${x.id}" aria-label="Modifier">${ic('edit')}</button></div></li>`).join('')}</ul>` : ''}
+    ${s.exams.length ? '' : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('target')}</span><h2>Ajoutez votre premier examen</h2>
+        <p>La date, la matière et les chapitres : MindView compte les jours, crée un projet de révision avec une tâche par chapitre, et répartit vos révisions jour par jour.</p>
         <button class="btn btn-primary btn-lg" data-act="exam-new">${ic('plus')}<span>Ajouter un examen</span></button>
         ${demo(`<p class="dp-t">Examen d'histoire <span class="chip t-sand">J−9</span></p><p class="dp-s">Révolution française · Empire · Révolution industrielle</p><span class="bar olive"><i style="width:60%"></i></span>
           <div class="dp-row"><span class="tick is-done"></span><span><b>Fiche : la Révolution française</b><em>Lundi 17 h</em></span></div><div class="dp-row"><span class="tick"></span><span><b>Réviser : l'Empire</b><em>Jeudi 17 h</em></span></div>`)}</section>`}`;
   return {
     title: 'Examens', tab: 'etudes', fab: 'exam-new', html,
-    after(root) { if (q.e) root.querySelector(`#${CSS.escape(q.e)}`)?.scrollIntoView({ block: "center" }); },
+    after(root) { if (q.e) root.querySelector('.xm-hero')?.scrollIntoView({ block: 'start' }); },
   };
 }
 function examSheet(x = null) {
@@ -388,22 +447,45 @@ export function revisionView(params, q) {
 }
 
 // ---------- Mode concentration ----------
+// Trois façons de compter le temps : Pomodoro (travail puis pause), minuteur à la durée choisie, chronomètre.
+// Plus une calculatrice, sur le même écran.
 const FKEY = 'msdev:focus';
 let timer = (() => { try { return JSON.parse(localStorage.getItem(FKEY) || 'null'); } catch (e) { return null; } })();
+if (timer && !timer.mode) timer.mode = 'pomo';
 const saveTimer = () => { try { if (timer) localStorage.setItem(FKEY, JSON.stringify(timer)); else localStorage.removeItem(FKEY); } catch (e) { /* rien */ } };
-const remaining = () => (timer ? (timer.running ? Math.max(0, timer.end - Date.now()) : timer.left) : S().focus.work * 60e3);
-const fmtClock = (ms) => { const t = Math.ceil(ms / 1000); return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+const MODES = [['pomo', 'Pomodoro', 'repeat'], ['timer', 'Minuteur', 'hourglass'], ['chrono', 'Chronomètre', 'clock']];
+const tmode = () => timer?.mode || S().focus.mode || 'pomo';
+const newTimer = (m = tmode(), keep = {}) => {
+  const s = S();
+  if (m === 'chrono') return { mode: 'chrono', running: false, acc: 0, start: 0, laps: [], ...keep };
+  const total = (m === 'timer' ? s.focus.timerMin || 10 : s.focus.work) * 60e3;
+  return { mode: m, phase: 'work', total, left: total, running: false, label: '', subjectId: '', taskId: '', ...keep };
+};
+const keepOf = (t) => ({ label: t?.label || '', subjectId: t?.subjectId || '', taskId: t?.taskId || '' });
+const remaining = () => (timer && timer.mode !== 'chrono' ? (timer.running ? Math.max(0, timer.end - Date.now()) : timer.left) : (tmode() === 'timer' ? (S().focus.timerMin || 10) : S().focus.work) * 60e3);
+const elapsed = () => (timer?.mode === 'chrono' ? timer.acc + (timer.running ? Date.now() - timer.start : 0) : 0);
+const fmtClock = (ms, up = false) => {
+  const t = up ? Math.floor(ms / 1000) : Math.ceil(ms / 1000);
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60;
+  return `${h ? `${h}:` : ''}${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+};
 function chime() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     [660, 880].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; o.type = 'sine'; g.gain.setValueAtTime(0.0001, ctx.currentTime + i * 0.18); g.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + i * 0.18 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + i * 0.18 + 0.5); o.connect(g).connect(ctx.destination); o.start(ctx.currentTime + i * 0.18); o.stop(ctx.currentTime + i * 0.18 + 0.55); });
   } catch (e) { /* son indisponible */ }
 }
+const logSession = (min, t) => update((s) => { s.focus.sessions.push({ id: uid(), at: Date.now(), min, label: t?.label || '', subjectId: t?.subjectId || null, taskId: t?.taskId || null }); s.focus.sessions = s.focus.sessions.slice(-2000); }, { silent: true });
 function finishPhase() {
-  if (!timer) return;
-  if (timer.phase === 'work') {
+  if (!timer || timer.mode === 'chrono') return;
+  if (timer.mode === 'timer') {
     const min = Math.round(timer.total / 60e3);
-    update((s) => { s.focus.sessions.push({ id: uid(), at: Date.now(), min, label: timer.label || '', subjectId: timer.subjectId || null, taskId: timer.taskId || null }); s.focus.sessions = s.focus.sessions.slice(-2000); }, { silent: true });
+    if (min >= 1) logSession(min, timer);
+    timer = newTimer('timer', keepOf(timer));
+    toast(min >= 1 ? `${min} minute${min > 1 ? 's' : ''} enregistrée${min > 1 ? 's' : ''} dans vos séances.` : 'Le temps est écoulé.', { title: 'Minuteur terminé' });
+  } else if (timer.phase === 'work') {
+    const min = Math.round(timer.total / 60e3);
+    logSession(min, timer);
     timer = { ...timer, phase: 'pause', total: S().focus.pause * 60e3, end: Date.now() + S().focus.pause * 60e3, running: true, rounds: (timer.rounds || 0) + 1 };
     toast(`${min} minutes de travail enregistrées. Pause de ${S().focus.pause} minutes.`, { title: 'Bien joué' });
   } else {
@@ -412,39 +494,120 @@ function finishPhase() {
   }
   chime(); saveTimer(); rr();
 }
+
+// Calculatrice : + − × ÷, puissances, racine, pourcentage, parenthèses. Calcul sans eval (analyse pas à pas).
+export function calc(src) {
+  const s = String(src).replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').replace(/,/g, '.').replace(/\s+/g, '');
+  let i = 0, pct = false;
+  const peek = () => s[i];
+  const num = () => { const m = /^\d*\.?\d+(e[+-]?\d+)?|^\d+\./.exec(s.slice(i)); if (!m) throw new Error('nombre'); i += m[0].length; return parseFloat(m[0]); };
+  const primary = () => {
+    if (peek() === '(') { i++; const v = expr(); if (peek() === ')') i++; return v; }
+    if (peek() === '√') { i++; return Math.sqrt(unary()); }
+    return num();
+  };
+  const postfix = () => { let v = primary(); while (peek() === '%' || peek() === '²') { if (peek() === '%') { v /= 100; pct = true; } else v *= v; i++; } return v; };
+  const unary = () => { if (peek() === '-') { i++; return -unary(); } if (peek() === '+') { i++; return unary(); } return postfix(); };
+  const power = () => { const b = unary(); if (peek() === '^') { i++; return b ** power(); } return b; };
+  const term = () => { pct = false; let v = power(); while (peek() === '*' || peek() === '/') { const o = s[i++]; const r = power(); pct = false; v = o === '*' ? v * r : v / r; } return v; };
+  // « 50 + 10 % » = 55, comme sur une calculatrice de téléphone
+  const expr = () => { let v = term(); while (peek() === '+' || peek() === '-') { const o = s[i++]; let r = term(); if (pct) r *= v; v = o === '+' ? v + r : v - r; } return v; };
+  const v = expr();
+  if (i < s.length || !Number.isFinite(v)) throw new Error('calcul');
+  return v;
+}
+const calcFmt = (v) => String(+v.toPrecision(12)).replace('.', ',').replace(/e\+?/, ' × 10^');
+const KEYS = [['C', 'fn'], ['(', 'fn'], [')', 'fn'], ['÷', 'op'], ['√', 'fn'], ['7'], ['8'], ['9'], ['×', 'op'], ['x²', 'fn'], ['4'], ['5'], ['6'], ['−', 'op'], ['%', 'fn'], ['1'], ['2'], ['3'], ['+', 'op'], ['⌫', 'fn'], ['±', 'fn'], ['0'], [','], ['=', 'eq'], ['^', 'fn']];
+const calcCard = () => `<section class="card fx fo-calc rise" aria-label="Calculatrice">
+    <header class="fx-h"><span class="fx-ic">${ic('calculator')}</span><h2>Calculatrice</h2></header>
+    <div class="calc" tabindex="0">
+      <p class="calc-hist" aria-live="polite">&nbsp;</p>
+      <output class="calc-out">0</output>
+      <div class="calc-keys">${KEYS.map(([k, c = '']) => `<button type="button" class="ck ${c ? `ck-${c}` : ''}" data-k="${k}" aria-label="${{ C: 'Effacer tout', '⌫': 'Effacer le dernier caractère', '±': 'Changer le signe', 'x²': 'Au carré', '√': 'Racine carrée', '^': 'Puissance' }[k] || k}">${k}</button>`).join('')}</div>
+    </div></section>`;
+function mountCalc(root) {
+  const box = root.querySelector('.calc'); if (!box) return () => {};
+  const out = box.querySelector('.calc-out'), hist = box.querySelector('.calc-hist');
+  let e = '', done = false;
+  const show = () => {
+    out.textContent = e || '0';
+    if (done) return;
+    try { hist.textContent = e && /[+×÷−^%²√(]/.test(e.slice(1)) ? `= ${calcFmt(calc(e))}` : ' '; } catch (err) { hist.textContent = ' '; }
+  };
+  const press = (k) => {
+    const ops = ['+', '−', '×', '÷', '^'];
+    if (k === 'C') { e = ''; done = false; hist.textContent = ' '; show(); return; }
+    if (k === '⌫') { e = done ? '' : e.slice(0, -1); done = false; show(); return; }
+    if (k === '=') { if (!e) return; try { const r = calcFmt(calc(e)); hist.textContent = `${e} =`; e = r; done = true; } catch (err) { hist.textContent = 'Calcul impossible'; } out.textContent = e || '0'; return; }
+    if (done) { if (ops.includes(k) || k === '%' || k === 'x²') done = false; else { e = ''; done = false; } }
+    if (k === '±') { const m = /(^|[+×÷^(−])(−?)(\d+(?:,\d*)?)$/.exec(e); if (m) e = e.slice(0, m.index) + m[1] + (m[2] ? '' : '−') + m[3]; else if (!e) e = '−'; show(); return; }
+    if (k === 'x²') k = '²';
+    if (ops.includes(k) && ops.includes(e.slice(-1))) e = e.slice(0, -1);
+    if (k === ',' && /\d*,\d*$/.test(e)) return;
+    if (e.length < 48) e += k;
+    show();
+  };
+  const onClick = (ev) => { const b = ev.target.closest('.ck'); if (b) { press(b.dataset.k); box.focus({ preventScroll: true }); } };
+  const MAP = { '*': '×', x: '×', '/': '÷', '-': '−', '.': ',', Enter: '=', '=': '=', Backspace: '⌫', Escape: 'C', Delete: 'C' };
+  const onKey = (ev) => {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const k = MAP[ev.key] || ev.key;
+    if (/^[0-9]$/.test(k) || ['+', '−', '×', '÷', '(', ')', ',', '%', '^', '=', '⌫', 'C'].includes(k)) {
+      ev.preventDefault(); press(k);
+      const b = box.querySelector(`.ck[data-k="${CSS.escape(k)}"]`); if (b) { b.classList.add('is-hit'); setTimeout(() => b.classList.remove('is-hit'), 120); }
+    }
+  };
+  box.addEventListener('click', onClick);
+  box.addEventListener('keydown', onKey);
+  return () => { box.removeEventListener('click', onClick); box.removeEventListener('keydown', onKey); };
+}
+
 export function focusView() {
-  const head = pageHead('Concentration', { back: '#/etudes', kicker: 'Une chose à la fois' });
+  const head = pageHead('Concentration', { back: '#/etudes', kicker: 'Minuteur, chronomètre et calculatrice' });
   if (!can('focus')) return { title: 'Concentration', tab: 'etudes', html: `${head}${locked('focus', demo('<p class="dp-t">25:00 <span class="chip t-olive">Histoire</span></p><p class="dp-s">4 séances aujourd\'hui · 1 h 40 de travail</p>'))}` };
   const s = S();
-  const t = timer || { phase: 'work', total: s.focus.work * 60e3, left: s.focus.work * 60e3, running: false, label: '', subjectId: '', taskId: '' };
-  const ms = remaining();
+  const m = tmode();
+  const t = timer && timer.mode === m ? timer : newTimer(m);
+  const chrono = m === 'chrono';
+  const ms = chrono ? elapsed() : remaining();
   const todayMin = focusMinutes(startOfDay());
   const todaySes = s.focus.sessions.filter((x) => x.at >= startOfDay());
   const open = s.tasks.filter((x) => !x.done).sort((a, b) => (a.due || 9e15) - (b.due || 9e15)).slice(0, 30);
   const week = Array.from({ length: 7 }, (_, i) => focusMinutes(startOfWeek() + i * DAY, startOfWeek() + (i + 1) * DAY));
-  const bySubj = s.subjects.map((x) => [x, s.focus.sessions.filter((y) => y.subjectId === x.id && y.at >= startOfWeek()).reduce((n, y) => n + y.min, 0)]).filter(([, m]) => m);
+  const bySubj = s.subjects.map((x) => [x, s.focus.sessions.filter((y) => y.subjectId === x.id && y.at >= startOfWeek()).reduce((n, y) => n + y.min, 0)]).filter(([, mm]) => mm);
+  const busy = timer?.running;
+  const what = esc(t.label || subject(t.subjectId)?.name || (t.taskId && s.tasks.find((x) => x.id === t.taskId)?.title) || (chrono ? 'Chronomètre' : m === 'timer' ? 'Minuteur' : 'Concentration'));
+  const tm = s.focus.timerMin || 10;
   const html = `${head}
+    <div class="fo-top">
     <section class="card fo-card ${t.phase === 'pause' ? 'is-pause' : ''} rise">
-      <p class="fo-phase">${t.phase === 'pause' ? 'Pause' : 'Travail'}${t.rounds ? ` · séance ${t.rounds + (t.phase === 'work' ? 1 : 0)}` : ''}</p>
-      <div class="fo-ring">${ring(t.total - ms, t.total, { size: 240, stroke: 12 })}<div class="fo-time"><b class="fo-clock">${fmtClock(ms)}</b><span>${esc(t.label || subject(t.subjectId)?.name || (t.taskId && s.tasks.find((x) => x.id === t.taskId)?.title) || 'Concentration')}</span></div></div>
+      <div class="fo-modes" role="tablist" aria-label="Mode">${MODES.map(([id, l, i]) => `<button class="${id === m ? 'is-on' : ''}" role="tab" aria-selected="${id === m}" data-act="fo-mode" data-m="${id}">${ic(i)}<span>${l}</span></button>`).join('')}</div>
+      <p class="fo-phase">${chrono ? (t.running ? 'En cours' : t.acc ? 'En pause' : 'Prêt') : m === 'timer' ? `Minuteur · ${hhmm(Math.round(t.total / 60e3))}` : `${t.phase === 'pause' ? 'Pause' : 'Travail'}${t.rounds ? ` · séance ${t.rounds + (t.phase === 'work' ? 1 : 0)}` : ''}`}</p>
+      <div class="fo-ring">${chrono ? ring(ms % 60000, 60000, { size: 240, stroke: 12 }) : ring(t.total - ms, t.total, { size: 240, stroke: 12 })}<div class="fo-time"><b class="fo-clock">${fmtClock(ms, chrono)}</b><span>${what}</span></div></div>
       <div class="fo-acts">
-        <button class="btn btn-primary btn-lg" data-act="fo-toggle">${ic(t.running ? 'pause' : 'play')}<span>${t.running ? 'Pause' : ms < t.total ? 'Reprendre' : 'Démarrer'}</span></button>
-        <button class="icon-btn" data-act="fo-reset" aria-label="Recommencer">${ic('refresh')}</button>
-        <button class="icon-btn" data-act="fo-skip" aria-label="Passer à la suite">${ic('arrowR')}</button>
-        <button class="icon-btn" data-act="fo-full" aria-label="Plein écran">${ic('fit')}</button>
+        <button class="btn btn-primary btn-lg" data-act="fo-toggle">${ic(t.running ? 'pause' : 'play')}<span>${t.running ? 'Pause' : (chrono ? t.acc : ms < t.total) ? 'Reprendre' : 'Démarrer'}</span></button>
+        ${chrono ? `<button class="icon-btn" data-act="fo-lap" aria-label="Tour" title="Tour" ${t.running ? '' : 'disabled'}>${ic('flag')}</button><button class="icon-btn" data-act="fo-save" aria-label="Enregistrer la séance" title="Enregistrer la séance" ${t.acc || t.running ? '' : 'disabled'}>${ic('check')}</button>` : ''}
+        <button class="icon-btn" data-act="fo-reset" aria-label="Recommencer" title="Recommencer">${ic('refresh')}</button>
+        ${m === 'pomo' ? `<button class="icon-btn" data-act="fo-skip" aria-label="Passer à la suite" title="Passer à la suite">${ic('arrowR')}</button>` : ''}
+        <button class="icon-btn" data-act="fo-full" aria-label="Plein écran" title="Plein écran">${ic('fit')}</button>
       </div>
-      ${t.running ? '' : `<form class="fo-set form" data-form="focus-set">
-        <div class="chips-wrap">${[[25, 5], [50, 10], [15, 3], [90, 15]].map(([w, p]) => `<button type="button" class="chip-btn ${s.focus.work === w && s.focus.pause === p ? 'is-on' : ''}" data-act="fo-preset" data-w="${w}" data-p="${p}">${w} / ${p} min</button>`).join('')}</div>
+      ${chrono && t.laps?.length ? `<ol class="fo-laps">${t.laps.map((x, i) => `<li><span>Tour ${i + 1}</span><b>${fmtClock(x - (t.laps[i - 1] || 0), true)}</b><em>${fmtClock(x, true)}</em></li>`).reverse().join('')}</ol>` : ''}
+      ${busy ? '' : `<form class="fo-set form" data-form="${m === 'timer' ? 'fo-custom' : 'focus-set'}">
+        ${m === 'pomo' ? `<div class="chips-wrap">${[[25, 5], [50, 10], [15, 3], [90, 15]].map(([w, p]) => `<button type="button" class="chip-btn ${s.focus.work === w && s.focus.pause === p ? 'is-on' : ''}" data-act="fo-preset" data-w="${w}" data-p="${p}">${w} / ${p} min</button>`).join('')}</div>` : ''}
+        ${m === 'timer' ? `<div class="chips-wrap">${[5, 10, 15, 20, 30, 45, 60, 90].map((v) => `<button type="button" class="chip-btn ${tm === v ? 'is-on' : ''}" data-act="fo-dur" data-v="${v}">${v < 60 ? `${v} min` : hhmm(v)}</button>`).join('')}</div>
+          <div class="fo-custom"><label><input class="inp" type="number" name="h" min="0" max="12" inputmode="numeric" value="${Math.floor(tm / 60) || ''}" placeholder="0"><span>h</span></label><label><input class="inp" type="number" name="m" min="0" max="59" inputmode="numeric" value="${tm % 60 || ''}" placeholder="0"><span>min</span></label><button class="btn btn-ghost btn-sm" type="submit">Régler</button></div>` : ''}
         <div class="form-2">${s.subjects.length ? field('Matière', select('subjectId', subjOptions(t.subjectId, 'Aucune'), t.subjectId || '', 'data-act-change="fo-field"')) : ''}${field('Tâche', select('taskId', [['', 'Aucune'], ...open.map((x) => [x.id, x.title.slice(0, 50)])], t.taskId || '', 'data-act-change="fo-field"'))}</div>
       </form>`}
     </section>
+    ${calcCard()}
+    </div>
     <div class="st-two">
       <section class="card rise"><header class="card-h"><div><h2>Aujourd'hui</h2><p>${todaySes.length} séance${todaySes.length > 1 ? 's' : ''} · ${hhmm(todayMin)}</p></div></header>
         ${todaySes.length ? `<ul class="rows">${todaySes.slice().reverse().slice(0, 8).map((x) => `<li><div class="row"><span class="menu-ic">${ic('hourglass')}</span><span class="row-b"><b>${esc(x.label || subject(x.subjectId)?.name || s.tasks.find((y) => y.id === x.taskId)?.title || 'Séance de travail')}</b><span>${new Date(x.at).getHours()} h ${String(new Date(x.at).getMinutes()).padStart(2, '0')}</span></span><b>${x.min} min</b></div></li>`).join('')}</ul>` : '<p class="muted pad">Lancez une première séance : elle s\'enregistre ici.</p>'}
       </section>
       <section class="card rise"><header class="card-h"><div><h2>Cette semaine</h2><p>${hhmm(week.reduce((a, b) => a + b, 0))} de travail</p></div>${can('focusStats') ? '' : '<span class="badge b-premium">Premium</span>'}</header>
         ${can('focusStats') ? `<div class="mini-bars">${week.map((v, i) => `<span style="--v:${Math.min(100, (v / Math.max(1, ...week)) * 100)}%" title="${hhmm(v)}"><i></i><em>${WDS[i]}</em></span>`).join('')}</div>
-          ${bySubj.length ? `<ul class="fo-subj">${bySubj.map(([x, m]) => `<li><span class="subj k-${x.tone}"><i></i>${esc(x.name)}</span>${bar(m, Math.max(...bySubj.map((r) => r[1])), '')}<b>${hhmm(m)}</b></li>`).join('')}</ul>` : ''}`
+          ${bySubj.length ? `<ul class="fo-subj">${bySubj.map(([x, mm]) => `<li><span class="subj k-${x.tone}"><i></i>${esc(x.name)}</span>${bar(mm, Math.max(...bySubj.map((r) => r[1])), '')}<b>${hhmm(mm)}</b></li>`).join('')}</ul>` : ''}`
           : '<p class="muted pad">Vos heures de travail par jour et par matière, et votre régularité, avec Premium.</p>'}
       </section>
     </div>`;
@@ -452,22 +615,31 @@ export function focusView() {
     title: 'Concentration', tab: 'etudes', html,
     after(root) {
       const clock = root.querySelector('.fo-clock');
-      const arc = root.querySelector('.fo-ring .ring-v, .fo-ring circle:last-of-type');
+      const arc = root.querySelector('.fo-ring .ring-fg');
+      const c = arc ? parseFloat(arc.getAttribute('stroke-dasharray')) : 0;
       const tick = () => {
         if (!timer?.running) return;
+        if (timer.mode === 'chrono') {
+          const e = elapsed();
+          if (clock) clock.textContent = fmtClock(e, true);
+          document.title = `${fmtClock(e, true)} · Chronomètre`;
+          if (arc) arc.setAttribute('stroke-dashoffset', String(c * (1 - (e % 60000) / 60000)));
+          return;
+        }
         const r = remaining();
         if (clock) clock.textContent = fmtClock(r);
         document.title = `${fmtClock(r)} · Concentration`;
-        if (arc && arc.getAttribute('stroke-dasharray')) { const c = parseFloat(arc.getAttribute('stroke-dasharray')); arc.setAttribute('stroke-dashoffset', String(c * (r / timer.total))); }
+        if (arc) arc.setAttribute('stroke-dashoffset', String(c * (r / timer.total)));
         if (r <= 0) finishPhase();
       };
-      const iv = setInterval(tick, 500);
-      return () => clearInterval(iv);
+      const iv = setInterval(tick, 250);
+      const offCalc = mountCalc(root);
+      return () => { clearInterval(iv); offCalc(); };
     },
   };
 }
 // Le minuteur continue même hors de l'écran Concentration
-setInterval(() => { if (timer?.running && Date.now() >= timer.end && !location.hash.startsWith('#/concentration')) finishPhase(); }, 2000);
+setInterval(() => { if (timer?.running && timer.mode !== 'chrono' && Date.now() >= timer.end && !location.hash.startsWith('#/concentration')) finishPhase(); }, 2000);
 
 register({
   'subject-new': () => subjectSheet(),
@@ -506,18 +678,44 @@ register({
   },
   'srs-deck': (el) => { location.hash = `#/etudes/revision${el.value ? `?p=${el.value}` : ''}`; },
   'fo-toggle': () => {
-    const s = S();
-    if (!timer) timer = { phase: 'work', total: s.focus.work * 60e3, left: s.focus.work * 60e3, running: false, label: '', subjectId: '', taskId: '' };
-    if (timer.running) { timer.left = Math.max(0, timer.end - Date.now()); timer.running = false; }
+    if (!timer || timer.mode !== tmode()) timer = newTimer(tmode(), keepOf(timer));
+    if (timer.mode === 'chrono') {
+      if (timer.running) { timer.acc += Date.now() - timer.start; timer.running = false; }
+      else { timer.start = Date.now(); timer.running = true; }
+    } else if (timer.running) { timer.left = Math.max(0, timer.end - Date.now()); timer.running = false; }
     else { timer.end = Date.now() + (timer.left ?? timer.total); timer.running = true; }
     saveTimer(); rr();
   },
-  'fo-reset': () => { timer = null; saveTimer(); document.title = 'Concentration · MindView'; rr(); },
+  'fo-reset': () => { timer = timer ? newTimer(timer.mode, keepOf(timer)) : null; saveTimer(); document.title = 'Concentration · MindView'; rr(); },
   'fo-skip': () => { if (!timer) return; if (timer.phase === 'work') { timer = { ...timer, total: Math.max(60e3, timer.total - remaining()) }; } finishPhase(); },
   'fo-full': () => { const el = document.querySelector('.fo-card'); if (document.fullscreenElement) document.exitFullscreen?.(); else el?.requestFullscreen?.().catch(() => toast('Le plein écran n\'est pas disponible ici.')); },
   'fo-preset': (b) => { update((s) => { s.focus.work = +b.dataset.w; s.focus.pause = +b.dataset.p; }); if (timer && !timer.running && timer.phase === 'work') { timer = { ...timer, total: +b.dataset.w * 60e3, left: +b.dataset.w * 60e3 }; saveTimer(); rr(); } },
-  'fo-field': (el) => { timer = { ...(timer || { phase: 'work', total: S().focus.work * 60e3, left: S().focus.work * 60e3, running: false }), [el.name]: el.value }; saveTimer(); rr(); },
+  'fo-field': (el) => { timer = { ...(timer && timer.mode === tmode() ? timer : newTimer(tmode(), keepOf(timer))), [el.name]: el.value }; saveTimer(); rr(); },
+  // Changer de mode : seulement à l'arrêt, pour ne rien perdre
+  'fo-mode': (b) => {
+    if (timer?.running) { toast('Mettez d\'abord le temps en cours en pause.', { title: 'Déjà lancé' }); return; }
+    const keep = keepOf(timer);
+    update((s) => { s.focus.mode = b.dataset.m; });
+    timer = newTimer(b.dataset.m, keep); saveTimer(); rr();
+  },
+  'fo-dur': (b) => { const v = +b.dataset.v; update((s) => { s.focus.timerMin = v; }); timer = newTimer('timer', keepOf(timer)); saveTimer(); rr(); },
+  'fo-lap': () => { if (timer?.mode !== 'chrono' || !timer.running) return; timer.laps = [...(timer.laps || []), elapsed()].slice(-30); saveTimer(); rr(); },
+  'fo-save': () => {
+    if (timer?.mode !== 'chrono') return;
+    const min = Math.round(elapsed() / 60e3);
+    if (min < 1) { toast('Moins d\'une minute : rien à enregistrer.', { title: 'Chronomètre' }); return; }
+    logSession(min, timer);
+    timer = newTimer('chrono', keepOf(timer)); saveTimer(); rr();
+    toast(`${min} minute${min > 1 ? 's' : ''} ajoutée${min > 1 ? 's' : ''} à vos séances.`, { title: 'Séance enregistrée' });
+  },
 }, {
+  // Minuteur : une durée au choix, de 1 minute à 12 heures
+  'fo-custom': (d) => {
+    const v = Math.min(720, (Number(d.h) || 0) * 60 + (Number(d.m) || 0));
+    if (v < 1) { toast('Choisissez au moins une minute.', { title: 'Minuteur' }); return; }
+    update((s) => { s.focus.timerMin = v; });
+    timer = newTimer('timer', keepOf(timer)); saveTimer(); rr();
+  },
   subject: (d, f) => {
     const name = (d.name || '').trim(); if (!name) return;
     const patch = { name, tone: d.tone || 'blue', coef: Math.max(0, Number(d.coef) || 1) };

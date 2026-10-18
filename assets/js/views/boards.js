@@ -81,10 +81,10 @@ export function boardsView() {
     ${allowed ? '' : `<div class="bd-lock rise">${paywall('boards')}${demo}</div>`}
     ${list.length ? `<div class="bd-grid">${list.map((b) => `<a class="card bd-card rise" href="#/tableau/${b.id}">${thumb(b)}<span class="bd-b"><b>${esc(b.title || 'Sans titre')}</b><span>${(b.items || []).length} élément${(b.items || []).length > 1 ? 's' : ''} · ${ago(b.updatedAt)}</span></span></a>`).join('')}</div>`
       : allowed ? `<section class="card onboard-empty rise"><span class="empty-ic">${ic('signature')}</span><h2>Une feuille blanche, sans limite</h2>
-        <p>Écrivez avec le doigt : votre écriture devient un beau texte. Tracez une forme et gardez le doigt appuyé : elle devient parfaite. Surlignez de toutes les couleurs, cochez, ajoutez des volumes, des graphiques et des frises. Puis imprimez.</p>
+        <p>Écrivez avec le doigt : votre écriture devient un beau texte. Tracez une forme et gardez le doigt appuyé : elle devient parfaite. Surlignez de toutes les couleurs, cochez, reliez vos idées par des flèches, ajoutez des graphiques et des frises. Puis imprimez.</p>
         <button class="btn btn-primary btn-lg" data-act="board-new" data-tpl="vierge">${ic('plus')}<span>Créer mon premier tableau</span></button>${demo}</section>` : ''}
     ${allowed ? `<h2 class="sec-title">Partir d'un modèle</h2>
-    <div class="tpl-grid">${Object.entries(TEMPLATES).map(([k, [name, icon, sub]]) => `<button class="tpl" data-act="board-new" data-tpl="${k}"><span class="tpl-ic">${ic(icon)}</span><b>${esc(name)}</b><span>${esc(sub)}</span></button>`).join('')}</div>` : ''}`;
+    <div class="bd-tpls">${Object.entries(TEMPLATES).map(([k, [name, icon, sub, make]]) => `<button class="bd-tpl" data-act="board-new" data-tpl="${k}">${thumb({ items: make() })}<span class="bd-tpl-b"><span class="tpl-ic">${ic(icon)}</span><span><b>${esc(name)}</b><em>${esc(sub)}</em></span></span></button>`).join('')}</div>` : ''}`;
   return { title: 'Tableau blanc', tab: 'tableaux', fab: allowed ? 'board-new' : '', html };
 }
 

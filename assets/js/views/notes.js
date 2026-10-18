@@ -10,7 +10,7 @@ import { mountCanvas, FONTS, FONT_GROUPS } from '../draw.js';
 import { dataSheet } from './boards.js';
 import { TEMPLATES, template } from '../data/templates.js';
 // Modèles proposés : à l'école d'abord ceux qui servent aux cours ; jamais de compte rendu client sans CRM
-const SCHOOL_ORDER = ['vierge', 'planning', 'cours', 'revision', 'semaine', 'journal', 'idees', 'checklist', 'objectifs', 'budget', 'code', 'projet', 'reunion'];
+const SCHOOL_ORDER = ['vierge', 'cours', 'revision', 'planning', 'vocab', 'semaine', 'journal', 'checklist', 'idees', 'objectifs', 'budget', 'code', 'projet', 'reunion'];
 const tplList = () => (schoolOnly() ? SCHOOL_ORDER.map((id) => TEMPLATES.find((t) => t.id === id)).filter(Boolean) : TEMPLATES.filter((t) => t.id !== 'rdv' || on('clients')));
 
 export const BLOCKS = [
@@ -23,15 +23,47 @@ export const BLOCKS = [
   ['quote', 'Citation', 'quote', '> + espace'],
   ['callout', 'Encadré', 'callout', '! + espace'],
   ['qa', 'Question / réponse', 'cards', '?? + espace — pour réviser en quiz'],
+  ['def', 'Définition', 'book', 'Un terme et sa définition : devient une carte'],
+  ['table', 'Tableau', 'grid', 'Lignes et colonnes : planning, vocabulaire'],
+  ['prog', 'Avancement', 'chart', 'La barre des cases cochées de la page'],
   ['divider', 'Séparateur', 'divider', '---'],
 ];
+// Encadrés : quatre tons, chacun avec son icône
+const TONES = { '': ['Information', 'callout'], lime: ['À retenir', 'star'], rose: ['Attention', 'flag'], lav: ['Astuce', 'bolt'], sand: ['Exemple', 'book'] };
+// Couvertures de page
+export const COVERS = [['', 'Aucune'], ['bleu', 'Bleu'], ['lime', 'Citron'], ['lavande', 'Lavande'], ['sable', 'Sable'], ['nuit', 'Nuit'], ['rose', 'Rose']];
+// Changer le type d'un bloc en gardant ce qui peut l'être
+function setType(b, t) {
+  if (!b) return;
+  if (t === 'table' && !b.rows) { b.rows = [[b.x || 'Colonne 1', 'Colonne 2'], ['', '']]; b.x = ''; delete b.h; }
+  if (t !== 'table') delete b.rows;
+  b.t = t;
+  if (t === 'todo') b.c = !!b.c;
+  if (isQA(b)) b.a = b.a || '';
+  if (t !== 'callout') delete b.v;
+  if (t === 'divider' || t === 'prog') { b.x = ''; delete b.h; }
+}
+// Tableau : la colonne « Fait » (ou « ✓ ») devient une colonne de cases à cocher
+const doneCol = (rows) => (rows?.[0] || []).findIndex((h) => /^(fait|✓|ok|done)$/i.test(String(h).trim()));
+// Avancement : cases à cocher de la page + lignes cochées des tableaux
+export function progress(p) {
+  let n = 0, d = 0;
+  for (const b of p.blocks) {
+    if (b.t === 'todo' && ((b.x || '').trim() || b.c)) { n++; if (b.c) d++; }
+    if (b.t === 'table') { const c = doneCol(b.rows); if (c >= 0) b.rows.slice(1).forEach((r) => { if (r.some((v, j) => j !== c && String(v).trim())) { n++; if (r[c]) d++; } }); }
+  }
+  return { n, d, pct: n ? Math.round((d / n) * 100) : 0 };
+}
+const progInner = (p) => { const { n, d, pct } = progress(p); return n ? `<span class="prog-h"><b>Avancement</b><span>${d} sur ${n} terminé${d > 1 ? 's' : ''}</span><em>${pct} %</em></span><span class="prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>` : '<span class="prog-h"><b>Avancement</b><span>Ajoutez des cases à cocher : la barre se remplit toute seule.</span></span><span class="prog-bar"><i style="width:0"></i></span>'; };
+const refreshProgress = (p) => document.querySelectorAll('.blk-prog .prog-w').forEach((el) => { el.innerHTML = progInner(p); });
 const BL = Object.fromEntries(BLOCKS.map((b) => [b[0], b]));
 const PAGE_ICONS = ['page', 'note', 'folder', 'briefcase', 'calendar', 'target', 'checkSquare', 'book', 'cards', 'users', 'star', 'flag', 'globe', 'camera', 'house', 'store', 'sun', 'inbox', 'bolt', 'compass'];
 const PH = { p: 'Écrivez, ou tapez « / » pour choisir un bloc', h1: 'Titre', h2: 'Sous-titre', todo: 'À faire', ul: 'Élément', ol: 'Élément', quote: 'Citation', callout: 'À retenir' };
 const MD = [[/^#\s/, 'h1'], [/^##\s/, 'h2'], [/^[-*]\s/, 'ul'], [/^1[.)]\s/, 'ol'], [/^\[ ?\]\s/, 'todo'], [/^>\s/, 'quote'], [/^!\s/, 'callout'], [/^\?\?\s/, 'qa']];
 
 export const pageText = (p) => [p.title, ...p.blocks.map((b) => [b.x, b.a].filter(Boolean).join(' '))].join(' ');
-export const qaCards = (p) => p.blocks.filter((b) => b.t === 'qa' && (b.x || '').trim() && (b.a || '').trim());
+export const isQA = (b) => b?.t === 'qa' || b?.t === 'def';
+export const qaCards = (p) => p.blocks.filter((b) => isQA(b) && (b.x || '').trim() && (b.a || '').trim());
 const words = (p) => pageText(p).split(/\s+/).filter(Boolean).length - (p.title ? p.title.split(/\s+/).length : 0);
 const trail = (p) => { const out = []; let x = p; let g = 0; while (x?.parent && g++ < 6) { x = getPage(x.parent); if (x) out.unshift(x); } return out; };
 
@@ -49,13 +81,23 @@ export function newPage(tplId = 'vierge', { parent = null, prospectId = null, pr
   if (t.month) title = `${title}${new Intl.DateTimeFormat('fr-BE', { month: 'long', year: 'numeric' }).format(d)}`;
   if (t.client && prospectId) title = `${title}${getProspect(prospectId)?.entreprise || ''}`;
   if (projectId && t.id === 'projet') title = `Notes — ${getProject(projectId)?.name || ''}`;
-  return addPage({ title, icon: t.icon === 'page' ? 'page' : t.icon, parent, prospectId, projectId, tpl: t.id, blocks: t.blocks.map(([type, x, a]) => ({ id: bid(), t: type, x: x || '', ...(type === 'todo' ? { c: false } : {}), ...(type === 'qa' ? { a: a || '' } : {}) })) });
+  return addPage({ title, icon: t.icon === 'page' ? 'page' : t.icon, cover: t.cover || '', parent, prospectId, projectId, tpl: t.id, blocks: t.blocks.map(mkBlock) });
+}
+// Un bloc de modèle : [type, texte, réponse] ou { t, x, h (mis en forme), a, ha, st, v, c, rows }
+const untag = (h) => String(h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
+function mkBlock(e) {
+  const o = Array.isArray(e) ? { t: e[0], x: e[1] || '', ...(e[0] === 'qa' || e[0] === 'def' ? { a: e[2] || '' } : {}) } : { ...e };
+  if (o.h && !o.x) o.x = untag(o.h);
+  if (o.ha && !o.a) o.a = untag(o.ha);
+  if (o.st) o.st = { ...o.st };
+  if (o.rows) o.rows = o.rows.map((r) => [...r]);
+  return { id: bid(), x: '', ...o, ...(o.t === 'todo' ? { c: !!o.c } : {}), ...(isQA(o) ? { a: o.a || '' } : {}) };
 }
 function limitSheet() {
   sheet(`${sheetHead('Cinq pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">Vos ${S().pages.length} pages restent modifiables. Vous pouvez aussi supprimer une page pour en créer une autre.</p></div>`, { cls: 'sheet-sm' });
 }
 export function templatesSheet(opts = {}) {
-  sheet(`${sheetHead('Nouvelle page', 'Partez d\'une page vierge ou d\'un modèle')}<div class="sheet-body"><div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}" ${opts.parent ? `data-parent="${opts.parent}"` : ''} ${opts.prospectId ? `data-pid="${opts.prospectId}"` : ''}><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div></div>`, { cls: 'sheet-tall' });
+  sheet(`${sheetHead('Nouvelle page', 'Partez d\'une page vierge ou d\'un modèle')}<div class="sheet-body"><div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}" ${opts.parent ? `data-parent="${opts.parent}"` : ''} ${opts.prospectId ? `data-pid="${opts.prospectId}"` : ''}><span class="tpl-cv cv-${t.cover || 'none'}"></span><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div></div>`, { cls: 'sheet-tall' });
 }
 
 // ---------- Accueil des notes ----------
@@ -92,7 +134,7 @@ export function notesHome(params, q) {
     <h2 class="sec-title">Toutes les pages</h2>
     <ul class="rows card pages-tree rise">${roots.map((p) => row(p)).join('')}</ul>`}
     <h2 class="sec-title">Modèles</h2>
-    <div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}"><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div>`;
+    <div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}"><span class="tpl-cv cv-${t.cover || 'none'}"></span><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div>`;
   return { title: 'Notes', tab: 'notes', fab: 'page-templates', html };
 }
 
@@ -105,21 +147,34 @@ const HC = [['#ffe066', 'Jaune'], ['#b2f2bb', 'Vert'], ['#a5d8ff', 'Bleu'], ['#f
 const FRAMES = [['', 'Sans cadre'], ['ink', 'Cadre encre'], ['blue', 'Cadre bleu'], ['olive', 'Cadre olive'], ['red', 'Cadre rouge'], ['sand', 'Cadre sable'], ['fill', 'Fond bleu clair']];
 const htmlText = (html) => { const t = document.createElement('template'); t.innerHTML = String(html || '').replace(/<br\s*\/?>/gi, '\n'); return t.content.textContent; };
 const blockInner = (b, k) => { const hk = k === 'a' ? 'ha' : 'h'; return b[hk] ? clean(b[hk]) : esc(b[k] || '').replace(/\n/g, '<br>'); };
-function blockHtml(b, n) {
-  const ce = (cls, k, ph) => `<div class="blk-in ${cls}" contenteditable="true" data-k="${k}" data-ph="${esc(ph)}" spellcheck="true" role="textbox" aria-multiline="true" aria-label="${esc(BL[b.t]?.[1] || 'Texte')}">${blockInner(b, k)}</div>`;
+function tableHtml(b) {
+  const rows = b.rows?.length ? b.rows : [['', ''], ['', '']];
+  const dc = doneCol(rows);
+  const cell = (v, r, c) => (r && c === dc
+    ? `<td class="tbl-done"><button class="tick tbl-ck ${v ? 'is-done' : ''}" data-act="tbl-check" data-r="${r}" data-c="${c}" aria-pressed="${!!v}" aria-label="Ligne ${r} terminée"></button></td>`
+    : `<${r ? 'td' : 'th'}><div class="blk-in tbl-c" contenteditable="true" data-k="c${r}_${c}" spellcheck="true" role="textbox" aria-label="${r ? `Ligne ${r}, colonne ${c + 1}` : `Titre de la colonne ${c + 1}`}">${esc(v)}</div></${r ? 'td' : 'th'}>`);
+  return `<div class="tbl-w"><div class="tbl-s"><table class="tbl"><thead><tr>${rows[0].map((v, c) => cell(v, 0, c)).join('')}</tr></thead>
+    <tbody>${rows.slice(1).map((r, i) => `<tr class="${dc >= 0 && r[dc] ? 'is-done' : ''}">${r.map((v, c) => cell(v, i + 1, c)).join('')}</tr>`).join('')}</tbody></table></div>
+    <div class="tbl-acts"><button class="tbl-a" data-act="tbl-add" data-w="row">${ic('plus')}Ligne</button><button class="tbl-a" data-act="tbl-add" data-w="col">${ic('plus')}Colonne</button><button class="tbl-a" data-act="tbl-del" data-w="row">${ic('minus')}Ligne</button><button class="tbl-a" data-act="tbl-del" data-w="col">${ic('minus')}Colonne</button><span class="tbl-tip">Une colonne nommée « Fait » devient des cases à cocher.</span></div></div>`;
+}
+function blockHtml(b, n, p) {
+  const ce = (cls, k, ph) => `<div class="blk-in ${cls}" contenteditable="true" data-k="${k}" data-ph="${esc((k === 'a' ? b.pha : b.ph) || ph)}" spellcheck="true" role="textbox" aria-multiline="true" aria-label="${esc(BL[b.t]?.[1] || 'Texte')}">${blockInner(b, k)}</div>`;
   const lead = b.t === 'todo' ? `<button class="tick blk-ck ${b.c ? 'is-done' : ''}" data-act="blk-check" aria-pressed="${!!b.c}" aria-label="Cocher"></button>`
     : b.t === 'ul' ? '<span class="blk-bul" aria-hidden="true"></span>'
       : b.t === 'ol' ? `<span class="blk-num" aria-hidden="true">${n}.</span>`
-        : b.t === 'callout' ? `<span class="blk-cic">${ic('callout')}</span>` : '';
+        : b.t === 'callout' ? `<span class="blk-cic" title="${TONES[b.v || '']?.[0] || ''}">${ic(TONES[b.v || '']?.[1] || 'callout')}</span>` : '';
   const body = b.t === 'divider' ? '<hr class="blk-hr">'
     : b.t === 'qa' ? `<div class="qa-w"><span class="qa-k">Question</span>${ce('qa-q', 'x', 'La question')}<span class="qa-k">Réponse</span>${ce('qa-a', 'a', 'La réponse')}</div>`
-      : ce('', 'x', PH[b.t] || '');
+      : b.t === 'def' ? `<div class="qa-w def-w">${ce('qa-q def-t', 'x', 'Le terme')}${ce('qa-a def-d', 'a', 'Sa définition')}</div>`
+        : b.t === 'table' ? tableHtml(b)
+          : b.t === 'prog' ? `<div class="prog-w">${progInner(p)}</div>`
+            : ce('', 'x', PH[b.t] || '');
   const st = b.st || {};
-  return `<div class="blk blk-${b.t} ${b.c ? 'is-done' : ''} ${st.fr ? `fr fr-${st.fr}` : ''} ${st.al ? `al-${st.al}` : ''}" data-bid="${b.id}"><button class="blk-h" data-act="blk-menu" aria-label="Options du bloc" tabindex="-1">${ic('drag')}</button>${lead}${body}</div>`;
+  return `<div class="blk blk-${b.t} ${b.ph || b.pha ? 'has-ph' : ''} ${b.c ? 'is-done' : ''} ${b.v ? `tone-${b.v}` : ''} ${st.fr ? `fr fr-${st.fr}` : ''} ${st.al ? `al-${st.al}` : ''}" data-bid="${b.id}"><button class="blk-h" data-act="blk-menu" aria-label="Options du bloc" tabindex="-1">${ic('drag')}</button>${lead}${body}</div>`;
 }
 function blocksHtml(p) {
   let n = 0;
-  return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return blockHtml(b, n); }).join('');
+  return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return blockHtml(b, n, p); }).join('');
 }
 const swatchPop = (cmd, list) => `<div class="nt-pop" data-pop="${cmd}" hidden>${list.map(([c, l]) => `<button type="button" class="nt-sw ${c === 'transparent' ? 'is-none' : ''}" data-fmt="${cmd}" data-v="${c}" title="${l}" aria-label="${l}" style="--c:${c}"></button>`).join('')}</div>`;
 const lockIc = () => (can('notesDraw') ? '' : `<i class="nt-lock">${ic('lock')}</i>`);
@@ -164,9 +219,10 @@ export function noteView([id]) {
       </div>
     </div>
     ${formatBar()}
-    <article class="note" data-pid="${p.id}">
+    <article class="note ${p.cover ? 'has-cover' : ''}" data-pid="${p.id}">
       <div class="nt-ink" aria-hidden="${(p.ink || []).length ? 'false' : 'true'}"></div>
       ${crumbs.length ? `<p class="note-crumbs">${crumbs.map((c) => `<a href="#/note/${c.id}">${esc(c.title || 'Sans titre')}</a>`).join('<span>/</span>')}</p>` : ''}
+      ${p.cover ? `<button class="note-cover cv-${esc(p.cover)}" data-act="page-cover" data-id="${p.id}" aria-label="Changer la couverture"></button>` : ''}
       <button class="note-icon" data-act="page-icon" data-id="${p.id}" aria-label="Changer l'icône">${ic(p.icon || 'page')}</button>
       <textarea class="note-title" rows="1" placeholder="Sans titre" aria-label="Titre de la page" maxlength="140">${esc(p.title)}</textarea>
       <p class="note-meta"><span class="note-saved">Enregistrée</span> · modifiée ${ago(p.updatedAt)} · <span class="note-words">${words(p)} mot${words(p) > 1 ? 's' : ''}</span>${pr ? ` · <a href="#/fiche/${pr.id}">${ic('user')}${esc(pr.entreprise)}</a>` : ''}${(p.ink || []).length ? ` · ${ic('pen')} ${(p.ink || []).length} annotation${(p.ink || []).length > 1 ? 's' : ''}` : ''}</p>
@@ -199,7 +255,7 @@ function editor(root, pid) {
   let slashFor = null, slashIdx = 0, lastEl = null, savedRange = null;
 
   requestAnimationFrame(() => autosize(title));
-  const flash = () => { saved.textContent = 'Enregistrement…'; clearTimeout(saveT); saveT = setTimeout(() => { saved.textContent = 'Enregistrée'; const w = words(page()); root.querySelector('.note-words').textContent = `${w} mot${w > 1 ? 's' : ''}`; }, 500); };
+  const flash = () => { saved.textContent = 'Enregistrement…'; clearTimeout(saveT); saveT = setTimeout(() => { saved.textContent = 'Enregistrée'; const nw = root.querySelector('.note-words'); if (nw && page()) { const w = words(page()); nw.textContent = `${w} mot${w > 1 ? 's' : ''}`; } }, 500); };
   const elOf = (id, k = 'x') => wrap.querySelector(`.blk[data-bid="${id}"] [data-k="${k}"]`) || wrap.querySelector(`.blk[data-bid="${id}"] [contenteditable]`);
   const focusBlock = (id, pos = 'end', k = 'x') => { const el = elOf(id, k); if (el) setCaret(el, pos); };
   const paint = (focusId, pos = 'end', k = 'x') => { wrap.innerHTML = blocksHtml(page()); if (focusId) focusBlock(focusId, pos, k); };
@@ -207,8 +263,11 @@ function editor(root, pid) {
   const save = (el) => {
     const id = el.closest('.blk')?.dataset.bid; if (!id) return;
     const k = el.dataset.k, hk = k === 'a' ? 'ha' : 'h';
-    const html = clean(el.innerHTML);
     const text = plain(el);
+    // Cellule de tableau : texte brut, et le texte de tout le tableau pour la recherche
+    const cm = /^c(\d+)_(\d+)$/.exec(k);
+    if (cm) { mutate(pid, (p) => { const b = p.blocks.find((x) => x.id === id); if (!b?.rows?.[cm[1]]) return; b.rows[cm[1]][cm[2]] = text; b.x = b.rows.flat().filter(Boolean).join(' · '); }); flash(); return; }
+    const html = clean(el.innerHTML);
     mutate(pid, (p) => { const b = p.blocks.find((x) => x.id === id); if (!b) return; b[k] = text; if (hasFormat(html)) b[hk] = html; else delete b[hk]; });
     flash();
   };
@@ -238,10 +297,8 @@ function editor(root, pid) {
       const i = p.blocks.findIndex((b) => b.id === bidv);
       const b = p.blocks[i]; if (!b) return;
       if (/^\/\S*/.test(b.x || '')) { b.x = (b.x || '').replace(/^\/\S*\s?/, ''); delete b.h; }
-      b.t = t;
-      if (t === 'todo') b.c = !!b.c;
-      if (t === 'qa') b.a = b.a || '';
-      if (t === 'divider') { b.x = ''; delete b.h; const nb = { id: bid(), t: 'p', x: '' }; p.blocks.splice(i + 1, 0, nb); focusId = nb.id; }
+      setType(b, t);
+      if (t === 'divider' || t === 'prog') { const nb = { id: bid(), t: 'p', x: '' }; p.blocks.splice(i + 1, 0, nb); focusId = nb.id; }
     });
     closeSlash(); paint(focusId);
     flash();
@@ -259,7 +316,7 @@ function editor(root, pid) {
       for (const [re, t] of MD) {
         if (re.test(v) && b.t === 'p') { const rest = v.replace(re, ''); const caret = Math.max(0, caretOffset(el) - (v.length - rest.length)); mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); x.x = rest; delete x.h; }); applyType(id, t); focusBlock(id, caret); return; }
       }
-      if (v.startsWith('/') && !/\s/.test(v.slice(1, 12)) && b.t !== 'qa') openSlash(id, v.slice(1)); else if (slashFor) closeSlash();
+      if (v.startsWith('/') && !/\s/.test(v.slice(1, 12)) && !isQA(b)) openSlash(id, v.slice(1)); else if (slashFor) closeSlash();
     }
     save(el);
   });
@@ -273,6 +330,17 @@ function editor(root, pid) {
     const el = e.target.closest('[contenteditable]'); if (!el) return;
     const id = el.closest('.blk').dataset.bid, k = el.dataset.k;
     const p = page(); const i = p.blocks.findIndex((b) => b.id === id); const b = p.blocks[i];
+    // Tableau : Entrée descend d'une ligne (et en ajoute une en bas), le reste reste natif
+    if (b.t === 'table') {
+      if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+      e.preventDefault();
+      const [r, c] = k.slice(1).split('_').map(Number);
+      const go = () => wrap.querySelector(`.blk[data-bid="${id}"] [data-k="c${r + 1}_${c}"]`)?.focus();
+      if (r + 1 < b.rows.length) { go(); return; }
+      mutate(pid, (pp) => { const x = pp.blocks[i]; x.rows.push(x.rows[0].map(() => '')); });
+      paint(); go(); flash();
+      return;
+    }
     if (slashFor && !slash.hidden) {
       const items = [...slash.querySelectorAll('.slash-i')];
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); slashIdx = (slashIdx + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length; openSlash(slashFor, plain(el).slice(1)); return; }
@@ -283,12 +351,12 @@ function editor(root, pid) {
     if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) { e.preventDefault(); fmt(e.key.toLowerCase()); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
-      if (b.t === 'qa' && k === 'x') { focusBlock(id, 'end', 'a'); return; }
-      const listy = ['ul', 'ol', 'todo', 'qa'].includes(b.t);
-      if (listy && !plain(el).trim() && (b.t !== 'qa' || !(b.x || '').trim())) { mutate(pid, (pp) => { const x = pp.blocks[i]; x.t = 'p'; x.x = ''; delete x.h; delete x.a; delete x.ha; }); paint(id, 'start'); return; }
-      const afterHtml = b.t === 'qa' ? '' : splitAtCaret(el);
-      if (b.t !== 'qa') save(el);
-      const nb = { id: bid(), t: listy ? b.t : 'p', x: htmlText(afterHtml), ...(hasFormat(afterHtml) ? { h: afterHtml } : {}), ...(b.t === 'todo' ? { c: false } : {}), ...(b.t === 'qa' ? { a: '' } : {}) };
+      if (isQA(b) && k === 'x') { focusBlock(id, 'end', 'a'); return; }
+      const listy = ['ul', 'ol', 'todo', 'qa', 'def'].includes(b.t);
+      if (listy && !plain(el).trim() && (!isQA(b) || !(b.x || '').trim())) { mutate(pid, (pp) => { const x = pp.blocks[i]; x.t = 'p'; x.x = ''; delete x.h; delete x.a; delete x.ha; }); paint(id, 'start'); return; }
+      const afterHtml = isQA(b) ? '' : splitAtCaret(el);
+      if (!isQA(b)) save(el);
+      const nb = { id: bid(), t: listy ? b.t : 'p', x: htmlText(afterHtml), ...(hasFormat(afterHtml) ? { h: afterHtml } : {}), ...(b.t === 'todo' ? { c: false } : {}), ...(isQA(b) ? { a: '' } : {}) };
       mutate(pid, (pp) => { pp.blocks.splice(i + 1, 0, nb); });
       paint(nb.id, 'start'); flash();
       return;
@@ -296,12 +364,12 @@ function editor(root, pid) {
     const sel = getSelection();
     if (e.key === 'Backspace' && sel.isCollapsed && caretOffset(el) === 0) {
       if (k === 'a') { e.preventDefault(); focusBlock(id, 'end', 'x'); return; }
-      if (b.t !== 'p') { e.preventDefault(); mutate(pid, (pp) => { const x = pp.blocks[i]; if (x.t === 'qa') { x.x = [x.x, x.a].filter(Boolean).join(' '); delete x.ha; } x.t = 'p'; delete x.a; }); paint(id, 'start'); flash(); return; }
+      if (b.t !== 'p') { e.preventDefault(); mutate(pid, (pp) => { const x = pp.blocks[i]; if (isQA(x)) { x.x = [x.x, x.a].filter(Boolean).join(' '); delete x.ha; } x.t = 'p'; delete x.a; }); paint(id, 'start'); flash(); return; }
       const prev = p.blocks[i - 1];
-      if (!prev) return;
+      if (!prev || prev.t === 'table' || prev.t === 'prog') return;
       e.preventDefault();
       if (prev.t === 'divider') { mutate(pid, (pp) => { pp.blocks.splice(i - 1, 1); }); paint(id, 'start'); flash(); return; }
-      const pk = prev.t === 'qa' ? 'a' : 'x';
+      const pk = isQA(prev) ? 'a' : 'x';
       const join = (prev[pk] || '').length;
       const merged = blockInner(prev, pk) + clean(el.innerHTML);
       mutate(pid, (pp) => { const pv = pp.blocks[i - 1]; const hk = pk === 'a' ? 'ha' : 'h'; pv[pk] = htmlText(merged); if (hasFormat(merged)) pv[hk] = merged; else delete pv[hk]; pp.blocks.splice(i, 1); });
@@ -310,7 +378,7 @@ function editor(root, pid) {
     }
     if (e.key === 'ArrowUp' && sel.isCollapsed && caretOffset(el) === 0 && i > 0) {
       const prev = [...p.blocks.slice(0, i)].reverse().find((x) => x.t !== 'divider');
-      if (prev) { e.preventDefault(); focusBlock(prev.id, 'end', prev.t === 'qa' ? 'a' : 'x'); }
+      if (prev) { e.preventDefault(); focusBlock(prev.id, 'end', isQA(prev) ? 'a' : 'x'); }
     }
     if (e.key === 'ArrowDown' && caretAtEnd(el)) {
       const next = p.blocks.slice(i + 1).find((x) => x.t !== 'divider');
@@ -397,6 +465,7 @@ function editor(root, pid) {
 function blockMenu(pid, id) {
   const p = getPage(pid); const b = p.blocks.find((x) => x.id === id);
   sheet(`${sheetHead('Bloc', esc(BL[b.t]?.[1] || ''))}<div class="sheet-body">
+    ${b.t === 'callout' ? `<p class="field-l">Ton de l'encadré</p><div class="blk-types">${Object.entries(TONES).map(([v, [l, i]]) => `<button class="chip-btn tone-chip tone-${v || 'info'} ${(b.v || '') === v ? 'is-on' : ''}" data-act="blk-tone" data-pid="${pid}" data-bid="${id}" data-v="${v}">${ic(i)}${l}</button>`).join('')}</div>` : ''}
     <p class="field-l">Transformer en</p>
     <div class="blk-types">${BLOCKS.map(([t, l, i]) => `<button class="chip-btn ${t === b.t ? 'is-on' : ''}" data-act="blk-type" data-pid="${pid}" data-bid="${id}" data-t="${t}">${ic(i)}${l}</button>`).join('')}</div>
     <div class="btn-list">
@@ -407,12 +476,14 @@ function blockMenu(pid, id) {
       <button class="btn btn-danger-ghost" data-act="blk-del" data-pid="${pid}" data-bid="${id}">${ic('trash')}<span>Supprimer le bloc</span></button>
     </div></div>`, { cls: 'sheet-sm' });
 }
-const toMarkdown = (p) => [`# ${p.title || 'Sans titre'}`, '', ...(() => { let n = 0; return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return { p: b.x, h1: `## ${b.x}`, h2: `### ${b.x}`, todo: `- [${b.c ? 'x' : ' '}] ${b.x}`, ul: `- ${b.x}`, ol: `${n}. ${b.x}`, quote: `> ${b.x}`, callout: `> **${b.x}**`, divider: '---', qa: `**Q :** ${b.x}\n**R :** ${b.a || ''}` }[b.t] ?? b.x; }); })()].join('\n');
+const mdTable = (rows = []) => (rows.length ? [rows[0], rows[0].map(() => '---'), ...rows.slice(1)].map((r) => `| ${r.map((v) => String(v).replace(/\|/g, '/')).join(' | ')} |`).join('\n') : '');
+const toMarkdown = (p) => [`# ${p.title || 'Sans titre'}`, '', ...(() => { let n = 0; return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return { p: b.x, h1: `## ${b.x}`, h2: `### ${b.x}`, todo: `- [${b.c ? 'x' : ' '}] ${b.x}`, ul: `- ${b.x}`, ol: `${n}. ${b.x}`, quote: `> ${b.x}`, callout: `> **${b.x}**`, divider: '---', qa: `**Q :** ${b.x}\n**R :** ${b.a || ''}`, def: `**${b.x}** : ${b.a || ''}`, table: mdTable(b.rows), prog: `Avancement : ${progress(p).pct} %` }[b.t] ?? b.x; }); })()].join('\n');
 function pageMenu(id) {
   const p = getPage(id);
   const fam = pageFamily(id);
   const parents = S().pages.filter((x) => !fam.includes(x.id));
   sheet(`${sheetHead('Page', esc(p.title || 'Sans titre'))}<div class="sheet-body">
+    <p class="field-l">Couverture</p><div class="cv-pick">${COVERS.map(([v, l]) => `<button class="cv-sw cv-${v || 'none'} ${(p.cover || '') === v ? 'is-on' : ''}" data-act="page-cover-set" data-id="${id}" data-v="${v}" aria-label="${l}" title="${l}"></button>`).join('')}</div>
     <label class="field"><span class="field-l">Ranger dans</span>${select('parent', [['', 'Aucune page (à la racine)'], ...parents.map((x) => [x.id, x.title || 'Sans titre'])], p.parent || '', `data-act-change="page-parent" data-id="${id}"`)}</label>
     ${on('clients') && can('crm') ? `<label class="field"><span class="field-l">Liée à la fiche</span>${select('pid', [['', 'Aucune'], ...S().prospects.map((x) => [x.id, x.entreprise])], p.prospectId || '', `data-act-change="page-link" data-id="${id}"`)}</label>` : ''}
     ${S().projects.length ? `<label class="field"><span class="field-l">Projet</span>${select('project', [['', 'Aucun projet'], ...S().projects.map((x) => [x.id, x.name])], p.projectId || '', `data-act-change="page-project" data-id="${id}"`)}</label>` : ''}
@@ -445,7 +516,7 @@ register({
     if (!canAddPage()) { closeSheet(null, true); limitSheet(); return; }
     const p = getPage(b.dataset.id);
     const { id: _old, ...copy } = JSON.parse(JSON.stringify(p));
-    const c = addPage({ ...copy, title: `${p.title || 'Sans titre'} (copie)`, fav: false, createdAt: Date.now(), updatedAt: Date.now(), blocks: p.blocks.map((x) => ({ ...x, id: bid() })) });
+    const c = addPage({ ...copy, title: `${p.title || 'Sans titre'} (copie)`, fav: false, createdAt: Date.now(), updatedAt: Date.now(), blocks: copy.blocks.map((x) => ({ ...x, id: bid() })) });
     closeSheet(); location.hash = `#/note/${c.id}`; toast('Page dupliquée');
   },
   'page-copy': (b) => { copyText(toMarkdown(getPage(b.dataset.id)), 'Texte copié, prêt à coller'); closeSheet(); },
@@ -466,6 +537,29 @@ register({
     let val = false;
     mutate(curPid(), (p) => { const x = p.blocks.find((y) => y.id === id); x.c = !x.c; val = x.c; });
     b.classList.toggle('is-done', val); b.setAttribute('aria-pressed', val); b.closest('.blk').classList.toggle('is-done', val);
+    refreshProgress(getPage(curPid()));
+  },
+  'blk-tone': (b) => { const { pid, bid: id, v } = b.dataset; mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); if (v) x.v = v; else delete x.v; }); closeSheet(); setTimeout(() => repaint(id), 230); },
+  'page-cover': (b) => pageMenu(b.dataset.id),
+  'page-cover-set': (b) => { mutate(b.dataset.id, (p) => { p.cover = b.dataset.v; }, { soft: false }); closeSheet(); },
+  // Tableau : cocher une ligne, ajouter ou retirer une ligne ou une colonne
+  'tbl-check': (b) => {
+    const id = b.closest('.blk').dataset.bid, r = +b.dataset.r, c = +b.dataset.c;
+    let val = '';
+    mutate(curPid(), (p) => { const x = p.blocks.find((y) => y.id === id); val = x.rows[r][c] ? '' : '✓'; x.rows[r][c] = val; });
+    b.classList.toggle('is-done', !!val); b.setAttribute('aria-pressed', !!val); b.closest('tr').classList.toggle('is-done', !!val);
+    refreshProgress(getPage(curPid()));
+  },
+  'tbl-add': (b) => {
+    const pid = curPid(), id = b.closest('.blk').dataset.bid, w = b.dataset.w;
+    let focus = '';
+    mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); if (w === 'row') { x.rows.push(x.rows[0].map(() => '')); focus = `c${x.rows.length - 1}_0`; } else if (x.rows[0].length < 8) { x.rows.forEach((r, k) => r.push(k ? '' : `Colonne ${r.length + 1}`)); focus = `c0_${x.rows[0].length - 1}`; } });
+    repaint(); document.querySelector(`.blk[data-bid="${id}"] [data-k="${focus}"]`)?.focus();
+  },
+  'tbl-del': (b) => {
+    const pid = curPid(), id = b.closest('.blk').dataset.bid, w = b.dataset.w;
+    mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); if (w === 'row' && x.rows.length > 2) x.rows.pop(); if (w === 'col' && x.rows[0].length > 1) x.rows.forEach((r) => r.pop()); x.x = x.rows.flat().filter(Boolean).join(' · '); });
+    repaint();
   },
   'blk-add-end': () => {
     const pid = curPid(); const nb = { id: bid(), t: 'p', x: '' };
@@ -476,7 +570,7 @@ register({
   },
   'blk-type': (b) => {
     const { pid, bid: id, t } = b.dataset;
-    mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); x.t = t; if (t === 'todo') x.c = !!x.c; if (t === 'qa') x.a = x.a || ''; if (t === 'divider') x.x = ''; });
+    mutate(pid, (p) => { setType(p.blocks.find((y) => y.id === id), t); });
     closeSheet(); setTimeout(() => repaint(id), 230);
   },
   'blk-move': (b) => {
@@ -486,7 +580,7 @@ register({
   },
   'blk-dup': (b) => {
     const { pid, bid: id } = b.dataset; const nid = bid();
-    mutate(pid, (p) => { const i = p.blocks.findIndex((x) => x.id === id); p.blocks.splice(i + 1, 0, { ...p.blocks[i], id: nid }); });
+    mutate(pid, (p) => { const i = p.blocks.findIndex((x) => x.id === id); p.blocks.splice(i + 1, 0, { ...JSON.parse(JSON.stringify(p.blocks[i])), id: nid }); });
     closeSheet(); setTimeout(() => repaint(nid), 230);
   },
   'blk-del': (b) => {

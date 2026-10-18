@@ -23,7 +23,8 @@ import { overview } from './views/overview.js';
 import { hub, messages, audit, importView } from './views/tools.js';
 import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
 import { academy, guide, settings, more } from './views/pages.js';
-import { onboarding, startOnboarding, isReplay } from './views/onboarding.js';
+import { onboarding, startOnboarding, isReplay, loginView } from './views/onboarding.js';
+import { needsLogin, loggedIn } from './auth.js';
 import { startReminders } from './notify.js';
 import { bootLock } from './lock.js';
 import { accessLabel } from './views/common.js';
@@ -79,6 +80,7 @@ const ROUTES = [
   [/^(reglages|compte)$/, settings],
   [/^plus$/, more],
   [/^bienvenue$/, onboarding],
+  [/^connexion$/, loginView],
 ];
 
 // ---------- Navigation : seulement les modules utilisés ----------
@@ -163,7 +165,7 @@ let cleanup = null, lastPath = null, lastHash = null, lastDay = dayKey(), navSig
 
 function sideFoot() {
   const s = S(), p = s.profile, a = access(), st = billing();
-  return `${st === 'trial' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}Essai gratuit</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
+  return `${['trial', 'trialing', 'trial_canceling'].includes(st) && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}${st === 'trial' ? 'Essai gratuit' : `Essai ${PLANS[s.sub.plan].name}`}</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
     : st === 'past_due' ? `<a class="side-trial is-warn" href="#/abonnement"><span>${ic('bell')}Paiement refusé</span><b>Régler pour garder ${PLANS[a].name}</b></a>`
       : a === 'free' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}Passez à Pro</span><b>Études, notes et tableaux illimités, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
     <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>
@@ -182,7 +184,10 @@ function drawNav() {
 
 function render({ keepScroll = false } = {}) {
   const { path, query } = parseHash();
-  if (!S().onboarded && path !== 'bienvenue') { location.replace('#/bienvenue'); return; }
+  // Un compte existe sur cet appareil et personne n'est connecté : écran de connexion d'abord
+  if (needsLogin() && path !== 'connexion') { location.replace('#/connexion'); return; }
+  if (path === 'connexion' && !needsLogin() && S().onboarded && loggedIn()) { location.replace('#/'); return; }
+  if (!S().onboarded && !['bienvenue', 'connexion'].includes(path)) { location.replace('#/bienvenue'); return; }
   if (S().onboarded && path === 'bienvenue' && !isReplay()) { location.replace('#/'); return; }
   if (path === 'appel' && lastPath !== 'appel') resetCall();
   let v = null;
@@ -191,7 +196,7 @@ function render({ keepScroll = false } = {}) {
   cleanup?.(); cleanup = null;
   const changed = location.hash !== lastHash;
   const y = window.scrollY;
-  document.body.dataset.mode = v.full === 'board' ? 'board' : v.full ? 'full' : '';
+  document.body.dataset.mode = v.full === true ? 'full' : v.full || '';
   document.body.dataset.fab = v.fab ? '1' : '';
   const fab = root.querySelector('.fab');
   fab.dataset.act = typeof v.fab === 'string' ? v.fab : 'create';

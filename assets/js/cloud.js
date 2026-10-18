@@ -24,6 +24,9 @@ const MESSAGES = {
   network: 'Le serveur ne répond pas. Réessayez dans un instant.',
   auth: 'Votre session a expiré : reconnectez-vous.',
   otp_expired: 'Ce code a expiré ou n\'est pas le bon. Demandez-en un nouveau.',
+  invalid_credentials: 'E-mail ou mot de passe incorrect.',
+  user_already_exists: 'Un compte existe déjà avec cette adresse : connectez-vous.',
+  weak_password: 'Mot de passe trop faible : au moins 8 caractères, avec un chiffre ou un signe.',
   over_email_send_rate_limit: 'Trop de codes demandés. Patientez une minute avant de réessayer.',
   already: 'Vous avez déjà un abonnement : changez de formule depuis « Gérer mon abonnement ».',
 };
@@ -69,6 +72,21 @@ export async function verifyCode(email, code) {
   await refreshSubscription().catch(() => null);
   return ses.user;
 }
+// Connexion classique : e-mail et mot de passe (le serveur vérifie, rien n'est stocké en clair)
+export async function signUpPassword(email, password) {
+  const d = await call('/auth/v1/signup', { method: 'POST', body: { email, password }, auth: false });
+  if (d?.access_token) { save(norm(d)); track('active_day'); }
+  else throw new CloudError('confirm', 'Compte créé : confirmez votre adresse avec le lien reçu par e-mail, puis connectez-vous.');
+  return ses.user;
+}
+export async function signInPassword(email, password) {
+  const d = await call('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password }, auth: false });
+  save(norm(d));
+  track('active_day');
+  await refreshSubscription().catch(() => null);
+  return ses.user;
+}
+export const recoverPassword = (email) => call('/auth/v1/recover', { method: 'POST', body: { email }, auth: false });
 export async function signOut() {
   try { await call('/auth/v1/logout', { method: 'POST' }); } catch (e) { /* déconnexion locale quand même */ }
   save(null);
@@ -84,7 +102,7 @@ export function applySubscription(row) {
     Object.assign(b, {
       source: 'stripe', demo: null, failNext: false, pending: null,
       plan: live ? row.plan : 'free',
-      status: live ? (row.status === 'past_due' ? 'past_due' : 'active') : row ? 'ended' : 'none',
+      status: live ? (row.status === 'past_due' ? 'past_due' : row.status === 'trialing' ? 'trialing' : 'active') : row ? 'ended' : 'none',
       periodEnd: live ? end : null, periodStart: live && end ? end - 30 * DAY : null,
       cancelAt: live && !!row.cancel_at_period_end,
       graceEnd: row?.status === 'past_due' && end ? end + GRACE_DAYS * DAY : null,
@@ -98,9 +116,10 @@ export async function refreshSubscription() {
   applySubscription(row);
   return row;
 }
-export async function checkout(plan) {
-  const d = await call('/functions/v1/create-checkout-session', { method: 'POST', body: { plan } });
+export async function checkout(plan, { trial = false } = {}) {
+  const d = await call('/functions/v1/create-checkout-session', { method: 'POST', body: { plan, trial } });
   if (!d?.url) throw new CloudError('http', 'Le paiement n\'a pas pu démarrer.');
+  window.dispatchEvent(new Event('ms:leaving'));
   location.href = d.url;
 }
 export async function openPortal() {

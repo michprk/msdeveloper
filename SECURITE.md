@@ -1,6 +1,6 @@
 # Sécurité — MindView
 
-## Où on en est (version 1.8, 16 octobre 2026)
+## Où on en est (version 1.9, 18 octobre 2026)
 
 L'application n'a **ni serveur, ni base de données, ni compte en ligne**. Tout est enregistré dans le navigateur de l'appareil (localStorage) : tâches, pages de notes, fiches, quiz, réglages. C'est volontaire pour la première version, et c'est dit clairement dans l'application (Compte, Abonnement, accueil).
 
@@ -34,6 +34,9 @@ Ce qui est en place :
 | Lecture précise (1.8) | Le modèle (TrOCR, 64 Mo) et son moteur d'exécution (22 Mo) sont des fichiers de l'application, téléchargés depuis la même adresse sur demande de l'utilisateur, puis gardés sur l'appareil. L'écriture est transformée en image et lue dans un fil séparé, sur l'appareil : aucun tracé, aucune image et aucun texte ne sont envoyés. Pas de clé, pas de service tiers au moment de la lecture. |
 | Tableau blanc (1.7) | Les textes mis en forme passent par le même nettoyage par liste blanche que les notes, à l'enregistrement et à l'affichage ; couleurs, nombres, polices et formes de chaque élément sont vérifiés avant d'être dessinés. L'impression et l'export intègrent les polices de l'application (fichiers locaux), sans appel extérieur. |
 | Création du compte à l'accueil (1.7) | L'adresse e-mail est enregistrée dans le profil, sur l'appareil. Quand les comptes en ligne sont allumés, l'adresse reçoit un code à 6 chiffres (pas de mot de passe stocké) ; tant qu'ils sont éteints, l'écran dit clairement que le compte reste sur l'appareil. |
+| Compte et mot de passe (1.9) | Comptes en ligne allumés : inscription et connexion par Supabase Auth (`/auth/v1/signup`, `token?grant_type=password`), le mot de passe n'est jamais gardé par l'application. Comptes sur l'appareil : seule une **empreinte** est enregistrée (PBKDF2-SHA-256, 210 000 tours, sel aléatoire de 16 octets, comparaison en temps constant) ; 30 secondes d'attente après 5 essais ratés. Mot de passe : 8 caractères au moins, avec un chiffre ou un signe. Sur l'appareil, ce mot de passe protège l'**accès à l'écran**, il ne chiffre pas les données (c'est écrit dans l'application). Sur un appareil qui a déjà un compte, on ne peut pas en créer un autre pour contourner la connexion : il faut le mot de passe, une sauvegarde, ou tout effacer. |
+| Essai avec moyen de paiement (1.9) | Aucune carte n'est saisie dans l'application. En mode test, l'ajout du moyen de paiement est simulé ; en ligne, il se fait chez Stripe (Checkout, `payment_method_collection: 'always'`, `trial_period_days: 7`, un seul essai par compte vérifié côté serveur). L'abonnement « en essai » est écrit par le webhook, jamais par l'application. |
+| Liens Quizlet, Kahoot!, Anki (1.9) | Simples liens ouverts dans un nouvel onglet (`rel="noopener noreferrer"`). « Envoyer mes cartes » copie le texte des cartes dans le presse-papiers sur geste de l'utilisateur : rien n'est envoyé automatiquement. |
 | RGPD (1.4) | Page Confidentialité (`#/confidentialite`) : données, stockage, droits, contacts du CRM, tiers. À faire relire, et coordonnées du responsable du traitement à compléter avant le lancement. |
 
 ## Avant la commercialisation (comptes en ligne et paiement)

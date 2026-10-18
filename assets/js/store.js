@@ -95,7 +95,7 @@ const defaults = () => ({
   lists: [{ id: 'perso', name: 'Personnel', tone: 'sky' }, { id: 'travail', name: 'Travail', tone: 'olive' }],
   pages: [], quiz: { results: {}, mine: [], days: [] }, quotes: [], notifSeen: {},
   // Études : matières, emploi du temps, examens, notes (bulletin), révision espacée, concentration
-  subjects: [], courses: [], exams: [], grades: [], srs: {}, focus: { sessions: [], work: 25, pause: 5 }, studyGoal: 14,
+  subjects: [], courses: [], exams: [], grades: [], srs: {}, focus: { sessions: [], work: 25, pause: 5, mode: 'pomo', timerMin: 10 }, studyGoal: 14,
   // Tableaux blancs (dessin, formes, textes, graphiques)
   boards: [], hwrWords: [],
   prospects: [], activities: [], tasks: [], projects: [],
@@ -278,6 +278,7 @@ export function billing() {
   const s = state.sub;
   if (s.plan !== 'free') {
     if (s.status === 'past_due') return 'past_due';
+    if (s.status === 'trialing') return s.cancelAt ? 'trial_canceling' : 'trialing';
     if (s.cancelAt) return 'canceling';
     return 'active';
   }
@@ -295,6 +296,19 @@ export function prorata(plan) {
   const left = Math.max(0, Math.min(1, (s.periodEnd - now) / (s.periodEnd - s.periodStart)));
   return round2(Math.max(0, (PLANS[plan].price - PLANS[s.plan].price) * left));
 }
+// Essai gratuit avec moyen de paiement : la formule choisie est ouverte tout de suite, rien n'est prélevé
+// pendant 7 jours ; le premier prélèvement a lieu à la fin de l'essai, sauf annulation avant.
+export function startTrial(plan) {
+  let r;
+  update((s) => {
+    const now = Date.now();
+    s.sub.plan = plan; s.sub.status = 'trialing'; s.sub.trialStart = now; s.sub.periodStart = now; s.sub.periodEnd = now + TRIAL_DAYS * DAY;
+    s.sub.cancelAt = false; s.sub.pending = null; s.sub.graceEnd = null; s.sub.demo = null; s.sub.card = 1;
+    r = log(s, 'essai', { plan, amount: 0, label: `Essai gratuit ${PLANS[plan].name} — ${TRIAL_DAYS} jours, moyen de paiement enregistré` });
+  });
+  return r;
+}
+export const trialing = () => state.sub.plan !== 'free' && state.sub.status === 'trialing';
 export function subscribe(plan) {
   let r;
   update((s) => {
@@ -309,7 +323,11 @@ export function subscribe(plan) {
 export function changePlan(plan) {
   let r = null;
   update((s) => {
-    if (RANK[plan] > RANK[s.sub.plan]) {
+    if (s.sub.status === 'trialing') {
+      // Pendant l'essai : changement immédiat, toujours sans prélèvement
+      s.sub.plan = plan; s.sub.pending = null;
+      r = log(s, 'changement', { plan, amount: 0, label: `Essai : passage à ${PLANS[plan].name}` });
+    } else if (RANK[plan] > RANK[s.sub.plan]) {
       const amount = prorata(plan);
       s.sub.plan = plan; s.sub.pending = null; s.sub.cancelAt = false;
       r = log(s, 'paiement', { plan, amount, label: `Passage à ${PLANS[plan].name} (au prorata)` });
@@ -320,7 +338,7 @@ export function changePlan(plan) {
   });
   return r;
 }
-export function cancelSub() { update((s) => { s.sub.cancelAt = true; s.sub.pending = null; log(s, 'resiliation', { plan: s.sub.plan, amount: 0, label: 'Résiliation à la fin de la période' }); }); }
+export function cancelSub() { update((s) => { const t = s.sub.status === 'trialing'; s.sub.cancelAt = true; s.sub.pending = null; log(s, 'resiliation', { plan: s.sub.plan, amount: 0, label: t ? 'Essai annulé : aucun prélèvement à la fin de l\'essai' : 'Résiliation à la fin de la période' }); }); }
 export function resumeSub() { update((s) => { s.sub.cancelAt = false; log(s, 'reprise', { plan: s.sub.plan, amount: 0, label: 'Abonnement repris' }); }); }
 // Nouvel essai de paiement après un refus
 export function settleDue(ok) {
@@ -346,7 +364,8 @@ export function syncBilling(now = Date.now()) {
     const b = st.sub;
     let guard = 0;
     while (b.plan !== 'free' && b.status !== 'past_due' && now >= b.periodEnd && guard++ < 36) {
-      if (b.cancelAt) { log(st, 'fin', { plan: b.plan, amount: 0, label: `Fin de l'abonnement ${PLANS[b.plan].name}` }); b.plan = 'free'; b.status = 'ended'; b.cancelAt = false; break; }
+      const wasTrial = b.status === 'trialing';
+      if (b.cancelAt) { log(st, 'fin', { plan: b.plan, amount: 0, label: wasTrial ? 'Fin de l\'essai : annulé à temps, rien n\'a été prélevé' : `Fin de l'abonnement ${PLANS[b.plan].name}` }); b.plan = 'free'; b.status = 'ended'; b.cancelAt = false; break; }
       if (b.pending) { b.plan = b.pending; b.pending = null; }
       if (b.failNext) {
         b.failNext = false; b.status = 'past_due'; b.graceEnd = b.periodEnd + GRACE_DAYS * DAY;
@@ -354,7 +373,8 @@ export function syncBilling(now = Date.now()) {
         break;
       }
       b.periodStart = b.periodEnd; b.periodEnd = addMonth(b.periodEnd);
-      log(st, 'paiement', { plan: b.plan, amount: PLANS[b.plan].price, label: `Abonnement ${PLANS[b.plan].name} — renouvellement` });
+      log(st, 'paiement', { plan: b.plan, amount: PLANS[b.plan].price, label: wasTrial ? `Abonnement ${PLANS[b.plan].name} — premier mois (fin de l'essai)` : `Abonnement ${PLANS[b.plan].name} — renouvellement` });
+      if (wasTrial) b.status = 'active';
     }
     if (b.status === 'past_due' && b.graceEnd && now >= b.graceEnd) {
       log(st, 'fin', { plan: b.plan, amount: 0, label: 'Fin de l\'abonnement : paiement non régularisé' });

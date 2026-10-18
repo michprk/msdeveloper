@@ -1,7 +1,7 @@
 // Vérification automatique des paiements (mode test).
 // Rejoue chaque situation d'abonnement, compare au résultat attendu, puis remet l'abonnement
 // exactement comme avant. Les données (tâches, fiches, pages…) ne sont jamais touchées.
-import { S, update, DAY, TRIAL_DAYS, GRACE_DAYS, access, billing, can, subscribe, changePlan, cancelSub, resumeSub, settleDue, simulateDays, trialLeft, prorata, addMonth } from './store.js';
+import { S, update, DAY, TRIAL_DAYS, GRACE_DAYS, access, billing, can, subscribe, startTrial, changePlan, cancelSub, resumeSub, settleDue, simulateDays, trialLeft, prorata, addMonth } from './store.js';
 
 const fresh = (extra = {}) => ({ plan: 'free', trialStart: null, demo: null, status: 'none', periodStart: null, periodEnd: null, cancelAt: false, pending: null, graceEnd: null, failNext: false, history: [], ...extra });
 const set = (extra) => update((s) => { s.sub = fresh(extra); }, { silent: true });
@@ -11,14 +11,32 @@ const near = (a, b) => Math.abs(a - b) < 0.011;
 const eur = (n) => `${n.toFixed(2).replace('.', ',')} €`;
 
 const SCENARIOS = [
-  ['Essai gratuit de 7 jours, sans carte', (c) => {
-    set({ trialStart: Date.now() });
-    c('Statut « essai gratuit »', billing() === 'trial');
-    c('Toutes les fonctions ouvertes', access() === 'premium' && can('stats'));
-    c(`${TRIAL_DAYS} jours restants`, trialLeft() === TRIAL_DAYS);
-    c('Rien n\'est prélevé', paid().length === 0);
+  ['Essai gratuit de 7 jours avec moyen de paiement', (c) => {
+    set();
+    startTrial('pro');
+    const end = S().sub.periodEnd;
+    c('Statut « essai », formule Pro ouverte, entrepreneuriat fermé', billing() === 'trialing' && access() === 'pro' && can('boards') && !can('crm'));
+    c(`Premier prélèvement prévu dans ${TRIAL_DAYS} jours`, Math.round((end - S().sub.trialStart) / DAY) === TRIAL_DAYS);
+    c('Rien n\'est prélevé pendant l\'essai', paid().length === 0);
     simulateDays('next');
-    c('À la fin : version gratuite, sans prélèvement automatique', billing() === 'trial_ended' && access() === 'free' && paid().length === 0);
+    c('À la fin de l\'essai : un prélèvement de 11,99 €, abonnement actif', billing() === 'active' && paid().length === 1 && near(paid()[0].amount, 11.99));
+    c('Mois suivant calculé à partir de la fin de l\'essai', S().sub.periodStart === S().sub.trialStart + TRIAL_DAYS * DAY && S().sub.periodEnd === addMonth(S().sub.periodStart));
+  }],
+  ['Essai annulé avant la fin', (c) => {
+    set();
+    startTrial('premium');
+    cancelSub();
+    c('Statut « essai annulé », Premium gardé jusqu\'au bout', billing() === 'trial_canceling' && access() === 'premium');
+    simulateDays('next');
+    c('À la fin : version gratuite, aucun prélèvement', billing() === 'ended' && access() === 'free' && paid().length === 0);
+  }],
+  ['Changer de formule pendant l\'essai', (c) => {
+    set();
+    startTrial('pro');
+    changePlan('premium');
+    c('Premium ouvert tout de suite, toujours sans prélèvement', access() === 'premium' && billing() === 'trialing' && paid().length === 0);
+    simulateDays('next');
+    c('À la fin de l\'essai : 21,99 € prélevés', paid().length === 1 && near(paid()[0].amount, 21.99));
   }],
   ['Souscription à Pro', (c) => {
     set({ trialStart: Date.now() - 2 * DAY });

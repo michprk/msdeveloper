@@ -1,6 +1,7 @@
 // Éléments partagés entre les écrans.
 import { S, can, need, PLANS, access, billing, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
 import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
+import { checkoutSheet } from './billing.js';
 
 // Positionnement : une phrase, un public, trois bénéfices, un exemple. Repris partout.
 export const PROMISE = 'Vos tâches, vos projets, vos notes et vos clients, au même endroit.';
@@ -60,10 +61,10 @@ export function paywall(feature, { compact = false } = {}) {
     <h2>${t}</h2>
     <p>${p}</p>
     <div class="paywall-a">
-      ${trialUsed ? '' : `<button class="btn btn-primary" data-act="start-trial">Essayer gratuitement ${TRIAL_DAYS} jours</button>`}
+      ${trialUsed ? '' : `<button class="btn btn-primary" data-act="start-trial" data-plan="${need(feature)}">Essayer ${plan.name} ${TRIAL_DAYS} jours gratuits</button>`}
       <a class="btn ${trialUsed ? 'btn-primary' : 'btn-ghost'}" href="#/abonnement">${trialUsed ? `Passer à ${plan.name}` : 'Voir les formules'}</a>
     </div>
-    <p class="paywall-n">${plan.name} : ${plan.price.toFixed(2).replace('.', ',')} € par mois, sans engagement${trialUsed ? '' : ' · sans carte pour l\'essai'}</p>
+    <p class="paywall-n">${plan.name} : ${plan.price.toFixed(2).replace('.', ',')} € par mois, sans engagement${trialUsed ? '' : ' · rien n\'est prélevé pendant l\'essai'}</p>
   </section>`;
 }
 
@@ -78,18 +79,16 @@ export function trialStrip() {
     const n = trialLeft();
     return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>Essai gratuit : <b>${n} jour${n > 1 ? 's' : ''}</b> restant${n > 1 ? 's' : ''}</span><span class="strip-a">Formules ${ic('chevR')}</span></a>`;
   }
+  // Rappel deux jours avant la fin de l'essai : le prélèvement approche, l'annulation reste à un geste
+  if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>Votre essai ${PLANS[s.sub.plan].name} se termine le ${dateLong(s.sub.periodEnd).toLowerCase()} : ${PLANS[s.sub.plan].price.toFixed(2).replace('.', ',')} € seront prélevés.</span><span class="strip-a">Gérer</span></a>`;
   if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>Paiement refusé : vous gardez l'accès jusqu'au ${dateLong(s.sub.graceEnd).toLowerCase()}.</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
   if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>Votre essai est terminé — vos données sont conservées.</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
   return '';
 }
 
 register({
-  'start-trial': () => {
-    if (S().sub.trialStart) return;
-    update((s) => { s.sub.trialStart = Date.now(); });
-    closeSheet();
-    toast(`${TRIAL_DAYS} jours, toutes les fonctions, sans carte.`, { title: 'Essai gratuit activé' });
-  },
+  // Essai gratuit : 7 jours de la formule qui débloque la fonction, avec un moyen de paiement (rien avant la fin)
+  'start-trial': (b) => { closeSheet(null, true); checkoutSheet(b?.dataset?.plan || 'pro', true); },
   'close-sheet': () => closeSheet(),
 });
 
@@ -97,6 +96,7 @@ export const accessLabel = () => {
   const a = access(), st = billing(), s = S().sub;
   if (s.demo) return `${PLANS[a].name} (démonstration)`;
   if (st === 'trial') return `Essai gratuit — ${trialLeft()} j restants`;
+  if (st === 'trialing' || st === 'trial_canceling') return `Essai ${PLANS[a].name} — ${Math.max(0, Math.ceil((s.periodEnd - Date.now()) / 864e5))} j restants`;
   if (st === 'canceling') return `${PLANS[a].name} jusqu'au ${dateLong(s.periodEnd).toLowerCase()}`;
   if (st === 'past_due') return `${PLANS[a].name} — paiement à régler`;
   return PLANS[a].name;
