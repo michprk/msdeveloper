@@ -164,7 +164,7 @@ function calendarCard() {
   const first = new Date(d0.getFullYear(), d0.getMonth(), 1), days = new Date(d0.getFullYear(), d0.getMonth() + 1, 0).getDate();
   const kind = (t0) => {
     const t1 = t0 + DAY;
-    if ((s.exams || []).some((x) => inR(x.date, [t0, t1])) || s.projects.some((p) => p.due && p.status !== 'termine' && inR(p.due, [t0, t1]))) return 'team';
+    if ((s.exams || []).some((x) => inR(x.date, [t0, t1])) || (s.projects || []).some((p) => p.due && p.status !== 'termine' && inR(p.due, [t0, t1]))) return 'team';
     const ts = s.tasks.filter((t) => !t.done && t.due && inR(t.due, [t0, t1]));
     if (!ts.length) return '';
     if (ts.some((t) => t.due < now && t1 <= startOfDay() + DAY)) return 'late';

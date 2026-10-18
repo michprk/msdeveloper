@@ -1,6 +1,6 @@
 // Service worker : l'application fonctionne hors ligne.
 // Changer VERSION à chaque mise en ligne pour proposer la mise à jour.
-const VERSION = 'msdev-1.9.0';
+const VERSION = 'msdev-1.9.1';
 const AI_CACHE = 'mv-ai-transformers-3.8.1';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',

@@ -58,7 +58,7 @@ export function sampleState() {
   ];
   cache = {
     sample: true, tasks, prospects, activities, pages, srsLog,
-    focus: { sessions, work: 25, pause: 5 }, subjects: [],
+    focus: { sessions, work: 25, pause: 5 }, subjects: [], projects: [], exams: [],
     lists: school ? [{ id: 'perso', name: 'Personnel', tone: 'sky' }, { id: 'ecole', name: 'École', tone: 'olive' }] : [{ id: 'perso', name: 'Personnel', tone: 'sky' }, { id: 'travail', name: 'Travail', tone: 'olive' }],
     quiz: { results: { organisation: { best: 90, last: 90, tries: 2, at: now - 5 * 3600e3 } }, mine: [] },
     sub: { history: [] },

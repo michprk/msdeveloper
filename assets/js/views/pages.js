@@ -30,7 +30,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.9.0';
+const VERSION = '1.9.1';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
