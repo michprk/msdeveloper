@@ -2,6 +2,47 @@
 
 Les versions avant la 1.10 sont décrites dans le [README](README.md) (sections « Nouveautés »).
 
+## 1.13.0 — 21/10/2026 · Phase 4 : prix et formules dans un seul fichier
+
+**Un seul fichier de configuration**
+- `assets/js/plans.js` contient les prix (au mois et à l'année), les limites, les fonctions par formule, le comparatif et les points forts de chaque formule.
+- Ce fichier est lu par la page Abonnement, le comparatif, les verrous, le bandeau d'essai, le paiement et la vérification des paiements.
+- `store.js` reprend ces valeurs pour les écrans existants.
+- Une seule fonction décide de l'accès : `hasFeature(fonction)`. `can()` reste comme alias.
+- Le vrai statut d'abonnement se branche avec `setAccessProvider()`, sans rien changer ailleurs.
+
+**Formules**
+- Gratuit, 0 € : notes texte illimitées, 3 projets, tâches, calendrier, examens, emploi du temps, moyennes, concentration, quiz du jour, 1 tableau blanc, import et export .zip Notion.
+- Pro, 4,99 € par mois ou 39 € par an : connexion et synchronisation Notion, tableaux blancs illimités, révision espacée et planificateur, statistiques, exports, mise en forme complète des notes.
+- Premium Entrepreneur, 9,99 € par mois ou 79 € par an : CRM, devis, scripts, session d'appels, statistiques commerciales, Académie. Montré seulement aux profils pro (ou avec le module Entrepreneur).
+
+**Page Abonnement**
+- Bascule mensuel / annuel, avec l'économie affichée (35 % sur Pro).
+- Comparatif réduit à 8 lignes lisibles : les chiffres de remplissage comme le nombre de scripts sont retirés.
+- La FAQ est gardée et mise à jour, au ton du profil.
+
+**Paiement à l'année**
+- Chaque abonnement a une période (`interval`) : renouvellement mensuel ou annuel.
+- Passage du mensuel à l'annuel (et l'inverse) à la fin de la période payée.
+- Le paiement réel envoie `interval` au serveur, qui choisit parmi quatre prix Stripe (`STRIPE_PRICE_PRO_YEAR`, `STRIPE_PRICE_PREMIUM_YEAR`).
+
+**Mode test**
+- La simulation (carte refusée, coupure, temps qui passe, « Vérifier les paiements ») n'apparaît qu'avec `?debug=1`.
+- Sans debug et sans Stripe, l'essai démarre sans carte et revient seul à la version gratuite au bout de 7 jours, sans faux paiement. Aucun achat n'est possible tant que le paiement en ligne n'est pas ouvert.
+
+**Choix « rester gratuit »**
+- Chaque verrou a un vrai bouton « Continuer gratuitement ».
+
+**Vérification des paiements**
+- 17 situations, toutes conformes, dont : abonnement annuel, passage du mensuel à l'annuel, essai sans carte.
+- Les montants sont lus dans `plans.js`.
+
+**Tests**
+- Tests Playwright des formules :
+  - deux formules pour un élève, trois pour un profil pro ;
+  - bascule annuelle avec l'économie affichée ;
+  - pas de simulation sans `?debug=1`, outils de test présents avec `?debug=1`.
+
 ## 1.12.0 — 21/10/2026 · Phase 3 : un vrai connecteur Notion
 
 **Connexion**

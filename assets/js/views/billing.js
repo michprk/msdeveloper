@@ -1,131 +1,127 @@
-// Abonnement : statut réel, formules et limites, paiement (mode test), changement de formule,
-// résiliation, échec de paiement et délai de grâce, historique et reçus.
-import { S, update, on, schoolOnly, access, billing, PLANS, RANK, TRIAL_DAYS, GRACE_DAYS, LIMITS, trialEnd, trialLeft, prorata, subscribe, startTrial, changePlan, cancelSub, resumeSub, settleDue, simulateDays, nextBillingEvent } from '../store.js';
+// Abonnement (1.13) : statut, formules lues dans plans.js (mensuel ou annuel), comparatif court, paiement, historique, FAQ.
+// Trois cas de paiement :
+// - Stripe configuré : la carte est saisie chez Stripe (Checkout), rien ne passe par l'application ;
+// - sans Stripe, ?debug=1 : simulation complète (carte refusée, coupure, temps qui passe, vérification) ;
+// - sans Stripe, sans debug (le cas « production » d'aujourd'hui) : l'essai démarre sans carte et s'arrête seul, aucun achat possible.
+import { S, update, on, access, billing, PLANS, RANK, TRIAL_DAYS, GRACE_DAYS, trialEnd, trialLeft, prorata, subscribe, startTrial, changePlan, changeInterval, cancelSub, resumeSub, settleDue, simulateDays, nextBillingEvent } from '../store.js';
+import { COMPARE, priceOf, savingOf, planName, debugOn } from '../plans.js';
 import { ic, esc, eur2, register, toast, sheet, sheetHead, closeSheet, confirmSheet, busy, pause, dateLong } from '../ui.js';
-import { scriptCount } from '../data/scripts.js';
-import { GUIDES } from '../data/guides.js';
 import { pageHead } from './common.js';
 import { isTest, PAYMENTS } from '../payments.js';
 import { runBillingChecks, CHECK_COUNT } from '../billing-check.js';
 import { cloudUser, checkout, openPortal, cloudMessage } from '../cloud.js';
 import { accountSheet } from './account.js';
-import { t as tr } from '../strings.js';
+import { t as tr, isTu } from '../strings.js';
+import { PRO_SITUATIONS } from '../strings.js';
 
-const price = (n) => n.toFixed(2).replace('.', ',');
+const price = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ','));
 const dl = (t) => dateLong(t).toLowerCase();
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
+const sim = () => isTest() && debugOn();      // simulation complète (développement)
+const preview = () => isTest() && !debugOn(); // pas encore de paiement en ligne
+const per = (iv) => (iv === 'year' ? 'par an' : 'par mois');
+// Premium Entrepreneur n'est montré qu'aux profils pro (ou à qui a activé le module Entrepreneur)
+export const premiumVisible = () => on('entrepreneur') || PRO_SITUATIONS.includes(S().profile.situation) || S().sub.plan === 'premium';
+const shown = () => ['free', 'pro', ...(premiumVisible() ? ['premium'] : [])];
+let ivView = null; // période affichée sur la page (mensuel ou annuel)
+const iv = () => ivView || S().sub.interval || 'month';
 
-// Ce que comprend chaque formule, avec ses limites. 5e colonne : module concerné (masqué s'il n'est pas utilisé).
-export const OFFER = [
-  ['Tâches, listes, tableau et rappels', true, true, true],
-  ['Calendrier', 'Vue mois', 'Mois, semaine, jour, glisser-déposer', 'Mois, semaine, jour, glisser-déposer'],
-  ['Projets reliés aux tâches, progression automatique', `${LIMITS.freeProjects} projet`, 'Illimités', 'Illimités'],
-  ['Notes en pages et sous-pages, modèles', `${LIMITS.freePages} pages`, 'Illimitées', 'Illimitées'],
-  ['Éditeur complet : 30 polices, couleurs, surligneur, encadrés, dessin sur la page', 'Gras, italique, souligné', true, true],
-  ['Tableau blanc : écriture à la main transformée en texte, formes, flèches, cases à cocher, impression', false, 'Illimités', 'Illimités + export PNG haute définition'],
-  ['Connecteurs : Notion, Figma, Canva, Google, Trello, Quizlet, agendas…', 'Liens', 'Imports et aperçus', 'Imports et aperçus'],
-  ['Notifications et recherche globale', true, true, true],
-  ['Quiz intégrés, quiz du jour, révision des notes', true, true, true],
-  ['Examens et compte à rebours', true, true, true],
-  ['Créer vos propres quiz', false, true, true],
-  ['Emploi du temps, moyennes avec coefficients', false, true, true],
-  ['Planificateur de révisions et révision espacée', false, true, true],
-  ['Mode concentration et ses statistiques', false, true, true],
-  ['Scripts d\'appel à froid (23 secteurs)', true, true, true],
-  ['CRM personnalisé : fiches, pipeline, champs, équipe', false, false, true],
-  ['Devis suivis (brouillon → accepté), PDF, prospect → client', false, false, true],
-  [`Les ${scriptCount()} scripts, situations délicates, mode appel`, false, false, true],
-  ['Messages prêts, audit express, import de listes', false, false, true],
-  ['Statistiques commerciales, export CSV', false, false, true],
-  ['Vos scripts et secteurs, entraînement aux objections', false, false, true],
-  ['Académie : les guides pour entreprendre', `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.filter((g) => g.free).length} guides`, `${GUIDES.length} guides`],
-];
-// Pro est pensé pour les études, Premium pour les études et l'entrepreneuriat : toutes les lignes sont montrées
-export const offerRows = () => OFFER;
-export const PLAN_FOR = { free: 'Pour découvrir', pro: 'Pour les études et l\'organisation', premium: 'Études + entrepreneuriat : clients, devis, prospection' };
+export const PLAN_FOR = Object.fromEntries(Object.keys(PLANS).map((k) => [k, PLANS[k].for]));
 const cell = (v) => (v === true ? `<span class="ok">${ic('check')}<span class="sr-only">Inclus</span></span>` : v === false ? '<span class="no" aria-label="Non inclus">—</span>' : `<span class="txt">${esc(v)}</span>`);
+const amountLine = (id, i = iv()) => {
+  const p = PLANS[id];
+  if (!p.price) return '<b>0 €</b><span>pour toujours</span>';
+  if (i === 'year') { const sv = savingOf(id); return `<b>${price(p.yearly)} €</b><span>par an · soit ${price(sv.monthly)} € par mois</span><em class="plan-save">${sv.pct} % moins cher que le mensuel</em>`; }
+  return `<b>${price(p.price)} €</b><span>par mois, sans engagement</span>`;
+};
 
 const STATUS = {
-  free: () => ['Version gratuite', `Tâches, calendrier, quiz, ${LIMITS.freeProjects} projet et ${LIMITS.freePages} pages de notes. Essayez Pro ou Premium gratuitement pendant ${TRIAL_DAYS} jours : rien n'est prélevé avant la fin de l'essai.`],
-  trialing: (s) => [`Essai gratuit ${PLANS[s.plan].name}`, `Toutes les fonctions ${PLANS[s.plan].name} jusqu'au ${dl(s.periodEnd)} (encore ${Math.max(0, Math.ceil((s.periodEnd - Date.now()) / 864e5))} jour${Math.ceil((s.periodEnd - Date.now()) / 864e5) > 1 ? 's' : ''}). Premier prélèvement de ${price(PLANS[s.plan].price)} € ce jour-là, sauf si vous annulez avant.`],
-  trial_canceling: (s) => ['Essai annulé', `Vous gardez ${PLANS[s.plan].name} jusqu'au ${dl(s.periodEnd)}. Rien ne sera prélevé ; ensuite, l'application passe en version gratuite.`],
-  trial: () => ['Essai gratuit', `Toutes les fonctions jusqu'au ${dl(trialEnd())} (encore ${trialLeft()} jour${trialLeft() > 1 ? 's' : ''}). Sans carte : à la fin, l'application repasse en version gratuite si vous ne choisissez rien.`],
-  trial_ended: () => ['Version gratuite', `Votre essai s'est terminé le ${dl(trialEnd())}. Vos fiches, vos pages et vos tâches sont conservées.`],
-  active: (s) => [`${PLANS[s.plan].name} · actif`, `Prochain prélèvement : ${price(PLANS[s.pending || s.plan].price)} € le ${dl(s.periodEnd)}.${s.pending ? ` Passage à ${PLANS[s.pending].name} à cette date.` : ''}`],
-  canceling: (s) => [`${PLANS[s.plan].name} · résilié`, `Vous gardez ${PLANS[s.plan].name} jusqu'au ${dl(s.periodEnd)}. Ensuite, l'application passe en version gratuite : rien n'est effacé.`],
-  past_due: (s) => ['Paiement refusé', `Le renouvellement n'a pas pu être prélevé. Vous gardez ${PLANS[s.plan].name} jusqu'au ${dl(s.graceEnd)} : réessayez le paiement d'ici là.`],
-  ended: () => ['Version gratuite', 'Votre abonnement est terminé. Vos données sont conservées : vous les retrouvez dès que vous vous réabonnez.'],
+  free: () => [tr('bill.st.free.t'), tr('bill.st.free', { days: TRIAL_DAYS })],
+  trialing: (s) => [`Essai gratuit ${planName(s.plan)}`, s.card === 0 ? tr('bill.st.trialNoCard', { plan: planName(s.plan), date: dl(s.periodEnd) }) : tr('bill.st.trialing', { plan: planName(s.plan), date: dl(s.periodEnd), price: price(priceOf(s.plan, s.interval)), per: per(s.interval) })],
+  trial_canceling: (s) => ['Essai annulé', tr('bill.st.trialCancel', { plan: planName(s.plan), date: dl(s.periodEnd) })],
+  trial: () => ['Essai gratuit', tr('bill.st.trialOld', { date: dl(trialEnd()), n: trialLeft() })],
+  trial_ended: () => [tr('bill.st.free.t'), tr('bill.st.trialEnded', { date: dl(trialEnd()) })],
+  active: (s) => [`${planName(s.plan)} · actif`, tr('bill.st.active', { price: price(priceOf(s.pending || s.plan, s.pendingInterval || s.interval)), date: dl(s.periodEnd), more: s.pending ? ` Passage à ${planName(s.pending)} à cette date.` : s.pendingInterval ? ` Passage au paiement ${s.pendingInterval === 'year' ? 'annuel' : 'mensuel'} à cette date.` : '' })],
+  canceling: (s) => [`${planName(s.plan)} · résilié`, tr('bill.st.canceling', { plan: planName(s.plan), date: dl(s.periodEnd) })],
+  past_due: (s) => ['Paiement refusé', tr('bill.st.pastDue', { plan: planName(s.plan), date: dl(s.graceEnd) })],
+  ended: () => [tr('bill.st.free.t'), tr('bill.st.ended')],
 };
 const TYPE = { essai: ['Essai', 't-sky'], paiement: ['Payé', 't-olive'], echec: ['Refusé', 't-rose'], resiliation: ['Résiliation', 't-sand'], reprise: ['Repris', 't-sky'], fin: ['Terminé', 't-grey'], changement: ['Changement', 't-sky'] };
 
 export function plans() {
   const s = S(), b = s.sub, st = billing(), cur = access();
   const subscribed = b.plan !== 'free';
-  const [title, text] = s.sub.demo ? ['Mode démonstration', `Affichage ${PLANS[s.sub.demo].name}, activé depuis le compte. Ce n'est pas un abonnement.`] : STATUS[st](b);
-  // Premier abonnement : l'essai gratuit de 7 jours démarre avec un moyen de paiement (prélèvement à la fin de l'essai)
-  const choose = (id) => (!b.trialStart && !b.history?.some((h) => h.type === 'paiement' || h.type === 'essai') ? `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="co-open" data-plan="${id}" data-trial="1">Essayer ${TRIAL_DAYS} jours gratuits</button><p class="plan-sub">Puis ${price(PLANS[id].price)} € par mois, annulable à tout moment</p>` : `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="co-open" data-plan="${id}">Choisir ${PLANS[id].name}</button>`);
+  const [title, text] = s.sub.demo ? ['Mode démonstration', `Affichage ${planName(s.sub.demo)}, activé depuis le compte. Ce n'est pas un abonnement.`] : STATUS[st](b);
+  const neverTried = !b.trialStart && !b.history?.some((h) => h.type === 'paiement' || h.type === 'essai');
+  // Premier abonnement : l'essai gratuit de 7 jours
+  const choose = (id) => (neverTried
+    ? `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="co-open" data-plan="${id}" data-trial="1">Essayer ${TRIAL_DAYS} jours gratuits</button><p class="plan-sub">Puis ${price(priceOf(id, iv()))} € ${per(iv())}, annulable à tout moment</p>`
+    : preview() ? `<p class="plan-sub">${tr('bill.soon')}</p>` : `<button class="btn ${id === 'premium' ? 'btn-sky' : 'btn-primary'} btn-block" data-act="co-open" data-plan="${id}">Choisir ${planName(id)}</button>`);
   const planBtn = (id) => {
-    // Paiement réel : changement de formule, carte, factures et résiliation chez Stripe (portail sécurisé)
     if (!isTest()) {
-      if (subscribed && b.plan === id) return `<p class="plan-cur">${st === 'canceling' ? `Jusqu'au ${dl(b.periodEnd)}` : 'Votre formule'}</p>`;
-      if (id === 'free') return !subscribed && cur === 'free' ? '<p class="plan-cur">Votre formule</p>' : '';
-      if (subscribed) return `<button class="btn btn-ghost btn-block" data-act="cloud-portal">Passer à ${PLANS[id].name}</button><p class="plan-sub">${RANK[id] > RANK[b.plan] ? 'Tout de suite, au prorata' : 'À la fin de la période payée'}</p>`;
+      if (subscribed && b.plan === id) return `<p class="plan-cur">${st === 'canceling' ? `Jusqu'au ${dl(b.periodEnd)}` : 'Ta formule'}</p>`;
+      if (id === 'free') return !subscribed && cur === 'free' ? '<p class="plan-cur">Ta formule</p>' : '';
+      if (subscribed) return `<button class="btn btn-ghost btn-block" data-act="cloud-portal">Passer à ${planName(id)}</button><p class="plan-sub">${RANK[id] > RANK[b.plan] ? 'Tout de suite, au prorata' : 'À la fin de la période payée'}</p>`;
       return choose(id);
     }
-    if (subscribed && b.plan === id) return `<p class="plan-cur">${st === 'canceling' ? `Jusqu'au ${dl(b.periodEnd)}` : 'Votre formule'}</p>`;
+    if (subscribed && b.plan === id) return `<p class="plan-cur">${st === 'canceling' ? `Jusqu'au ${dl(b.periodEnd)}` : 'Ta formule'}</p>`;
     if (subscribed && b.pending === id) return `<p class="plan-cur">Prévue le ${dl(b.periodEnd)}</p>`;
-    if (id === 'free') return subscribed ? (st === 'canceling' ? '' : '<button class="btn btn-ghost btn-block" data-act="sub-cancel">Revenir au gratuit</button>') : cur === 'free' ? '<p class="plan-cur">Votre formule</p>' : '';
-    if (subscribed && b.status === 'trialing') return `<button class="btn btn-ghost btn-block" data-act="sub-switch" data-plan="${id}">Passer à ${PLANS[id].name}</button><p class="plan-sub">Tout de suite, toujours gratuit pendant l'essai</p>`;
-    if (subscribed) return RANK[id] > RANK[b.plan]
-      ? `<button class="btn btn-primary btn-block" data-act="co-open" data-plan="${id}">Passer à ${PLANS[id].name}</button><p class="plan-sub">${price(prorata(id))} € aujourd'hui, au prorata</p>`
-      : `<button class="btn btn-ghost btn-block" data-act="sub-down" data-plan="${id}">Passer à ${PLANS[id].name}</button><p class="plan-sub">À partir du ${dl(b.periodEnd)}</p>`;
+    if (id === 'free') return subscribed ? (st === 'canceling' ? '' : '<button class="btn btn-ghost btn-block" data-act="sub-cancel">Revenir au gratuit</button>') : cur === 'free' ? '<p class="plan-cur">Ta formule</p>' : '';
+    if (subscribed && b.status === 'trialing') return `<button class="btn btn-ghost btn-block" data-act="sub-switch" data-plan="${id}">Passer à ${planName(id)}</button><p class="plan-sub">Tout de suite, toujours gratuit pendant l'essai</p>`;
+    if (subscribed && sim()) return RANK[id] > RANK[b.plan]
+      ? `<button class="btn btn-primary btn-block" data-act="co-open" data-plan="${id}">Passer à ${planName(id)}</button><p class="plan-sub">${price(prorata(id))} € aujourd'hui, au prorata</p>`
+      : `<button class="btn btn-ghost btn-block" data-act="sub-down" data-plan="${id}">Passer à ${planName(id)}</button><p class="plan-sub">À partir du ${dl(b.periodEnd)}</p>`;
     return choose(id);
   };
-  const card = (id, k) => `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''} ${id === 'pro' ? 'is-reco' : ''}">
+  const card = (id) => `<section class="plan rise ${id === 'premium' ? 'is-dark' : ''} ${id === 'pro' ? 'is-reco' : ''}">
       ${id === 'pro' ? '<span class="plan-tag">Idéal pour les études</span>' : id === 'premium' ? '<span class="plan-tag is-light">Pour entreprendre</span>' : ''}
-      <header><h2>${PLANS[id].name}</h2><p class="plan-for">${PLAN_FOR[id]}</p><p class="plan-p">${PLANS[id].price ? `<b>${price(PLANS[id].price)} €</b><span>par mois, sans engagement</span>` : '<b>0 €</b><span>pour toujours</span>'}</p></header>
-      <ul class="plan-f">${offerRows().filter((r) => r[k + 1] && (k === 0 || r[k] !== r[k + 1])).map((r) => `<li>${ic('check')}<span>${esc(r[0])}${typeof r[k + 1] === 'string' ? ` <em>(${esc(r[k + 1])})</em>` : ''}</span></li>`).join('')}</ul>
-      ${id !== 'free' ? `<p class="plan-plus">${id === 'pro' ? 'En plus de la version gratuite' : 'En plus de tout Pro'}</p>` : ''}
+      <header><h2>${PLANS[id].name}</h2><p class="plan-for">${esc(PLANS[id].for)}</p><p class="plan-p">${amountLine(id)}</p></header>
+      <ul class="plan-f">${PLANS[id].highlights.map((h) => `<li>${ic('check')}<span>${esc(h)}</span></li>`).join('')}</ul>
       ${planBtn(id)}
     </section>`;
+  const ids = shown();
   const hist = b.history || [];
-  const html = `${pageHead('Abonnement', { kicker: 'Votre formule, vos paiements, vos limites', back: '#/reglages' })}
-    ${isTest() ? `<div class="test-strip rise">${ic('shield')}<p><b>Paiements en mode test.</b> Le paiement en ligne n'est pas encore ouvert : le parcours complet fonctionne, mais aucune carte n'est demandée et aucun argent n'est prélevé.</p></div>` : ''}
+  const sv = savingOf('pro');
+  const html = `${pageHead('Abonnement', { kicker: tr('bill.kicker'), back: '#/reglages' })}
+    ${sim() ? `<div class="test-strip rise">${ic('shield')}<p><b>Mode test (debug).</b> Paiements simulés : aucune carte n'est demandée et aucun argent n'est prélevé.</p></div>` : ''}
     <section class="card status-card st-${st} rise">
-      <div class="status-top"><span class="status-ic">${ic(['trial', 'trialing', 'trial_canceling'].includes(st) ? 'hourglass' : st === 'past_due' ? 'bell' : 'diamond')}</span><div><p class="muted-s">Statut actuel</p><h2>${esc(title)}</h2><p>${esc(text)}</p></div></div>
+      <div class="status-top"><span class="status-ic">${ic(['trial', 'trialing', 'trial_canceling'].includes(st) ? 'hourglass' : st === 'past_due' ? 'bell' : 'diamond')}</span><div><p class="muted-s">Statut actuel</p><h2>${esc(title)}</h2><p>${text}</p></div></div>
       <div class="act-row">
-        ${st === 'free' && !b.trialStart ? `<button class="btn btn-primary" data-act="co-open" data-plan="pro" data-trial="1">Essayer Pro ${TRIAL_DAYS} jours gratuits</button>` : ''}
-        ${isTest() && st === 'trialing' ? '<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a><button class="btn btn-ghost" data-act="sub-cancel">Annuler l\'essai</button>' : ''}
-        ${isTest() && st === 'trial_canceling' ? '<button class="btn btn-primary" data-act="sub-resume">Reprendre l\'abonnement</button>' : ''}
+        ${st === 'free' && neverTried ? `<button class="btn btn-primary" data-act="co-open" data-plan="pro" data-trial="1">Essayer Pro ${TRIAL_DAYS} jours gratuits</button>` : ''}
+        ${isTest() && st === 'trialing' ? `<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a><button class="btn btn-ghost" data-act="sub-cancel">Annuler l'essai</button>` : ''}
+        ${isTest() && st === 'trial_canceling' ? `<button class="btn btn-primary" data-act="sub-resume">Reprendre l'abonnement</button>` : ''}
         ${['trial', 'trial_ended', 'ended'].includes(st) ? '<a class="btn btn-primary" href="#plans" data-act="to-plans">Choisir une formule</a>' : ''}
         ${!isTest() && ['active', 'canceling', 'past_due', 'trialing', 'trial_canceling'].includes(st) ? `<button class="btn btn-primary" data-act="cloud-portal">${ic('card')}<span>Gérer mon abonnement</span></button>` : ''}
-        ${isTest() && st === 'active' ? '<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a><button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>' : ''}
-        ${isTest() && st === 'active' && b.pending ? '<button class="btn btn-ghost" data-act="sub-keep">Annuler le changement prévu</button>' : ''}
+        ${isTest() && st === 'active' ? `<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a>${b.interval !== 'year' && !b.pendingInterval ? '<button class="btn btn-ghost" data-act="sub-interval" data-iv="year">Passer à l\'année</button>' : ''}<button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>` : ''}
+        ${isTest() && st === 'active' && (b.pending || b.pendingInterval) ? '<button class="btn btn-ghost" data-act="sub-keep">Annuler le changement prévu</button>' : ''}
         ${isTest() && st === 'canceling' ? `<button class="btn btn-primary" data-act="sub-resume">Reprendre l'abonnement</button>` : ''}
         ${isTest() && st === 'past_due' ? `<button class="btn btn-primary" data-act="sub-retry">Réessayer le paiement</button><button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>` : ''}
       </div>
-      ${!isTest() && ['active', 'canceling', 'past_due', 'trialing', 'trial_canceling'].includes(st) ? '<p class="field-h">Changer de formule ou de carte, télécharger vos factures, résilier ou reprendre : tout se fait dans l\'espace sécurisé de Stripe.</p>' : ''}
+      ${!isTest() && ['active', 'canceling', 'past_due', 'trialing', 'trial_canceling'].includes(st) ? `<p class="field-h">${tr('bill.portal')}</p>` : ''}
     </section>
-    ${isTest() ? `<section class="card verif rise">
+    ${sim() ? `<section class="card verif rise">
       <header class="card-h"><div><h2>Vérifier les paiements</h2><p>${CHECK_COUNT} situations rejouées automatiquement en une seconde</p></div><span class="chip t-olive">${ic('shield')}Test</span></header>
-      <p class="body">Essai, souscription, renouvellements, changements de formule au prorata, résiliation, reprise, paiements refusés, dates d'échéance : chaque situation est rejouée et comparée au résultat attendu. Votre abonnement est remis exactement comme avant.</p>
+      <p class="body">Essai, souscription mensuelle et annuelle, renouvellements, changements de formule au prorata, résiliation, reprise, paiements refusés, dates d'échéance : chaque situation est rejouée et comparée au résultat attendu. L'abonnement est remis exactement comme avant.</p>
       <button class="btn btn-primary" data-act="bill-check">${ic('check')}<span>Lancer la vérification</span></button>
     </section>` : ''}
-    <h2 class="sec-title" id="plans">Les formules</h2>
-    <div class="plans">${['free', 'pro', 'premium'].map(card).join('')}</div>
+    <div class="plans-h"><h2 class="sec-title" id="plans">Les formules</h2>
+      <div class="seg seg-sm bill-iv" role="radiogroup" aria-label="Période de paiement">${[['month', 'Mensuel'], ['year', `Annuel <em>−${sv.pct} %</em>`]].map(([v, l]) => `<button class="seg-i ${iv() === v ? 'is-on' : ''}" role="radio" aria-checked="${iv() === v}" data-act="bill-iv" data-iv="${v}">${l}</button>`).join('')}</div></div>
+    ${iv() === 'year' ? `<p class="bill-save">${tr('bill.save', { amount: price(sv.amount), pct: sv.pct })}</p>` : ''}
+    <div class="plans ${ids.length === 2 ? 'n2' : ''}">${ids.map(card).join('')}</div>
+    ${premiumVisible() ? '' : `<p class="bill-pro">${tr('bill.premiumHint')}</p>`}
     <section class="card rise">
-      <header class="card-h"><div><h2>Comparer les formules</h2><p>Ce qui est inclus, et les limites de chacune</p></div></header>
-      <div class="cmp-wrap"><table class="cmp"><thead><tr><th scope="col"><span class="sr-only">Fonction</span></th>${['free', 'pro', 'premium'].map((id) => `<th scope="col" class="${cur === id ? 'is-cur' : ''}">${PLANS[id].name}</th>`).join('')}</tr></thead>
-        <tbody>${offerRows().map((r) => `<tr><th scope="row">${esc(r[0])}</th>${r.slice(1, 4).map((v, k) => `<td class="${cur === ['free', 'pro', 'premium'][k] ? 'is-cur' : ''}">${cell(v)}</td>`).join('')}</tr>`).join('')}
-        <tr class="cmp-p"><th scope="row">Prix par mois</th>${['free', 'pro', 'premium'].map((id) => `<td>${PLANS[id].price ? `${price(PLANS[id].price)} €` : '0 €'}</td>`).join('')}</tr></tbody></table></div>
+      <header class="card-h"><div><h2>Comparer</h2><p>${tr('bill.compare.p')}</p></div></header>
+      <div class="cmp-wrap"><table class="cmp"><thead><tr><th scope="col"><span class="sr-only">Fonction</span></th>${ids.map((id) => `<th scope="col" class="${cur === id ? 'is-cur' : ''}">${planName(id)}</th>`).join('')}</tr></thead>
+        <tbody>${COMPARE.filter((r) => premiumVisible() || r[3] !== true || r[2] !== false).map((r) => `<tr><th scope="row">${esc(r[0])}</th>${ids.map((id, k) => `<td class="${cur === id ? 'is-cur' : ''}">${cell(r[k + 1])}</td>`).join('')}</tr>`).join('')}
+        <tr class="cmp-p"><th scope="row">Prix ${per(iv())}</th>${ids.map((id) => `<td>${price(priceOf(id, iv()))} €</td>`).join('')}</tr></tbody></table></div>
     </section>
     <section class="card rise">
-      <header class="card-h"><div><h2>Historique</h2><p>${hist.length ? `${hist.length} opération${hist.length > 1 ? 's' : ''}${isTest() ? ' · reçus de test' : ''}` : 'Aucun paiement pour l\'instant'}</p></div></header>
+      <header class="card-h"><div><h2>Historique</h2><p>${hist.length ? `${hist.length} opération${hist.length > 1 ? 's' : ''}${sim() ? ' · reçus de test' : ''}` : 'Aucun paiement pour l\'instant'}</p></div></header>
       ${hist.length ? `<ul class="rows bill">${hist.slice(0, 24).map((h) => `<li><button class="row" data-act="receipt" data-id="${h.id}"><span class="menu-ic">${ic(h.type === 'paiement' ? 'receipt' : h.type === 'echec' ? 'x' : 'refresh')}</span><span class="row-b"><b>${esc(h.label)}</b><span>${dateLong(h.at)}</span></span><span class="row-e">${h.amount ? `<b>${price(h.amount)} €</b>` : ''}<span class="chip ${TYPE[h.type]?.[1] || ''}">${TYPE[h.type]?.[0] || ''}</span></span></button></li>`).join('')}</ul>`
-        : isTest() ? '<p class="muted pad">Les paiements, changements de formule et reçus apparaîtront ici.</p>' : `<p class="muted pad">Vos factures officielles sont envoyées par e-mail et restent disponibles dans l'espace sécurisé de Stripe.</p>${b.plan !== 'free' ? '<button class="btn btn-ghost" data-act="cloud-portal">Voir mes factures</button>' : ''}`}
+        : isTest() ? '<p class="muted pad">Les paiements, changements de formule et reçus apparaîtront ici.</p>' : `<p class="muted pad">${tr('bill.invoices')}</p>${b.plan !== 'free' ? '<button class="btn btn-ghost" data-act="cloud-portal">Voir mes factures</button>' : ''}`}
     </section>
-    ${isTest() ? `<details class="card test-tools rise"><summary><h2>Tester les paiements</h2>${ic('chevD', 'chev')}</summary>
-      <p class="body">Pour vérifier chaque situation sans attendre : faites passer le temps, provoquez un refus de paiement, puis regardez le statut et l'historique ci-dessus.</p>
+    ${sim() ? `<details class="card test-tools rise"><summary><h2>Tester les paiements</h2>${ic('chevD', 'chev')}</summary>
+      <p class="body">Pour vérifier chaque situation sans attendre : faire passer le temps, provoquer un refus de paiement, puis regarder le statut et l'historique ci-dessus.</p>
       <div class="ios-list"><label class="ios-row"><span><b>Le prochain renouvellement sera refusé</b><em>Pour voir le délai de grâce de ${GRACE_DAYS} jours.</em></span><input type="checkbox" class="switch" ${b.failNext ? 'checked' : ''} data-act-change="bill-fail"></label></div>
       <div class="btn-list">
         ${nextBillingEvent() ? `<button class="btn btn-ghost" data-act="bill-time" data-d="next">${ic('calendar')}<span>${st === 'past_due' ? 'Passer à la fin du délai de grâce' : st === 'trial' ? 'Passer à la fin de l\'essai' : `Passer au prochain prélèvement (${dl(b.periodEnd)})`}</span></button>` : ''}
@@ -134,63 +130,64 @@ export function plans() {
       </div></details>` : ''}
     <section class="faq">
       <h2 class="sec-title">Questions fréquentes</h2>
-      ${[
-        ['L\'essai est-il vraiment gratuit ?', `Oui : ${TRIAL_DAYS} jours, toutes les fonctions de la formule choisie. On enregistre votre moyen de paiement au début, mais rien n'est prélevé pendant l'essai. Un rappel vous prévient deux jours avant la fin ; annulez avant le dernier jour et vous ne payez rien.`],
-        ['Puis-je changer de formule ?', 'Oui, à tout moment. Vers une formule supérieure : tout de suite, vous ne payez que la différence pour les jours restants. Vers une formule inférieure : au début de la période suivante, pour profiter de ce que vous avez payé.'],
-        ['Et si j\'arrête ?', 'Les abonnements sont mensuels et sans engagement. Après une résiliation, vous gardez votre formule jusqu\'à la fin du mois payé, puis l\'application passe en version gratuite. Vos données restent.'],
-        ['Que se passe-t-il si un paiement échoue ?', `Vous gardez l'accès pendant ${GRACE_DAYS} jours, le temps de réessayer. Sans paiement, l'application repasse en version gratuite, sans rien effacer.`],
-        ['Que deviennent mes données en version gratuite ?', `Tout est conservé. Les fonctions payantes se verrouillent, vos fiches et vos pages restent sur l'appareil. Au-delà de ${LIMITS.freePages} pages, vous pouvez modifier les existantes, pas en créer de nouvelles.`],
-        ['Où sont stockées mes données ?', 'Sur votre appareil uniquement, pour l\'instant. Pensez à faire une sauvegarde depuis votre compte. Les comptes en ligne et la synchronisation arriveront avec le paiement.'],
-        ['Et sur l\'App Store ?', 'La version App Store suivra les règles d\'Apple pour les abonnements vendus dans une application. En attendant, l\'application s\'installe depuis Safari, sur l\'écran d\'accueil.'],
-      ].map(([q, a]) => `<details class="obj"><summary><span>${q}</span>${ic('chevD', 'chev')}</summary><p>${a}</p></details>`).join('')}
+      ${[1, 2, 3, 4, 5, 6, 7].map((k) => `<details class="obj"><summary><span>${tr(`bill.faq${k}.q`)}</span>${ic('chevD', 'chev')}</summary><p>${tr(`bill.faq${k}.a`, { days: TRIAL_DAYS, grace: GRACE_DAYS, saving: sv.pct })}</p></details>`).join('')}
     </section>`;
   return { title: 'Abonnement', tab: 'plus', html };
 }
 
 // ---------- Paiement ----------
-export function checkoutSheet(planId, trial = false) {
+export function checkoutSheet(planId, trial = false, interval = iv()) {
   const s = S().sub;
   const p = PLANS[planId];
-  const upgrade = s.plan !== 'free';
-  const due = trial ? 0 : upgrade ? prorata(planId) : p.price;
+  const upgrade = s.plan !== 'free' && s.status !== 'trialing';
+  const amount = priceOf(planId, interval);
+  const due = trial ? 0 : upgrade ? prorata(planId) : amount;
   const trialEndAt = Date.now() + TRIAL_DAYS * 864e5;
-  const next = trial ? trialEndAt : upgrade ? s.periodEnd : Date.now() + 30 * 864e5;
-  if (!navigator.onLine) { toast('Le paiement demande une connexion internet. Vos données, elles, restent accessibles hors ligne.', { title: 'Hors connexion', ms: 4500 }); return; }
-  // Résumé : avec l'essai, rien aujourd'hui, premier prélèvement à la fin de l'essai
-  const sum = trial ? `<dl class="co-sum">
-        <div><dt>Formule ${p.name}</dt><dd>${price(p.price)} € / mois</dd></div>
+  const next = trial ? trialEndAt : upgrade ? s.periodEnd : Date.now() + (interval === 'year' ? 365 : 30) * 864e5;
+  if (!navigator.onLine && !preview()) { toast('Le paiement demande une connexion internet. Tes données, elles, restent accessibles hors ligne.', { title: 'Hors connexion', ms: 4500 }); return; }
+  const ivSeg = `<div class="seg seg-sm co-iv" role="radiogroup" aria-label="Période">${[['month', `${price(p.price)} € par mois`], ['year', `${price(p.yearly)} € par an`]].map(([v, l]) => `<button class="seg-i ${interval === v ? 'is-on' : ''}" role="radio" aria-checked="${interval === v}" data-act="co-iv" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-iv="${v}">${l}</button>`).join('')}</div>`;
+  const sum = trial ? `${ivSeg}<dl class="co-sum">
+        <div><dt>Formule ${p.name}</dt><dd>${price(amount)} € ${per(interval)}</dd></div>
         <div><dt>Essai gratuit</dt><dd>${TRIAL_DAYS} jours, jusqu'au ${dl(trialEndAt)}</dd></div>
-        <div><dt>Premier prélèvement</dt><dd>${price(p.price)} € le ${dl(trialEndAt)}</dd></div>
-        <div class="co-tot"><dt>À payer aujourd'hui</dt><dd>0,00 €</dd></div>
+        ${preview() ? '' : `<div><dt>Premier prélèvement</dt><dd>${price(amount)} € le ${dl(trialEndAt)}</dd></div>`}
+        <div class="co-tot"><dt>À payer aujourd'hui</dt><dd>0 €</dd></div>
       </dl>
-      <ol class="co-steps"><li><b>Aujourd'hui</b><span>Toutes les fonctions ${p.name} s'ouvrent.</span></li><li><b>Jour ${TRIAL_DAYS - 2}</b><span>Un rappel vous prévient avant la fin de l'essai.</span></li><li><b>Jour ${TRIAL_DAYS}</b><span>${price(p.price)} € sont prélevés, sauf si vous annulez avant. Annulation en un geste dans Abonnement.</span></li></ol>`
-    : `<dl class="co-sum">
-        <div><dt>Formule ${p.name}</dt><dd>${price(p.price)} € / mois</dd></div>
-        ${upgrade ? `<div><dt>Déjà payé pour ${PLANS[s.plan].name}</dt><dd>déduit au prorata</dd></div>` : ''}
+      ${preview() ? `<p class="sheet-p">${tr('co.preview')}</p>` : `<ol class="co-steps"><li><b>Aujourd'hui</b><span>Toutes les fonctions ${p.name} s'ouvrent.</span></li><li><b>Jour ${TRIAL_DAYS - 2}</b><span>${tr('co.remind')}</span></li><li><b>Jour ${TRIAL_DAYS}</b><span>${tr('co.charge', { price: price(amount) })}</span></li></ol>`}`
+    : `${upgrade ? '' : ivSeg}<dl class="co-sum">
+        <div><dt>Formule ${p.name}</dt><dd>${price(amount)} € ${per(interval)}</dd></div>
+        ${upgrade ? `<div><dt>Déjà payé pour ${planName(s.plan)}</dt><dd>déduit au prorata</dd></div>` : ''}
         <div><dt>Prochain prélèvement</dt><dd>${dl(next)}</dd></div>
         <div class="co-tot"><dt>À payer aujourd'hui</dt><dd>${price(due)} €</dd></div>
       </dl>`;
-  const head = trial ? `Essai gratuit de ${TRIAL_DAYS} jours · ${p.name}` : upgrade ? `Passer à ${p.name}` : `S'abonner à ${p.name}`;
+  const head = trial ? `Essai gratuit de ${TRIAL_DAYS} jours · ${planName(planId)}` : upgrade ? `Passer à ${planName(planId)}` : `S'abonner à ${planName(planId)}`;
+  const stay = `<button class="btn btn-ghost btn-block co-free" data-act="close-sheet">${tr('co.stayFree')}</button>`;
   if (!isTest()) {
-    sheet(`${sheetHead(head, `${price(p.price)} € par mois, sans engagement`)}
+    sheet(`${sheetHead(head, `${price(amount)} € ${per(interval)}, sans engagement`)}
       <div class="sheet-body co" data-plan="${planId}">
         ${sum}
         <p class="co-err" role="alert" hidden></p>
-        <button class="btn btn-primary btn-block btn-lg" data-act="co-stripe" data-plan="${planId}" data-trial="${trial ? 1 : 0}">${ic('lock')}<span>${trial ? 'Ajouter mon moyen de paiement' : 'Continuer vers le paiement sécurisé'}</span></button>
-        ${trial ? `<button class="btn btn-ghost btn-block" data-act="close-sheet">${tr('co.stayFree')}</button>` : ''}
-        <p class="sheet-note">${cloudUser() ? `Compte : ${esc(cloudUser().email || '')}. ` : 'Vous créerez d\'abord votre compte. '}La carte est saisie sur la page sécurisée de ${PAYMENTS.provider} : aucune donnée bancaire ne passe par l'application.</p>
+        <button class="btn btn-primary btn-block btn-lg" data-act="co-stripe" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-iv="${interval}">${ic('lock')}<span>${trial ? 'Ajouter mon moyen de paiement' : 'Continuer vers le paiement sécurisé'}</span></button>
+        ${trial ? stay : ''}
+        <p class="sheet-note">${cloudUser() ? `Compte : ${esc(cloudUser().email || '')}. ` : tr('co.accountFirst')}${tr('co.stripe', { provider: PAYMENTS.provider })}</p>
       </div>`, { cls: 'sheet-sm' });
     return;
   }
-  sheet(`${sheetHead(head, `${price(p.price)} € par mois, sans engagement`)}
+  if (preview()) {
+    sheet(`${sheetHead(head, trial ? 'Sans carte : le paiement en ligne n\'est pas encore ouvert' : 'Bientôt disponible')}
+      <div class="sheet-body co" data-plan="${planId}">
+        ${trial ? `${sum}<button class="btn btn-primary btn-block btn-lg" data-act="co-pay" data-plan="${planId}" data-trial="1" data-iv="${interval}" data-r="ok" data-nocard="1">${ic('check')}<span>Commencer l'essai gratuit</span></button>${stay}`
+          : `<p class="sheet-p">${tr('bill.soon')}</p><button class="btn btn-primary btn-block" data-act="close-sheet">D'accord</button>`}
+      </div>`, { cls: 'sheet-sm' });
+    return;
+  }
+  sheet(`${sheetHead(head, `${price(amount)} € ${per(interval)}, sans engagement`)}
     <div class="sheet-body co" data-plan="${planId}">
       ${sum}
-      <div class="test-strip">${ic('shield')}<p><b>Mode test.</b> ${trial ? 'Au lancement, votre carte sera enregistrée par Stripe, sans rien prélever avant la fin de l\'essai.' : ''} Ici, aucune carte n'est demandée et rien n'est prélevé : choisissez le résultat à simuler.</p></div>
+      <div class="test-strip">${ic('shield')}<p><b>Mode test (debug).</b> Aucune carte n'est demandée et rien n'est prélevé : choisis le résultat à simuler.</p></div>
       <p class="co-err" role="alert" hidden></p>
-      <button class="btn btn-primary btn-block btn-lg" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-r="ok">${ic('lock')}<span>${trial ? 'Simuler l\'ajout de la carte et commencer' : `Simuler le paiement de ${price(due)} €`}</span></button>
-      <div class="sheet-actions"><button class="btn btn-ghost" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-r="fail">${trial ? 'Simuler une carte refusée' : 'Simuler un refus'}</button><button class="btn btn-ghost" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-r="net">Simuler une coupure</button></div>
-      ${trial ? `<button class="btn btn-ghost btn-block co-free" data-act="close-sheet">${tr('co.stayFree')}</button>` : ''}
-      <p class="sheet-note">Au lancement, le paiement se fera par carte via ${PAYMENTS.provider}, prestataire sécurisé : aucune donnée bancaire ne passera par l'application. Résiliable à tout moment depuis Abonnement.</p>
+      <button class="btn btn-primary btn-block btn-lg" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-iv="${interval}" data-r="ok">${ic('lock')}<span>${trial ? 'Simuler l\'ajout de la carte et commencer' : `Simuler le paiement de ${price(due)} €`}</span></button>
+      <div class="sheet-actions"><button class="btn btn-ghost" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-iv="${interval}" data-r="fail">${trial ? 'Simuler une carte refusée' : 'Simuler un refus'}</button><button class="btn btn-ghost" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-iv="${interval}" data-r="net">Simuler une coupure</button></div>
+      ${trial ? stay : ''}
     </div>`, { cls: 'sheet-sm' });
 }
 function receiptSheet(id) {
@@ -222,11 +219,11 @@ function checkSheet() {
 }
 
 register({
-  'bill-check': () => checkSheet(),
+  'bill-check': () => { if (sim()) checkSheet(); },
   'co-stripe': async (b) => {
     const plan = b.dataset.plan;
     if (!cloudUser()) { closeSheet(null, true); accountSheet({ then: plan }); return; }
-    try { await busy(b, 'Ouverture du paiement…', () => checkout(plan, { trial: b.dataset.trial === '1' })); }
+    try { await busy(b, 'Ouverture du paiement…', () => checkout(plan, { trial: b.dataset.trial === '1', interval: b.dataset.iv || 'month' })); }
     catch (e) { const err = b.closest('.co').querySelector('.co-err'); err.textContent = cloudMessage(e); err.hidden = false; }
   },
   'cloud-portal': async (b) => {
@@ -234,8 +231,16 @@ register({
     try { await busy(b, 'Ouverture…', () => openPortal()); }
     catch (e) { toast(cloudMessage(e), { title: 'Espace de gestion indisponible', ms: 4500 }); }
   },
-  'co-open': (b) => checkoutSheet(b.dataset.plan, b.dataset.trial === '1'),
-  'sub-switch': (b) => { const id = b.dataset.plan; changePlan(id); toast(`Toutes les fonctions ${PLANS[id].name} sont ouvertes, toujours sans prélèvement pendant l'essai.`, { title: `Essai : ${PLANS[id].name}` }); },
+  'co-open': (b) => checkoutSheet(b.dataset.plan, b.dataset.trial === '1', b.dataset.iv || iv()),
+  'co-iv': (b) => checkoutSheet(b.dataset.plan, b.dataset.trial === '1', b.dataset.iv),
+  // Bascule mensuel / annuel de la page
+  'bill-iv': (b) => { ivView = b.dataset.iv; rr(); },
+  'sub-interval': async (b) => {
+    const s = S().sub, to = b.dataset.iv;
+    if (!await confirmSheet({ title: to === 'year' ? 'Passer au paiement annuel ?' : 'Passer au paiement mensuel ?', text: `À partir du ${dl(s.periodEnd)} : ${price(priceOf(s.plan, to))} € ${per(to)} pour ${planName(s.plan)}.`, ok: 'Confirmer' })) return;
+    changeInterval(to); toast(`Changement prévu le ${dl(s.periodEnd)}.`, { title: to === 'year' ? 'Paiement annuel' : 'Paiement mensuel' });
+  },
+  'sub-switch': (b) => { const id = b.dataset.plan; changePlan(id); toast(`Toutes les fonctions ${planName(id)} sont ouvertes, toujours sans prélèvement pendant l'essai.`, { title: `Essai : ${planName(id)}` }); },
   'to-plans': (b, e) => { e.preventDefault(); document.getElementById('plans')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); },
   'co-pay': async (b) => {
     const planId = b.dataset.plan, r = b.dataset.r;
@@ -248,14 +253,14 @@ register({
     if (r === 'net' || !navigator.onLine) { err.textContent = 'La connexion a été interrompue pendant le paiement. Rien n\'a été prélevé : vérifiez votre connexion et réessayez.'; err.hidden = false; return; }
     if (r === 'fail') { err.textContent = 'Paiement refusé par la banque (simulation). Rien n\'a été prélevé. Réessayez, ou utilisez un autre moyen de paiement.'; err.hidden = false; return; }
     if (b.dataset.trial === '1') {
-      startTrial(planId);
+      startTrial(planId, b.dataset.iv || 'month', { card: b.dataset.nocard !== '1' });
       closeSheet(null, true);
-      toast(`Rien n'est prélevé avant le ${dl(S().sub.periodEnd)}. Annulable à tout moment dans Abonnement.`, { title: `Essai ${PLANS[planId].name} commencé`, ms: 4500 });
+      toast(b.dataset.nocard === '1' ? tr('co.trialNoCard', { date: dl(S().sub.periodEnd) }) : tr('co.trialStarted', { date: dl(S().sub.periodEnd) }), { title: `Essai ${planName(planId)} commencé`, ms: 4500 });
       window.dispatchEvent(new CustomEvent('ms:trial', { detail: planId }));
       return;
     }
     const upgrade = S().sub.plan !== 'free';
-    const rec = upgrade ? changePlan(planId) : subscribe(planId);
+    const rec = upgrade ? changePlan(planId) : subscribe(planId, b.dataset.iv || 'month');
     closeSheet(null, true);
     receiptSheet(rec.id);
     toast(`Toutes les fonctions ${PLANS[planId].name} sont ouvertes.`, { title: upgrade ? 'Formule modifiée' : 'Abonnement activé' });
@@ -264,14 +269,14 @@ register({
   'sub-down': async (b) => {
     const id = b.dataset.plan, s = S().sub;
     if (id === 'free') return;
-    if (!await confirmSheet({ title: `Passer à ${PLANS[id].name} ?`, text: `Vous gardez ${PLANS[s.plan].name} jusqu'au ${dl(s.periodEnd)}, puis ${PLANS[id].name} à ${price(PLANS[id].price)} € par mois. Les fonctions ${PLANS[s.plan].name} se verrouilleront à cette date ; vos données restent.`, ok: `Passer à ${PLANS[id].name}` })) return;
+    if (!await confirmSheet({ title: `Passer à ${planName(id)} ?`, text: tr('bill.down', { from: planName(s.plan), to: planName(id), date: dl(s.periodEnd), price: price(priceOf(id, s.interval)), per: per(s.interval) }), ok: `Passer à ${planName(id)}` })) return;
     changePlan(id); toast(`Changement prévu le ${dl(s.periodEnd)}`, { title: `Passage à ${PLANS[id].name}` });
   },
-  'sub-keep': () => { update((s) => { s.sub.pending = null; }); toast('Changement annulé : votre formule continue.'); },
+  'sub-keep': () => { update((s) => { s.sub.pending = null; s.sub.pendingInterval = null; }); toast('Changement annulé : la formule continue.'); },
   'sub-cancel': async () => {
     const s = S().sub;
-    if (!await confirmSheet({ title: 'Résilier votre abonnement ?', text: `Vous gardez ${PLANS[s.plan].name} jusqu'au ${dl(s.status === 'past_due' ? s.graceEnd : s.periodEnd)}. Ensuite, l'application passe en version gratuite : vos fiches, pages et tâches sont conservées. Aucun autre prélèvement.`, ok: 'Résilier', danger: true })) return;
-    cancelSub(); toast(`Plus aucun prélèvement. Accès ${PLANS[s.plan].name} jusqu'au ${dl(s.periodEnd)}.`, { title: 'Abonnement résilié', action: 'Annuler', onAction: () => resumeSub(), ms: 5000 });
+    if (!await confirmSheet({ title: s.status === 'trialing' ? 'Annuler l\'essai ?' : 'Résilier l\'abonnement ?', text: tr('bill.cancel', { plan: planName(s.plan), date: dl(s.status === 'past_due' ? s.graceEnd : s.periodEnd) }), ok: s.status === 'trialing' ? 'Annuler l\'essai' : 'Résilier', danger: true })) return;
+    cancelSub(); toast(`Plus aucun prélèvement. Accès ${planName(s.plan)} jusqu'au ${dl(s.periodEnd)}.`, { title: s.status === 'trialing' ? 'Essai annulé' : 'Abonnement résilié', action: 'Annuler', onAction: () => resumeSub(), ms: 5000 });
   },
   'sub-resume': () => { resumeSub(); toast(`Prochain prélèvement le ${dl(S().sub.periodEnd)}.`, { title: 'Abonnement repris' }); },
   'sub-retry': async (b) => {
@@ -283,6 +288,7 @@ register({
     else { update((s) => { s.sub.failNext = false; }, { silent: true }); toast('La banque a refusé le paiement (simulation). Réessayez : le prochain essai passera.', { title: 'Paiement refusé', ms: 4500 }); }
   },
   'bill-time': (b) => {
+    if (!sim()) return;
     const d = b.dataset.d === 'next' ? 'next' : +b.dataset.d;
     simulateDays(d);
     toast(d === 'next' ? 'L\'échéance est passée : regardez le statut et l\'historique.' : `L'abonnement a avancé de ${d} jours.`, { title: 'Test', ms: 2200 });

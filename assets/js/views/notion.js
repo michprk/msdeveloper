@@ -1,5 +1,6 @@
 // Écran du connecteur Notion (1.12) : connexion, import, envoi, synchronisation des tâches, conflits, déconnexion.
-import { S } from '../store.js';
+import { S, can } from '../store.js';
+import { paywall } from './common.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, busy, select, ago } from '../ui.js';
 import { t as tr } from '../strings.js';
 import { notionAvailable, mockOn } from '../notion/proxy.js';
@@ -133,6 +134,7 @@ export function privacySheet() {
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 register({
   'nx-connect': async (b) => {
+    if (!can('notionSync')) { sheet(`${sheetHead('Notion')}<div class="sheet-body">${paywall('notionSync', { compact: true })}</div>`, { cls: 'sheet-sm' }); return; }
     try { await busy(b, 'Ouverture de Notion…', () => connect()); }
     catch (e) { toast(N.notionMessage(e), { title: 'Notion', ms: 6000 }); }
   },

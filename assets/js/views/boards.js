@@ -206,7 +206,7 @@ function printBoard(items, title) {
 
 register({
   'board-new': (b) => {
-    if (!canAddBoard()) { sheet(`${sheetHead('Tableau blanc')}<div class="sheet-body">${paywall('boards', { compact: true })}</div>`, { cls: 'sheet-sm' }); return; }
+    if (!canAddBoard()) { sheet(`${sheetHead('Tableau blanc')}<div class="sheet-body">${paywall('boardsUnlimited', { compact: true })}</div>`, { cls: 'sheet-sm' }); return; }
     const tpl = TEMPLATES[b?.dataset?.tpl] || TEMPLATES.vierge;
     closeSheet();
     const board = { id: 'bd-' + uid(), title: tpl === TEMPLATES.vierge ? '' : tpl[0], items: tpl[3](), bg: tpl[4] || 'dots', createdAt: Date.now(), updatedAt: Date.now() };

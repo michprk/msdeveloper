@@ -16,12 +16,16 @@ export const APP_URL = Deno.env.get('APP_URL') ?? 'https://michprk.github.io/msd
 const ORIGINS = [new URL(APP_URL).origin, ...(Deno.env.get('EXTRA_ORIGINS') ?? '').split(',').map((s) => s.trim()).filter(Boolean)];
 
 // Formule ↔ prix Stripe (identifiants « price_… » créés dans le tableau de bord Stripe)
+// Un prix Stripe par formule et par période (1.13) : mensuel (pro, premium) et annuel (pro_year, premium_year)
 export const PRICES: Record<string, string | undefined> = {
   pro: Deno.env.get('STRIPE_PRICE_PRO'),
+  pro_year: Deno.env.get('STRIPE_PRICE_PRO_YEAR'),
   premium: Deno.env.get('STRIPE_PRICE_PREMIUM'),
+  premium_year: Deno.env.get('STRIPE_PRICE_PREMIUM_YEAR'),
 };
+export const priceKey = (plan: string, interval?: string) => (interval === 'year' ? `${plan}_year` : plan);
 export const planOfPrice = (priceId?: string | null): string | null =>
-  Object.entries(PRICES).find(([, id]) => id && id === priceId)?.[0] ?? null;
+  Object.entries(PRICES).find(([, id]) => id && id === priceId)?.[0]?.replace(/_year$/, '') ?? null;
 export const LIVE = ['active', 'trialing', 'past_due'];
 
 export function cors(req: Request): Record<string, string> {

@@ -170,7 +170,7 @@ function sideFoot() {
   const s = S(), p = s.profile, a = access(), st = billing();
   return `${['trial', 'trialing', 'trial_canceling'].includes(st) && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}${st === 'trial' ? 'Essai gratuit' : `Essai ${PLANS[s.sub.plan].name}`}</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
     : st === 'past_due' ? `<a class="side-trial is-warn" href="#/abonnement"><span>${ic('bell')}Paiement refusé</span><b>Régler pour garder ${PLANS[a].name}</b></a>`
-      : a === 'free' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}${tr('ov.goPro')}</span><b>Études, notes et tableaux illimités, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
+      : a === 'free' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}${tr('ov.goPro')}</span><b>Notion, révision espacée, tableaux illimités · ${PLANS.pro.price.toFixed(2).replace('.', ',')} € par mois</b></a>` : ''}
     <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || tr('app.account'))}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>
     ${authButton('side-auth')}`;
 }

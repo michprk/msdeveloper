@@ -121,6 +121,8 @@
 
 ## Formules
 
+> **Depuis la 1.13, les formules, les prix et les limites sont dans `assets/js/plans.js`** (Gratuit ; Pro 4,99 €/mois ou 39 €/an ; Premium Entrepreneur 9,99 €/mois ou 79 €/an). Le tableau ci-dessous décrit l'ancienne répartition (1.9) ; voir CHANGELOG.md.
+
 | | Gratuit | Pro 11,99 €/mois — études et organisation | Premium 21,99 €/mois — études + entrepreneuriat |
 |---|---|---|---|
 | Tâches, listes, tableau, rappels | ✓ | ✓ | ✓ |

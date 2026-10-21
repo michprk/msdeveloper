@@ -9,10 +9,13 @@ Abonnement → **Vérifier les paiements** → « Lancer la vérification ». En
 | Situation | Ce qui est vérifié |
 |---|---|
 | Essai de 7 jours | Toutes les fonctions, rien de prélevé, retour au gratuit à la fin |
-| Souscription Pro | Actif, 11,99 €, échéance un mois plus tard, reçu |
-| Renouvellements | 4 × 11,99 € en 4 mois, total exact |
-| Passage à Premium en cours de mois | Accès immédiat, seulement la différence au prorata, 21,99 € le mois suivant |
-| Passage à Pro en fin de période | Premium gardé jusqu'à l'échéance, aucun paiement en plus, puis 11,99 € |
+| Souscription Pro | Actif, 4,99 €, échéance un mois plus tard, reçu |
+| Abonnement annuel | 39 € pour l'année, renouvelé un an plus tard |
+| Passage du mensuel à l'annuel | À la fin du mois payé, puis 39 € pour un an |
+| Essai sans carte | Pro pendant 7 jours, puis version gratuite, aucun prélèvement |
+| Renouvellements | 4 × 4,99 € en 4 mois, total exact |
+| Passage à Premium en cours de mois | Accès immédiat, seulement la différence au prorata, 9,99 € le mois suivant |
+| Passage à Pro en fin de période | Premium gardé jusqu'à l'échéance, aucun paiement en plus, puis 4,99 € |
 | Changement prévu annulé | Plus de changement, Premium renouvelé |
 | Résiliation | Accès gardé jusqu'à la fin du mois, puis gratuit, aucun prélèvement |
 | Reprise | Renouvelé normalement |

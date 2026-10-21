@@ -1,27 +1,11 @@
 // État de l'application, enregistré sur l'appareil (localStorage).
 import { setCustomSectors } from './data/scripts.js';
+// Prix, limites et fonctions de chaque formule : un seul fichier, plans.js (repris ici pour les écrans existants)
+import { PLANS, RANK, FEATURES, LIMITS, TRIAL_DAYS, GRACE_DAYS, hasFeature, need as needPlan, priceOf } from './plans.js';
+export { PLANS, RANK, FEATURES, LIMITS, TRIAL_DAYS, GRACE_DAYS };
 
 const KEY = 'msdev:v1';
 export const DAY = 864e5;
-export const TRIAL_DAYS = 7;
-
-export const PLANS = {
-  free: { id: 'free', name: 'Gratuit', price: 0 },
-  pro: { id: 'pro', name: 'Pro', price: 11.99 },
-  premium: { id: 'premium', name: 'Premium', price: 21.99 },
-};
-export const RANK = { free: 0, pro: 1, premium: 2 };
-// Fonction → formule minimale. L'essai gratuit donne accès à tout (Premium).
-// Gratuit : tâches, calendrier (mois), 1 projet, 5 pages, quiz intégrés, examens.
-export const FEATURES = {
-  // Pro : les études et l'organisation (notes, projets, tableau blanc, outils de révision)
-  notesUnlimited: 'pro', projectsUnlimited: 'pro', boards: 'pro', notesDraw: 'pro', calendarFull: 'pro', connectors: 'pro', myQuiz: 'pro',
-  timetable: 'pro', grades: 'pro', focus: 'pro', planner: 'pro', spaced: 'pro', focusStats: 'pro',
-  // Premium : les études et l'entrepreneuriat (clients, devis, prospection, statistiques)
-  crm: 'premium', quote: 'premium', scriptsAll: 'premium', callMode: 'premium', academy: 'premium', messages: 'premium', audit: 'premium', import: 'premium',
-  myScripts: 'premium', training: 'premium', stats: 'premium', export: 'premium', exportsPro: 'premium',
-};
-export const LIMITS = { freePages: 5, freeProjects: 1 };
 
 // Modules (1.10) : « M'organiser » est toujours là ; « Études » est actif par défaut ;
 // « Entrepreneur » (CRM, devis, scripts d'appel, Académie, quiz de commerce) est désactivé par défaut
@@ -87,7 +71,7 @@ const defaults = () => ({
   goals: { appelsJour: 40, rdvSemaine: 5, caMois: 1000 },
   prefs: { theme: 'light', motion: 'full', notifs: true, replayIntro: false, textSize: 'm', notifCats: { retard: true, echeances: true, devis: true, relances: true, rappels: true } },
   // Abonnement : formule, essai, période en cours, résiliation, échec de paiement, historique
-  sub: { plan: 'free', trialStart: null, demo: null, status: 'none', periodStart: null, periodEnd: null, cancelAt: false, pending: null, graceEnd: null, failNext: false, history: [] },
+  sub: { plan: 'free', interval: 'month', pendingInterval: null, trialStart: null, demo: null, status: 'none', periodStart: null, periodEnd: null, cancelAt: false, pending: null, graceEnd: null, failNext: false, history: [] },
   // CRM personnalisé : noms d'étapes, étapes ajoutées, champs, équipe, nom des fiches
   crm: { labels: {}, extra: [], fields: [], team: [], noun: 'Clients', preset: '' },
   academy: { read: {}, last: null },
@@ -296,7 +280,7 @@ export const on = (m) => {
 // États : gratuit → essai (7 jours) → gratuit, ou abonné (actif) → résiliation programmée
 // → fin de période ; paiement refusé → délai de grâce de 7 jours → gratuit.
 // Les paiements passent par assets/js/payments.js (mode test tant que Stripe n'est pas branché).
-export const GRACE_DAYS = 7;
+
 export const trialEnd = () => (state.sub.trialStart ? state.sub.trialStart + TRIAL_DAYS * DAY : 0);
 export const trialActive = () => !!state.sub.trialStart && Date.now() < trialEnd();
 export const trialLeft = () => Math.max(0, Math.ceil((trialEnd() - Date.now()) / DAY));
@@ -306,9 +290,14 @@ export function access() {
   if (s.plan !== 'free') return s.plan;
   return trialActive() ? 'premium' : 'free';
 }
-export const can = (f) => RANK[access()] >= RANK[FEATURES[f] || 'free'];
-export const need = (f) => FEATURES[f] || 'free';
+// L'accès se décide à un seul endroit : hasFeature (plans.js). can() reste comme alias.
+export const can = (f) => hasFeature(f);
+export const need = (f) => needPlan(f);
 export const addMonth = (t) => { const d = new Date(t); const day = d.getDate(); d.setMonth(d.getMonth() + 1); if (d.getDate() < day) d.setDate(0); return d.getTime(); };
+// Un an plus tard, même jour (29 février → 28 février)
+export const addYear = (t) => { const d = new Date(t); const m = d.getMonth(); d.setFullYear(d.getFullYear() + 1); if (d.getMonth() !== m) d.setDate(0); return d.getTime(); };
+const nextPeriod = (t, interval) => (interval === 'year' ? addYear(t) : addMonth(t));
+const per = (interval) => (interval === 'year' ? 'année' : 'mois');
 export const round2 = (n) => Math.round(n * 100) / 100;
 // Statut lisible par l'interface
 export function billing() {
@@ -329,30 +318,34 @@ const log = (s, type, extra = {}) => { const r = { id: ref(), at: Date.now(), ty
 // Montant dû pour passer tout de suite à une formule supérieure (au prorata des jours restants)
 export function prorata(plan) {
   const s = state.sub, now = Date.now();
-  if (s.plan === 'free' || !s.periodEnd) return PLANS[plan].price;
+  const iv = s.interval || 'month';
+  if (s.plan === 'free' || !s.periodEnd) return priceOf(plan, iv);
   const left = Math.max(0, Math.min(1, (s.periodEnd - now) / (s.periodEnd - s.periodStart)));
-  return round2(Math.max(0, (PLANS[plan].price - PLANS[s.plan].price) * left));
+  return round2(Math.max(0, (priceOf(plan, iv) - priceOf(s.plan, iv)) * left));
 }
 // Essai gratuit avec moyen de paiement : la formule choisie est ouverte tout de suite, rien n'est prélevé
 // pendant 7 jours ; le premier prélèvement a lieu à la fin de l'essai, sauf annulation avant.
-export function startTrial(plan) {
+// card : false quand le paiement en ligne n'est pas encore ouvert (essai sans carte, qui s'arrête seul)
+export function startTrial(plan, interval = 'month', { card = true } = {}) {
   let r;
   update((s) => {
     const now = Date.now();
+    s.sub.interval = interval;
     s.sub.plan = plan; s.sub.status = 'trialing'; s.sub.trialStart = now; s.sub.periodStart = now; s.sub.periodEnd = now + TRIAL_DAYS * DAY;
-    s.sub.cancelAt = false; s.sub.pending = null; s.sub.graceEnd = null; s.sub.demo = null; s.sub.card = 1;
+    s.sub.cancelAt = false; s.sub.pending = null; s.sub.graceEnd = null; s.sub.demo = null; s.sub.card = card ? 1 : 0;
     r = log(s, 'essai', { plan, amount: 0, label: `Essai gratuit ${PLANS[plan].name} — ${TRIAL_DAYS} jours, moyen de paiement enregistré` });
   });
   return r;
 }
 export const trialing = () => state.sub.plan !== 'free' && state.sub.status === 'trialing';
-export function subscribe(plan) {
+export function subscribe(plan, interval = 'month') {
   let r;
   update((s) => {
     const now = Date.now();
-    s.sub.plan = plan; s.sub.status = 'active'; s.sub.periodStart = now; s.sub.periodEnd = addMonth(now);
+    s.sub.interval = interval;
+    s.sub.plan = plan; s.sub.status = 'active'; s.sub.periodStart = now; s.sub.periodEnd = nextPeriod(now, interval);
     s.sub.cancelAt = false; s.sub.pending = null; s.sub.graceEnd = null; s.sub.demo = null;
-    r = log(s, 'paiement', { plan, amount: PLANS[plan].price, label: `Abonnement ${PLANS[plan].name} — premier mois` });
+    r = log(s, 'paiement', { plan, amount: priceOf(plan, interval), label: `Abonnement ${PLANS[plan].name} — ${interval === 'year' ? 'première année' : 'premier mois'}` });
   });
   return r;
 }
@@ -375,6 +368,14 @@ export function changePlan(plan) {
   });
   return r;
 }
+// Mensuel ↔ annuel : tout de suite pendant l'essai, sinon à la fin de la période payée
+export function changeInterval(interval) {
+  update((s) => {
+    if (s.sub.status === 'trialing') { s.sub.interval = interval; s.sub.pendingInterval = null; }
+    else s.sub.pendingInterval = interval === (s.sub.interval || 'month') ? null : interval;
+    log(s, 'changement', { plan: s.sub.plan, amount: 0, label: interval === 'year' ? 'Passage au paiement annuel' : 'Passage au paiement mensuel' });
+  });
+}
 export function cancelSub() { update((s) => { const t = s.sub.status === 'trialing'; s.sub.cancelAt = true; s.sub.pending = null; log(s, 'resiliation', { plan: s.sub.plan, amount: 0, label: t ? 'Essai annulé : aucun prélèvement à la fin de l\'essai' : 'Résiliation à la fin de la période' }); }); }
 export function resumeSub() { update((s) => { s.sub.cancelAt = false; log(s, 'reprise', { plan: s.sub.plan, amount: 0, label: 'Abonnement repris' }); }); }
 // Nouvel essai de paiement après un refus
@@ -383,9 +384,9 @@ export function settleDue(ok) {
   update((s) => {
     if (ok) {
       const now = Date.now();
-      s.sub.status = 'active'; s.sub.graceEnd = null; s.sub.periodStart = now; s.sub.periodEnd = addMonth(now);
-      r = log(s, 'paiement', { plan: s.sub.plan, amount: PLANS[s.sub.plan].price, label: `Abonnement ${PLANS[s.sub.plan].name} — paiement régularisé` });
-    } else r = log(s, 'echec', { plan: s.sub.plan, amount: PLANS[s.sub.plan].price, label: 'Paiement refusé' });
+      s.sub.status = 'active'; s.sub.graceEnd = null; s.sub.periodStart = now; s.sub.periodEnd = nextPeriod(now, s.sub.interval);
+      r = log(s, 'paiement', { plan: s.sub.plan, amount: priceOf(s.sub.plan, s.sub.interval), label: `Abonnement ${PLANS[s.sub.plan].name} — paiement régularisé` });
+    } else r = log(s, 'echec', { plan: s.sub.plan, amount: priceOf(s.sub.plan, s.sub.interval), label: 'Paiement refusé' });
   });
   return r;
 }
@@ -403,14 +404,17 @@ export function syncBilling(now = Date.now()) {
     while (b.plan !== 'free' && b.status !== 'past_due' && now >= b.periodEnd && guard++ < 36) {
       const wasTrial = b.status === 'trialing';
       if (b.cancelAt) { log(st, 'fin', { plan: b.plan, amount: 0, label: wasTrial ? 'Fin de l\'essai : annulé à temps, rien n\'a été prélevé' : `Fin de l'abonnement ${PLANS[b.plan].name}` }); b.plan = 'free'; b.status = 'ended'; b.cancelAt = false; break; }
+      // Essai sans carte (paiement en ligne pas encore ouvert) : retour à la version gratuite, rien n'est prélevé
+      if (wasTrial && b.card === 0) { log(st, 'fin', { plan: b.plan, amount: 0, label: 'Fin de l\'essai : retour à la version gratuite, rien n\'a été prélevé' }); b.plan = 'free'; b.status = 'ended'; break; }
       if (b.pending) { b.plan = b.pending; b.pending = null; }
       if (b.failNext) {
         b.failNext = false; b.status = 'past_due'; b.graceEnd = b.periodEnd + GRACE_DAYS * DAY;
-        log(st, 'echec', { plan: b.plan, amount: PLANS[b.plan].price, label: 'Renouvellement refusé par la banque' });
+        log(st, 'echec', { plan: b.plan, amount: priceOf(b.plan, b.interval), label: 'Renouvellement refusé par la banque' });
         break;
       }
-      b.periodStart = b.periodEnd; b.periodEnd = addMonth(b.periodEnd);
-      log(st, 'paiement', { plan: b.plan, amount: PLANS[b.plan].price, label: wasTrial ? `Abonnement ${PLANS[b.plan].name} — premier mois (fin de l'essai)` : `Abonnement ${PLANS[b.plan].name} — renouvellement` });
+      if (b.pendingInterval) { b.interval = b.pendingInterval; b.pendingInterval = null; }
+      b.periodStart = b.periodEnd; b.periodEnd = nextPeriod(b.periodEnd, b.interval);
+      log(st, 'paiement', { plan: b.plan, amount: priceOf(b.plan, b.interval), label: wasTrial ? `Abonnement ${PLANS[b.plan].name} — ${b.interval === 'year' ? 'première année' : 'premier mois'} (fin de l'essai)` : `Abonnement ${PLANS[b.plan].name} — renouvellement (${per(b.interval)})` });
       if (wasTrial) b.status = 'active';
     }
     if (b.status === 'past_due' && b.graceEnd && now >= b.graceEnd) {
@@ -595,7 +599,7 @@ export function pageFamily(id, list = state.pages) {
   return out;
 }
 export const canAddPage = () => can('notesUnlimited') || state.pages.length < LIMITS.freePages;
-export const canAddBoard = () => can('boards');
+export const canAddBoard = () => can('boardsUnlimited') || state.boards.length < LIMITS.freeBoards;
 
 // ---------- Quiz ----------
 // partial : partie limitée aux erreurs précédentes — le meilleur score n'est pas touché.

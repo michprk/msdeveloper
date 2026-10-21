@@ -1,12 +1,12 @@
 // Démarre un paiement : crée une session Stripe Checkout (abonnement mensuel) pour le compte connecté
 // et renvoie l'adresse de la page de paiement sécurisée de Stripe.
-import { stripe, admin, json, handler, currentUser, customerFor, PRICES, APP_URL, LIVE } from '../_shared/common.ts';
+import { stripe, admin, json, handler, currentUser, customerFor, PRICES, priceKey, APP_URL, LIVE } from '../_shared/common.ts';
 
 Deno.serve(handler(async (req) => {
   const user = await currentUser(req);
   if (!user) return json(req, { error: 'auth' }, 401);
-  const { plan, trial } = await req.json().catch(() => ({}));
-  const price = PRICES[plan];
+  const { plan, trial, interval } = await req.json().catch(() => ({}));
+  const price = PRICES[priceKey(plan, interval)];
   if (!price) return json(req, { error: 'plan', message: 'Formule inconnue.' }, 400);
 
   // Un seul abonnement par compte : pour changer de formule, l'application ouvre le portail Stripe

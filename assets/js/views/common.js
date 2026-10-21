@@ -68,7 +68,8 @@ export function paywall(feature, { compact = false } = {}) {
       ${trialUsed ? '' : `<button class="btn btn-primary" data-act="start-trial" data-plan="${need(feature)}">Essayer ${plan.name} ${TRIAL_DAYS} jours gratuits</button>`}
       <a class="btn ${trialUsed ? 'btn-primary' : 'btn-ghost'}" href="#/abonnement">${trialUsed ? `Passer à ${plan.name}` : 'Voir les formules'}</a>
     </div>
-    <p class="paywall-n">${plan.name} : ${plan.price.toFixed(2).replace('.', ',')} € par mois, sans engagement${trialUsed ? '' : ' · rien n\'est prélevé pendant l\'essai'}</p>
+    <p class="paywall-n">${plan.name} : ${plan.price.toFixed(2).replace('.', ',')} € par mois ou ${plan.yearly} € par an, sans engagement</p>
+    <button class="btn btn-ghost btn-block paywall-free" data-act="paywall-free">${tr('paywall.free')}</button>
   </section>`;
 }
 
@@ -84,7 +85,7 @@ export function trialStrip() {
     return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>Essai gratuit : <b>${n} jour${n > 1 ? 's' : ''}</b> restant${n > 1 ? 's' : ''}</span><span class="strip-a">Formules ${ic('chevR')}</span></a>`;
   }
   // Rappel deux jours avant la fin de l'essai : le prélèvement approche, l'annulation reste à un geste
-  if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>${tr('strip.trialEnd', { plan: PLANS[s.sub.plan].name, date: dateLong(s.sub.periodEnd).toLowerCase(), price: PLANS[s.sub.plan].price.toFixed(2).replace('.', ',') })}</span><span class="strip-a">Gérer</span></a>`;
+  if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>${tr('strip.trialEnd', { plan: PLANS[s.sub.plan].name, date: dateLong(s.sub.periodEnd).toLowerCase(), price: (s.sub.interval === 'year' ? PLANS[s.sub.plan].yearly : PLANS[s.sub.plan].price).toFixed(2).replace('.', ',') })}</span><span class="strip-a">Gérer</span></a>`;
   if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>${tr('strip.pastDue', { date: dateLong(s.sub.graceEnd).toLowerCase() })}</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
   if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>${tr('strip.trialOver')}</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
   // Essai proposé en contexte (1.11) : un bandeau discret après trois jours d'utilisation, une seule fois,
@@ -102,6 +103,8 @@ export function trialStrip() {
 register({
   // Essai gratuit : 7 jours de la formule qui débloque la fonction, avec un moyen de paiement (rien avant la fin)
   'start-trial': (b) => { closeSheet(null, true); checkoutSheet(b?.dataset?.plan || 'pro', true); },
+  // « Continuer gratuitement » : un vrai bouton ; ferme la feuille, ou revient à l'écran précédent
+  'paywall-free': (b) => { if (b.closest('.sheet')) closeSheet(); else if (history.length > 1) history.back(); else location.hash = '#/'; },
   'nudge-hide': () => { update((s) => { s.prefs.nudgeHidden = Date.now(); }); toast(tr('nudge.kept'), { ms: 2200 }); },
   'close-sheet': () => closeSheet(),
 });

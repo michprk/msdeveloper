@@ -326,7 +326,8 @@ export function connectorsView(params, q = {}) {
   const used = (k) => s.cx?.[k === 'notionzip' ? 'notion' : k];
   const links = (kinds) => [...s.projects, ...s.prospects].reduce((n, x) => n + (x.links || []).filter((l) => kinds.includes(l.kind)).length, 0);
   const lock = pro ? '' : '<span class="badge b-pro">Pro</span>';
-  const fileBtn = (act, label, accept, icon = 'upload', primary = true) => `<label class="btn ${primary ? 'btn-primary' : 'btn-ghost'} btn-sm ${pro ? '' : 'is-locked'}">${ic(icon)}<span>${label}</span>${lock}<input type="file" accept="${accept}" ${act === 'cx-notion' ? 'multiple' : ''} hidden data-act-change="${pro ? act : 'cx-locked'}" ${pro ? '' : 'disabled'}></label>`;
+  // L'import Notion (.zip) est gratuit ; les autres imports et les exports sont dans Pro (plans.js)
+  const fileBtn = (act, label, accept, icon = 'upload', primary = true) => { const ok = pro || act === 'cx-notion'; return `<label class="btn ${primary ? 'btn-primary' : 'btn-ghost'} btn-sm ${ok ? '' : 'is-locked'}">${ic(icon)}<span>${label}</span>${ok ? '' : lock}<input type="file" accept="${accept}" ${act === 'cx-notion' ? 'multiple' : ''} hidden data-act-change="${ok ? act : 'cx-locked'}" ${ok ? '' : 'disabled'}></label>`; };
   const btn = (act, label, icon, primary = false, attrs = '') => `<button class="btn ${primary ? 'btn-primary' : 'btn-ghost'} btn-sm" data-act="${act}" ${attrs}>${ic(icon)}<span>${label}</span></button>`;
   const proBtn = (act, label, icon, primary = false, attrs = '') => `<button class="btn ${primary ? 'btn-primary' : 'btn-ghost'} btn-sm" data-act="${pro ? act : 'cx-locked'}" ${attrs}>${ic(icon)}<span>${label}</span>${lock}</button>`;
   const card = (k, text, acts, status = '') => `<section class="card cx rise ${q.c === k || (q.c === 'google' && k === 'gdocs') ? 'is-focus' : ''}" id="cx-${k}">

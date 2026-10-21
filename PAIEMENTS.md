@@ -33,7 +33,7 @@ server/supabase/functions/
 Les étapes marquées **toi** demandent ton identité ou tes clés : c'est toi qui les fais. **Ne colle jamais une clé secrète (`sk_…`, `whsec_…`, `service_role`) dans une conversation, un e-mail ou le dépôt.**
 
 1. **Stripe (toi).** Créer un compte sur stripe.com. Rester en **mode test** (interrupteur en haut à droite). Le mode test ne demande ni numéro d'entreprise ni compte bancaire.
-2. **Les deux produits (toi).** Catalogue de produits → « MindView Pro », prix récurrent mensuel 11,99 € ; « MindView Premium », 21,99 €. Noter les deux identifiants `price_…`.
+2. **Les produits (toi).** Catalogue de produits → « MindView Pro », avec deux prix récurrents : 4,99 € par mois et 39 € par an ; « MindView Premium Entrepreneur », 9,99 € par mois et 79 € par an. Noter les quatre identifiants `price_…`. (Les montants affichés dans l'application viennent de `assets/js/plans.js` : les garder identiques à Stripe.)
 3. **L'espace de gestion (toi).** Paramètres → Billing → Portail client : autoriser le changement de formule entre Pro et Premium (au prorata), la résiliation **à la fin de la période**, le changement de moyen de paiement et l'historique des factures.
 4. **Relances de paiement (toi).** Paramètres → Billing → Abonnements et e-mails : relances automatiques, puis **annuler l'abonnement** si tout a échoué, sur environ 7 jours (ce qu'annonce l'application).
 5. **Supabase (toi).** Créer un projet sur supabase.com, **région Europe** (Francfort ou Paris). Authentication → Providers → Email : activé. Authentication → Email Templates → « Magic Link » : remplacer le lien par le code, par exemple `Votre code MindView : {{ .Token }}`. Authentication → URL Configuration → Site URL : `https://michprk.github.io/msdeveloper/`.
@@ -46,7 +46,7 @@ Les étapes marquées **toi** demandent ton identité ou tes clés : c'est toi q
    (Ou copier le fichier `server/supabase/migrations/20261015000000_mindview.sql` dans SQL Editor → Run.)
 7. **Les secrets du serveur (toi, dans ton terminal).**
    ```bash
-   supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_PRICE_PRO=price_... STRIPE_PRICE_PREMIUM=price_... APP_URL=https://michprk.github.io/msdeveloper/
+   supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_PRICE_PRO=price_... STRIPE_PRICE_PRO_YEAR=price_... STRIPE_PRICE_PREMIUM=price_... STRIPE_PRICE_PREMIUM_YEAR=price_... APP_URL=https://michprk.github.io/msdeveloper/
    ```
 8. **Les fonctions.**
    ```bash

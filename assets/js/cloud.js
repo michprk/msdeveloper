@@ -118,8 +118,8 @@ export async function refreshSubscription() {
   applySubscription(row);
   return row;
 }
-export async function checkout(plan, { trial = false } = {}) {
-  const d = await call('/functions/v1/create-checkout-session', { method: 'POST', body: { plan, trial } });
+export async function checkout(plan, { trial = false, interval = 'month' } = {}) {
+  const d = await call('/functions/v1/create-checkout-session', { method: 'POST', body: { plan, trial, interval } });
   if (!d?.url) throw new CloudError('http', 'Le paiement n\'a pas pu démarrer.');
   window.dispatchEvent(new Event('ms:leaving'));
   location.href = d.url;
