@@ -19,6 +19,10 @@ export const CLOUD = {
   mock: false, // true : serveur factice pour tout le monde (démonstration uniquement)
 };
 
+// Paiement réel (1.17) : false tant que Stripe n'est pas branché (BRANCHER.md, §3). Les comptes en ligne
+// et la synchronisation peuvent fonctionner avant : l'abonnement reste alors en aperçu (essai sans carte sur l'appareil).
+export const PAYMENTS_LIVE = false;
+
 // Connecteur Notion (1.12). Le serveur « notionProxy » garde le secret OAuth et le jeton d'accès (voir NOTION.md).
 // proxyUrl : adresse des fonctions du serveur (ex. https://abcdefghijkl.supabase.co/functions/v1). Vide = connexion directe indisponible.
 // mock : true pour développer avec un Notion factice (ou ?notion=mock dans l'adresse, pour la session).

@@ -1,5 +1,5 @@
 // État de l'application, enregistré sur l'appareil (localStorage).
-import { setCustomSectors } from './data/scripts.js';
+
 // Prix, limites et fonctions de chaque formule : un seul fichier, plans.js (repris ici pour les écrans existants)
 import { PLANS, RANK, FEATURES, LIMITS, TRIAL_DAYS, GRACE_DAYS, hasFeature, need as needPlan, priceOf } from './plans.js';
 export { PLANS, RANK, FEATURES, LIMITS, TRIAL_DAYS, GRACE_DAYS };
@@ -190,6 +190,10 @@ function load() {
 }
 
 let state = load();
+// Secteurs personnalisés : transmis au moteur de scripts quand il est chargé (1.17 : il ne l'est plus au démarrage)
+let sectorsHook = null;
+export const onSectors = (fn) => { sectorsHook = fn; fn(state.mySectors); };
+const setCustomSectors = (list) => sectorsHook?.(list);
 setCustomSectors(state.mySectors);
 computeStages(state);
 const listeners = new Set();
@@ -510,6 +514,9 @@ export const canAddProject = () => can('projectsUnlimited') || state.projects.fi
 // ---------- Devis ----------
 // États : brouillon → envoyé → accepté ou refusé. Un devis accepté fait passer la fiche en client signé.
 export const QUOTE_STATUS = { brouillon: ['Brouillon', 'grey'], envoye: ['Envoyé', 'sky'], accepte: ['Accepté', 'olive'], refuse: ['Refusé', 'rose'] };
+// Devis envoyés sans réponse depuis FOLLOW_DAYS jours : à relancer (devis, notifications)
+export const FOLLOW_DAYS = 3;
+export const toFollow = (qt) => qt.status === 'envoye' && qt.sentAt && Date.now() - qt.sentAt > FOLLOW_DAYS * DAY;
 export const quoteTotals = (qt) => {
   const ht = (qt.lines || []).reduce((n, l) => n + (Number(l.price) || 0) * (Number(l.qty) || 0), 0);
   const remise = ht * (Number(qt.remise) || 0) / 100;
@@ -589,6 +596,9 @@ export function pushRecent(id) {
 
 // ---------- Notes (pages) ----------
 export const getPage = (id) => state.pages.find((p) => p.id === id);
+// Blocs « question / réponse » et « définition » d'une page : les cartes de révision (notes, quiz, accueil)
+export const isQA = (b) => b?.t === 'qa' || b?.t === 'def';
+export const qaCards = (p) => p.blocks.filter((b) => isQA(b) && (b.x || '').trim() && (b.a || '').trim());
 export const bid = () => 'b' + Math.random().toString(36).slice(2, 9);
 export function addPage(data = {}) {
   const now = Date.now();

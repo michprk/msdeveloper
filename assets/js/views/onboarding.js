@@ -8,11 +8,11 @@
 import { S, update, MODULES, resetState, normName } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, cap, field, input, busy, confirmSheet } from '../ui.js';
 import { logoMark } from '../icons.js';
-import { SERVICES, SERVICE_IDS } from '../data/scripts.js';
+import { SERVICES, SERVICE_IDS } from '../data/services.js';
 import { PRESETS, preset } from '../data/presets.js';
 import { askNotifications, notifSupport } from '../notify.js';
 import { PITCH } from './common.js';
-import { applyPreset } from './crm.js';
+
 import { cloudMessage } from '../cloud.js';
 import { hasAccount, loggedIn, createAccount, login, validEmail, passwordIssue, authMode } from '../auth.js';
 import { pwField, providerButtons } from './account.js';
@@ -126,7 +126,8 @@ export function onboarding() {
 
   if (step === 'name') {
     // Prénom ; en ligne seulement : e-mail et mot de passe (le compte se crée sur le serveur)
-    const withAcc = online() && d.acc !== 'done' && !ob.replay;
+    // « Continuer sans compte » (1.17) : moins de 13 ans, pas d'e-mail… tout reste sur cet appareil
+    const withAcc = online() && d.acc !== 'done' && d.acc !== 'skip' && !ob.replay;
     body = `<form class="ob-page ob-name" data-form="ob-name" id="ob-form" novalidate>
         <span class="ob-acc-ic">${ic('user')}</span>
         <h1 class="ob-h">${tr('ob.name.t')}</h1>
@@ -141,7 +142,7 @@ export function onboarding() {
         <p class="co-err ob-err" role="alert" hidden></p>
       </form>
       <div class="ob-foot"><button class="btn btn-apple" type="submit" form="ob-form">Continuer</button>
-        ${withAcc ? '<a class="btn-text" href="#/connexion">J\'ai déjà un compte · Se connecter</a>' : ''}</div>`;
+        ${withAcc ? `<a class="btn-text" href="#/connexion">J'ai déjà un compte · Se connecter</a><button type="button" class="btn-text ob-noacc" data-act="ob-noacc">${tr('ob.noAccount')}</button>` : ''}</div>`;
   } else {
     const pickSit = ([id, l, sub, i]) => `<label class="pick-c"><input type="radio" name="situation" value="${id}" ${d.situation === id ? 'checked' : ''} data-act-change="ob-sit"><span class="pick-ic">${ic(i)}</span><b>${l}</b><em>${sub}</em></label>`;
     const showPro = PRO_SIT(d.situation);
@@ -237,7 +238,8 @@ function finish() {
     s.onboarded = true;
   });
   // Modèle de CRM du métier, si le CRM est encore vierge
-  if (metier && preset(metier) && (first || !S().crm.preset) && !S().prospects.length) applyPreset(metier);
+  // Le CRM (et son modèle de métier) n'est chargé que s'il sert (1.17)
+  if (metier && preset(metier) && (first || !S().crm.preset) && !S().prospects.length) import('./crm.js').then((m) => m.applyPreset(metier));
   ob.replay = false; ob.d = null; ob.i = 0;
   try { sessionStorage.setItem('msdev:intro', '1'); } catch (e) { /* rien */ }
   let next = '#/';
@@ -282,6 +284,7 @@ function refreshProfile(f) {
 }
 register({
   'ob-next': () => go(1),
+  'ob-noacc': () => { const f = document.getElementById('ob-form'); data().prenom = f?.elements.prenom?.value || data().prenom; data().acc = 'skip'; rr(); },
   'ob-back': () => { keep(); go(-1); },
   'ob-quit': () => { ob.replay = false; ob.d = null; ob.i = 0; try { sessionStorage.setItem('msdev:intro', '1'); } catch (e) { /* rien */ } location.hash = '#/'; },
   'ob-sit': (el) => refreshProfile(el.closest('form')),

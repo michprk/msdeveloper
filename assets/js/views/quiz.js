@@ -1,12 +1,12 @@
 // Quiz : questions à choix multiple avec explication, quiz du jour, cartes de révision
 // tirées des notes (blocs Question / réponse et Définition), et les anciens quiz personnels.
 // Les quiz de commerce n'apparaissent qu'avec le module Entrepreneur.
-import { S, update, can, on, uid, getPage, saveQuizResult, quizStreak, startOfDay, DAY } from '../store.js';
+import { S, update, can, on, uid, getPage, saveQuizResult, quizStreak, startOfDay, DAY, qaCards } from '../store.js';
 import { ic, esc, register, toast, confirmSheet, ring, bar, field, input, num, shareLink, appLink } from '../ui.js';
-import { typo } from '../data/scripts.js';
+import { typo } from '../data/services.js';
 import { pageHead, paywall } from './common.js';
 import { QUIZZES, getQuiz } from '../data/quizzes.js';
-import { qaCards } from './notes.js';
+
 import { t as tr } from '../strings.js';
 
 const T = (s) => esc(typo(String(s || '')));

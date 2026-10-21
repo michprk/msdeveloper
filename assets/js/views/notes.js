@@ -68,10 +68,11 @@ const PH = () => ({ p: tr('nt.ph'), h1: 'Titre', h2: 'Sous-titre', todo: 'À fai
 const MD = [[/^#\s/, 'h1'], [/^##\s/, 'h2'], [/^[-*]\s/, 'ul'], [/^1[.)]\s/, 'ol'], [/^\[ ?\]\s/, 'todo'], [/^>\s/, 'quote'], [/^!\s/, 'callout'], [/^\?\?\s/, 'qa']];
 
 export const pageText = (p) => [p.title, ...p.blocks.map((b) => [b.x, b.a].filter(Boolean).join(' '))].join(' ');
-export const isQA = (b) => b?.t === 'qa' || b?.t === 'def';
+import { isQA, qaCards } from '../store.js';
+export { isQA, qaCards };
 // Blocs à deux champs (question / réponse, définition, bascule) : Entrée passe au second champ
 export const twoField = (b) => isQA(b) || b?.t === 'toggle';
-export const qaCards = (p) => p.blocks.filter((b) => isQA(b) && (b.x || '').trim() && (b.a || '').trim());
+
 const words = (p) => pageText(p).split(/\s+/).filter(Boolean).length - (p.title ? p.title.split(/\s+/).length : 0);
 const trail = (p) => { const out = []; let x = p; let g = 0; while (x?.parent && g++ < 6) { x = getPage(x.parent); if (x) out.unshift(x); } return out; };
 

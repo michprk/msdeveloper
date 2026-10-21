@@ -3,26 +3,7 @@ import { S, update, onChange, access, billing, trialLeft, PLANS, on, schoolOnly,
 import { ic, logoMark } from './icons.js';
 import { actions, forms, esc, toast, avatar, validateForm, fieldError, setFieldError, refreshNeeds, saveDraft, register } from './ui.js';
 import { home } from './views/home.js';
-import { library, sectorPage, reader } from './views/scripts.js';
-import { callView, setCallRerender, resetCall } from './views/call.js';
-import { crmView, fiche, crmSettings } from './views/crm.js';
-import { agenda } from './views/agenda.js';
-import { projectsView, projectView } from './views/projects.js';
-import { quotesView, quoteView } from './views/quotes.js';
-import { notificationsView, unreadCount } from './views/notifications.js';
-import { connectorsView } from './views/connect.js';
-import { privacyView } from './views/privacy.js';
-import { studiesView, timetableView, examsView, gradesView, revisionView, focusView } from './views/studies.js';
-import { boardsView, boardView } from './views/boards.js';
-import { tasksView } from './views/tasks.js';
-import { notesHome, noteView } from './views/notes.js';
-import { quizHome, quizPlay, quizCards, quizEdit } from './views/quiz.js';
-import { searchSheet } from './views/search.js';
-import { plans } from './views/billing.js';
-import { overview } from './views/overview.js';
-import { hub, messages, audit, importView } from './views/tools.js';
-import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
-import { academy, guide, settings, more } from './views/pages.js';
+import { notificationsView, unreadCount, unreadUrgent } from './views/notifications.js';
 import { onboarding, startOnboarding, isReplay, loginView, resumeAfterAuth } from './views/onboarding.js';
 import { needsLogin, loggedIn, afterAuthReturn } from './auth.js';
 import { startSync } from './sync.js';
@@ -32,57 +13,79 @@ import { accessLabel } from './views/common.js';
 import { cloudUser, refreshSubscription, checkActivation, track, takeAuthReturn, finishAuthReturn, cloudMessage, cloudMock } from './cloud.js';
 import { authButton, newPasswordSheet } from './views/account.js';
 import { t as tr } from './strings.js';
-import { handleNotionReturn } from './views/notion.js';
-import { maybeAutoSync } from './notion/sync.js';
+
+// ---------- Écrans chargés à la demande (1.17) ----------
+// Au démarrage : seulement l'accueil, la connexion, les notifications et le cœur de l'application.
+// Un autre écran est téléchargé à sa première ouverture ; tous les autres le sont ensuite au premier geste
+// (ou après 8 secondes), pour que chaque bouton réponde tout de suite.
+const LAZY = {
+  overview: './views/overview.js', tasks: './views/tasks.js', agenda: './views/agenda.js', notes: './views/notes.js',
+  quiz: './views/quiz.js', scripts: './views/scripts.js', call: './views/call.js', crm: './views/crm.js',
+  projects: './views/projects.js', quotes: './views/quotes.js', connect: './views/connect.js', privacy: './views/privacy.js',
+  studies: './views/studies.js', boards: './views/boards.js', billing: './views/billing.js', tools: './views/tools.js',
+  tools2: './views/tools2.js', pages: './views/pages.js', search: './views/search.js', notion: './views/notion.js',
+};
+const mods = {}, pending = {};
+function load(key) {
+  if (mods[key]) return Promise.resolve(mods[key]);
+  return (pending[key] ||= import(LAZY[key]).then((m) => {
+    mods[key] = m;
+    if (key === 'call') m.setCallRerender(rerender);
+    return m;
+  }).catch((e) => { delete pending[key]; throw e; }));
+}
+let all = null, allDone = false;
+const loadAll = () => (all ||= Promise.all(Object.keys(LAZY).map(load)).then(() => { allDone = true; }).catch((e) => { all = null; throw e; }));
+const lazy = (key, name) => ({ key, name });
 
 const ROUTES = [
   [/^(accueil)?$/, home],
-  [/^apercu$/, overview],
-  [/^taches$/, tasksView],
-  [/^agenda$/, agenda],
-  [/^notes$/, notesHome],
-  [/^note\/([\w-]+)$/, noteView],
-  [/^quiz$/, quizHome],
-  [/^quiz\/note\/([\w-]+)$/, quizCards],
-  [/^quiz\/edit\/([\w-]+)$/, quizEdit],
-  [/^quiz\/([\w-]+)$/, quizPlay],
-  [/^scripts$/, library],
-  [/^scripts\/([\w-]+)$/, sectorPage],
-  [/^script\/([\w.-]+)$/, reader],
-  [/^appel$/, callView],
-  [/^crm$/, crmView],
-  [/^crm\/personnaliser$/, crmSettings],
-  [/^fiche\/([\w-]+)$/, fiche],
-  [/^projets$/, projectsView],
-  [/^projet\/([\w-]+)$/, projectView],
-  [/^devis$/, quotesView],
-  [/^devis\/([\w-]+)$/, quoteView],
+  [/^apercu$/, lazy('overview', 'overview')],
+  [/^taches$/, lazy('tasks', 'tasksView')],
+  [/^agenda$/, lazy('agenda', 'agenda')],
+  [/^notes$/, lazy('notes', 'notesHome')],
+  [/^note\/([\w-]+)$/, lazy('notes', 'noteView')],
+  [/^quiz$/, lazy('quiz', 'quizHome')],
+  [/^quiz\/note\/([\w-]+)$/, lazy('quiz', 'quizCards')],
+  [/^quiz\/edit\/([\w-]+)$/, lazy('quiz', 'quizEdit')],
+  [/^quiz\/([\w-]+)$/, lazy('quiz', 'quizPlay')],
+  [/^scripts$/, lazy('scripts', 'library')],
+  [/^scripts\/([\w-]+)$/, lazy('scripts', 'sectorPage')],
+  [/^script\/([\w.-]+)$/, lazy('scripts', 'reader')],
+  [/^appel$/, lazy('call', 'callView')],
+  [/^crm$/, lazy('crm', 'crmView')],
+  [/^crm\/personnaliser$/, lazy('crm', 'crmSettings')],
+  [/^fiche\/([\w-]+)$/, lazy('crm', 'fiche')],
+  [/^projets$/, lazy('projects', 'projectsView')],
+  [/^projet\/([\w-]+)$/, lazy('projects', 'projectView')],
+  [/^devis$/, lazy('quotes', 'quotesView')],
+  [/^devis\/([\w-]+)$/, lazy('quotes', 'quoteView')],
   [/^notifications$/, notificationsView],
-  [/^connecteurs$/, connectorsView],
-  [/^confidentialite$/, privacyView],
-  [/^etudes$/, studiesView],
-  [/^etudes\/emploi$/, timetableView],
-  [/^etudes\/examens$/, examsView],
-  [/^etudes\/moyennes$/, gradesView],
-  [/^etudes\/revision$/, revisionView],
-  [/^concentration$/, focusView],
-  [/^tableaux$/, boardsView],
-  [/^tableau\/([\w-]+)$/, boardView],
-  [/^outils$/, hub],
-  [/^outils\/devis$/, quotesView],
-  [/^outils\/messages$/, messages],
-  [/^outils\/audit$/, audit],
-  [/^outils\/import$/, importView],
-  [/^outils\/entrainement$/, training],
-  [/^outils\/stats$/, stats],
-  [/^outils\/mes-scripts$/, myScripts],
-  [/^outils\/mes-scripts\/([\w-]+)$/, myScriptEdit],
-  [/^outils\/secteur\/([\w-]+)$/, sectorEdit],
-  [/^academie$/, academy],
-  [/^academie\/([\w-]+)$/, guide],
-  [/^abonnement$/, plans],
-  [/^(reglages|compte)$/, settings],
-  [/^plus$/, more],
+  [/^connecteurs$/, lazy('connect', 'connectorsView')],
+  [/^confidentialite$/, lazy('privacy', 'privacyView')],
+  [/^etudes$/, lazy('studies', 'studiesView')],
+  [/^etudes\/emploi$/, lazy('studies', 'timetableView')],
+  [/^etudes\/examens$/, lazy('studies', 'examsView')],
+  [/^etudes\/moyennes$/, lazy('studies', 'gradesView')],
+  [/^etudes\/revision$/, lazy('studies', 'revisionView')],
+  [/^concentration$/, lazy('studies', 'focusView')],
+  [/^tableaux$/, lazy('boards', 'boardsView')],
+  [/^tableau\/([\w-]+)$/, lazy('boards', 'boardView')],
+  [/^outils$/, lazy('tools', 'hub')],
+  [/^outils\/devis$/, lazy('quotes', 'quotesView')],
+  [/^outils\/messages$/, lazy('tools', 'messages')],
+  [/^outils\/audit$/, lazy('tools', 'audit')],
+  [/^outils\/import$/, lazy('tools', 'importView')],
+  [/^outils\/entrainement$/, lazy('tools2', 'training')],
+  [/^outils\/stats$/, lazy('tools2', 'stats')],
+  [/^outils\/mes-scripts$/, lazy('tools2', 'myScripts')],
+  [/^outils\/mes-scripts\/([\w-]+)$/, lazy('tools2', 'myScriptEdit')],
+  [/^outils\/secteur\/([\w-]+)$/, lazy('tools2', 'sectorEdit')],
+  [/^academie$/, lazy('pages', 'academy')],
+  [/^academie\/([\w-]+)$/, lazy('pages', 'guide')],
+  [/^abonnement$/, lazy('billing', 'plans')],
+  [/^(reglages|compte)$/, lazy('pages', 'settings')],
+  [/^plus$/, lazy('pages', 'more')],
   [/^bienvenue$/, onboarding],
   [/^connexion$/, loginView],
 ];
@@ -142,7 +145,7 @@ function navFor(path, q = {}) {
 
 const root = document.getElementById('app');
 root.innerHTML = `
-  <a class="skip" href="#view">Aller au contenu</a>
+  <a class="skip" href="#view" data-act="skip-main">Aller au contenu</a>
   <div class="offline-bar" role="status">${ic('globe')}<span>${tr('app.offline')}</span></div>
   <div class="shell">
     <aside class="side" aria-label="Navigation principale">
@@ -190,6 +193,7 @@ function drawNav() {
   const n = unreadCount();
   const bell = root.querySelector('.side-bell');
   bell.querySelector('.nav-badge').hidden = !n;
+  bell.querySelector('.nav-badge').classList.toggle('is-info', !unreadUrgent());
   bell.querySelector('.nav-badge').textContent = n > 99 ? '99+' : n;
   bell.setAttribute('aria-label', n ? `Notifications : ${n} non lue${n > 1 ? 's' : ''}` : 'Notifications');
   root.querySelector('.side-foot').innerHTML = sideFoot();
@@ -208,6 +212,8 @@ function markNav(path, query) {
 }
 // Replier / déplier une section du menu (mémorisé sur l'appareil)
 register({
+  // « Aller au contenu » (clavier) : le focus passe sur l'écran, sans changer d'adresse (le routeur lit le #)
+  'skip-main': () => view.focus(),
   'nav-toggle': (b) => {
     const k = b.dataset.g, open = b.getAttribute('aria-expanded') !== 'true';
     update((s) => { s.prefs.navOpen = { ...(s.prefs.navOpen || {}), [k]: open }; }, { silent: true });
@@ -228,9 +234,23 @@ function render({ keepScroll = false } = {}) {
     location.replace('#/bienvenue'); return;
   }
   if (S().onboarded && path === 'bienvenue' && !isReplay()) { location.replace('#/'); return; }
-  if (path === 'appel' && lastPath !== 'appel') resetCall();
+  if (path === 'appel' && lastPath !== 'appel') mods.call?.resetCall();
   let v = null;
-  for (const [re, f] of ROUTES) { const m = path.match(re); if (m) { v = f(m.slice(1), query); break; } }
+  for (const [re, f] of ROUTES) {
+    const m = path.match(re);
+    if (!m) continue;
+    if (typeof f === 'function') v = f(m.slice(1), query);
+    else if (mods[f.key]) v = mods[f.key][f.name](m.slice(1), query);
+    else {
+      // Premier passage sur cet écran : on le charge (fine barre en haut de l'écran), puis on l'affiche
+      const wanted = location.hash;
+      document.body.classList.add('is-loading');
+      load(f.key).then(() => { document.body.classList.remove('is-loading'); if (location.hash === wanted) render({ keepScroll }); })
+        .catch(() => { document.body.classList.remove('is-loading'); toast(tr('app.loadFail'), { title: 'Hors connexion', ms: 5000 }); });
+      return;
+    }
+    break;
+  }
   if (!v) { location.replace('#/'); return; }
   cleanup?.(); cleanup = null;
   const changed = location.hash !== lastHash;
@@ -258,7 +278,6 @@ function render({ keepScroll = false } = {}) {
 const editing = () => !!document.activeElement?.closest?.('.note, .bd-ed') || !!document.querySelector('.dw-edit');
 let queued = false;
 const rerender = () => { if (queued) return; queued = true; queueMicrotask(() => { queued = false; if (editing()) { drawNav(); return; } render({ keepScroll: true }); }); };
-setCallRerender(rerender);
 onChange(rerender);
 window.addEventListener('ms:rerender', rerender);
 window.addEventListener('hashchange', () => render());
@@ -266,15 +285,25 @@ window.addEventListener('hashchange', () => render());
 // ---------- Événements délégués ----------
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]');
-  if (el && el.dataset.act && actions[el.dataset.act] && !el.disabled) { e.preventDefault(); actions[el.dataset.act](el, e); }
+  if (!el || !el.dataset.act || el.disabled) return;
+  const act = el.dataset.act;
+  if (actions[act]) { e.preventDefault(); actions[act](el, e); return; }
+  // Bouton d'un écran pas encore chargé : on charge tout, puis on lance l'action (ou on suit le lien)
+  if (allDone) return;
+  e.preventDefault();
+  loadAll().then(() => { if (actions[act]) actions[act](el, e); else if (el.href) location.href = el.href; }).catch(() => toast(tr('app.loadFail'), { title: 'Hors connexion', ms: 5000 }));
 });
+// Même filet pour les formulaires et les changements (cases, fichiers) d'un écran pas encore chargé
+const later = (fn) => (allDone ? null : loadAll().then(fn).catch(() => null));
 
 document.addEventListener('submit', (e) => {
   const f = e.target.closest('form[data-form]');
   if (!f) return;
   e.preventDefault();
   if (f.hasAttribute('data-validate') && !validateForm(f)) return;
-  forms[f.dataset.form]?.(Object.fromEntries(new FormData(f)), f, e);
+  const data = Object.fromEntries(new FormData(f));
+  if (forms[f.dataset.form]) forms[f.dataset.form](data, f, e);
+  else later(() => forms[f.dataset.form]?.(data, f, e));
 });
 // Validation au fil de la saisie : message sous le champ quitté, bouton activé quand c'est possible
 document.addEventListener('focusout', (e) => {
@@ -283,7 +312,7 @@ document.addEventListener('focusout', (e) => {
 });
 document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-act-change]');
-  if (el) { actions[el.dataset.actChange]?.(el, e); return; }
+  if (el) { if (actions[el.dataset.actChange]) actions[el.dataset.actChange](el, e); else later(() => actions[el.dataset.actChange]?.(el, e)); return; }
   const f = e.target.closest('form[data-autosave]');
   if (f) forms[f.dataset.form]?.(Object.fromEntries(new FormData(f)), f, e);
   const d = e.target.closest('form[data-draft]');
@@ -313,7 +342,7 @@ document.addEventListener('input', (e) => {
 });
 // Ctrl/⌘ K : recherche partout
 document.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && S().onboarded) { e.preventDefault(); searchSheet(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k' && S().onboarded) { e.preventDefault(); load('search').then((m) => m.searchSheet()); }
 });
 
 // ---------- Thème et animations ----------
@@ -335,7 +364,8 @@ applyPrefs();
 window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); window.__installPrompt = e; });
 window.addEventListener('appinstalled', () => toast('MindView est installée.'));
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').then((reg) => {
+  // Enregistré après le chargement : la mise en cache hors ligne ne ralentit pas le premier affichage
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').then((reg) => {
     reg.addEventListener('updatefound', () => {
       const w = reg.installing;
       w?.addEventListener('statechange', () => {
@@ -345,7 +375,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
         else toast('Une nouvelle version est prête.', { title: 'Mise à jour', action: 'Mettre à jour', onAction: () => w.postMessage('skip') });
       });
     });
-  }).catch(() => {});
+  }).catch(() => {}));
   let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && !editing()) { reloaded = true; location.reload(); } });
 }
@@ -356,7 +386,7 @@ let lastCloud = Date.now();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !S().onboarded) return;
   if (cloudUser()) { track('active_day'); if (Date.now() - lastCloud > 10 * 60e3) { lastCloud = Date.now(); refreshSubscription().catch(() => null); } }
-  maybeAutoSync();
+  autoNotion();
   const billed = syncBilling();
   if (!billed && dayKey() !== lastDay && !editing()) render({ keepScroll: true });
 });
@@ -402,8 +432,14 @@ if (authBack) {
 } else if (cloudUser()) startSync();
 // Serveur factice : bien visible, pour ne jamais le confondre avec le vrai
 if (cloudMock()) document.body.classList.add('is-cloud-mock');
-handleNotionReturn();
-maybeAutoSync();
+// Notion : retour de connexion (?code=…&state=…) et synchro discrète, seulement si Notion est relié
+if (new URLSearchParams(location.search).has('state')) load('notion').then((m) => m.handleNotionReturn());
+function autoNotion() { if (S().notion?.connected) import('./notion/sync.js').then((m) => m.maybeAutoSync()).catch(() => null); }
+autoNotion();
+// Les autres écrans se chargent au premier geste (ou après 8 s), hors du chemin du premier affichage
+const warm = () => { ['pointerdown', 'keydown', 'touchstart'].forEach((t) => removeEventListener(t, warm, true)); loadAll().catch(() => null); };
+['pointerdown', 'keydown', 'touchstart'].forEach((t) => addEventListener(t, warm, { capture: true, passive: true }));
+setTimeout(warm, 8000);
 startReminders();
 bootLock();
 

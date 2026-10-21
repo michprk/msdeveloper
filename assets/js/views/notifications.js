@@ -1,10 +1,10 @@
 // Centre de notifications : tâches en retard, échéances proches, devis à relancer,
 // clients sans nouvelles et rappels du jour. Chaque catégorie s'active ou se coupe
 // (Compte → Notifications) ; « lu » est mémorisé par notification (state.notifSeen).
-import { S, update, on, can, DAY, startOfDay, toggleTask, getProject, quoteTotals } from '../store.js';
+import { S, update, on, can, DAY, startOfDay, toggleTask, getProject, quoteTotals, toFollow, FOLLOW_DAYS } from '../store.js';
 import { ic, esc, eur, register, toast, when, dateShort, ago } from '../ui.js';
 import { pageHead } from './common.js';
-import { toFollow, FOLLOW_DAYS } from './quotes.js';
+
 import { taskSheet } from './tasks.js';
 import { t as tr } from '../strings.js';
 
@@ -22,18 +22,20 @@ const timedOf = (t) => { const d = new Date(t.due); return d.getHours() || d.get
 export function collect({ all = false } = {}) {
   const s = S(), now = Date.now(), t0 = startOfDay();
   const out = [];
+  // `demo` : donnée d'exemple (jamais comptée dans le badge)
   const add = (cat, n) => { if (all || catOn(cat)) out.push({ cat, ...n }); };
   s.tasks.filter((t) => !t.done && t.due).forEach((t) => {
+    const demo = !!t.demo;
     const pr = t.projectId && getProject(t.projectId);
     const sub = [pr?.name, t.prospectId && s.prospects.find((x) => x.id === t.prospectId)?.entreprise].filter(Boolean).join(' · ');
     const timed = timedOf(t);
-    if (t.due < (timed ? now : t0)) add('retard', { id: `late:${t.id}`, at: t.due, title: t.title, text: `${when(t.due)}${sub ? ` · ${sub}` : ''}`, act: 'task-open', tid: t.id, tick: t.id });
-    else if (timed && t.due < t0 + DAY) add('rappels', { id: `rem:${t.id}:${t.due}`, at: t.due, title: t.title, text: `${when(t.due)}${sub ? ` · ${sub}` : ''}`, act: 'task-open', tid: t.id, tick: t.id });
-    else if (t.due < now + 48 * 3600e3) add('echeances', { id: `due:${t.id}:${t.due}`, at: t.due, title: t.title, text: `${when(t.due)}${sub ? ` · ${sub}` : ''}`, act: 'task-open', tid: t.id, tick: t.id });
+    if (t.due < (timed ? now : t0)) add('retard', { demo, id: `late:${t.id}`, at: t.due, title: t.title, text: `${when(t.due)}${sub ? ` · ${sub}` : ''}`, act: 'task-open', tid: t.id, tick: t.id });
+    else if (timed && t.due < t0 + DAY) add('rappels', { demo, id: `rem:${t.id}:${t.due}`, at: t.due, title: t.title, text: `${when(t.due)}${sub ? ` · ${sub}` : ''}`, act: 'task-open', tid: t.id, tick: t.id });
+    else if (t.due < now + 48 * 3600e3) add('echeances', { demo, id: `due:${t.id}:${t.due}`, at: t.due, title: t.title, text: `${when(t.due)}${sub ? ` · ${sub}` : ''}`, act: 'task-open', tid: t.id, tick: t.id });
   });
   s.projects.filter((p) => p.status !== 'termine' && p.due && p.due < t0 + 7 * DAY).forEach((p) => {
     const left = Math.ceil((p.due - t0) / DAY);
-    add(left < 0 ? 'retard' : 'echeances', { id: `pj:${p.id}:${p.due}`, at: p.due, title: `Projet « ${p.name} »`, text: left < 0 ? `Échéance dépassée de ${-left} jour${-left > 1 ? 's' : ''}` : left === 0 ? 'Échéance aujourd\'hui' : `Échéance ${dateShort(p.due)}, dans ${left} jour${left > 1 ? 's' : ''}`, h: `#/projet/${p.id}`, icon: 'folder' });
+    add(left < 0 ? 'retard' : 'echeances', { demo: !!p.demo, id: `pj:${p.id}:${p.due}`, at: p.due, title: `Projet « ${p.name} »`, text: left < 0 ? `Échéance dépassée de ${-left} jour${-left > 1 ? 's' : ''}` : left === 0 ? 'Échéance aujourd\'hui' : `Échéance ${dateShort(p.due)}, dans ${left} jour${left > 1 ? 's' : ''}`, h: `#/projet/${p.id}`, icon: 'folder' });
   });
   if (can('quote')) s.quotes.filter(toFollow).forEach((q) => add('devis', { id: `qt:${q.id}:${q.sentAt}`, at: q.sentAt, title: `Relancer le devis ${q.num}`, text: `${q.client || 'Client'} · ${eur(quoteTotals(q).ttc)} · envoyé ${ago(q.sentAt)}`, h: `#/devis/${q.id}` }));
   if (can('crm') && (on('clients') || on('prospecter'))) s.prospects.filter((p) => !['signe', 'perdu'].includes(p.stage) && !p.demo && !p.next && (p.lastContact || p.updatedAt || 0) < now - 14 * DAY).forEach((p) => {
@@ -43,7 +45,11 @@ export function collect({ all = false } = {}) {
   (s.notion?.conflicts || []).forEach((c) => add('notion', { id: `nx:${c.id}`, at: c.at, title: `${c.title} : modifiée des deux côtés`, text: c.winner === 'notion' ? 'La version de Notion a été gardée · choisir' : 'La version de MindView a été gardée · choisir', h: '#/connecteurs?c=notion' }));
   return out.sort((a, b) => NOTIF_CATS.findIndex((c) => c[0] === a.cat) - NOTIF_CATS.findIndex((c) => c[0] === b.cat) || a.at - b.at);
 }
-export const unreadCount = () => { const seen = S().notifSeen || {}; return collect().filter((n) => !seen[n.id]).length; };
+// Badge (1.17) : seulement les vraies alertes non lues, jamais les exemples.
+// Rouge pour ce qui demande d'agir (retard, conflit, relance) ; neutre pour les rappels et échéances.
+const unread = () => { const seen = S().notifSeen || {}; return collect().filter((n) => !seen[n.id] && !n.demo); };
+export const unreadCount = () => unread().length;
+export const unreadUrgent = () => unread().some((n) => ['retard', 'notion', 'devis', 'relances'].includes(n.cat));
 
 const EXAMPLE = [['flame', 'rose', 'Envoyer le rapport trimestriel', 'Hier · Projet Bilan 2026'], ['bell', 'blue', 'Cours d\'histoire : chapitre 4', 'Aujourd\'hui · 16 h'], ['invoice', 'sky', 'Relancer le devis DEV-2026-014', 'Maison Lemaire · 2 420 € · envoyé il y a 4 jours']];
 

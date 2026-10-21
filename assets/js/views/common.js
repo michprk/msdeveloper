@@ -1,7 +1,7 @@
 // Éléments partagés entre les écrans.
 import { S, can, need, PLANS, access, billing, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
 import { ic, esc, register, toast, closeSheet, dateLong, shareLink, appLink } from '../ui.js';
-import { checkoutSheet } from './billing.js';
+
 import { t as tr, has } from '../strings.js';
 import { authMode } from '../auth.js';
 import { cloudUser } from '../cloud.js';
@@ -147,7 +147,7 @@ register({
     await shareLink('MindView', tr('share.app'), `${appLink()}presentation/`, tr('share.copied'));
   },
   // Essai gratuit : 7 jours de la formule qui débloque la fonction, avec un moyen de paiement (rien avant la fin)
-  'start-trial': (b) => { closeSheet(null, true); checkoutSheet(b?.dataset?.plan || 'pro', true); },
+  'start-trial': async (b) => { closeSheet(null, true); const { checkoutSheet } = await import('./billing.js'); checkoutSheet(b?.dataset?.plan || 'pro', true); },
   // « Continuer gratuitement » : un vrai bouton ; ferme la feuille, ou revient à l'écran précédent
   'paywall-free': (b) => { if (b.closest('.sheet')) closeSheet(); else if (history.length > 1) history.back(); else location.hash = '#/'; },
   'nudge-hide': () => { update((s) => { s.prefs.nudgeHidden = Date.now(); }); toast(tr('nudge.kept'), { ms: 2200 }); },

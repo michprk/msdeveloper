@@ -4,10 +4,11 @@
 // et sans argent. Dès que config.js pointe vers le projet Supabase (voir PAIEMENTS.md), le paiement
 // passe par Stripe Checkout et l'abonnement est lu dans la base, écrite uniquement par le serveur.
 // Aucune clé secrète ne doit jamais figurer ici : ce fichier est envoyé tel quel au navigateur.
-import { cloudReady } from './cloud.js';
+import { paymentsLive } from './cloud.js';
 
+// Paiement réel seulement quand Stripe est branché (config.js : PAYMENTS_LIVE), même si les comptes en ligne le sont déjà
 export const PAYMENTS = {
-  get mode() { return cloudReady() ? 'stripe' : 'test'; },
+  get mode() { return paymentsLive() ? 'stripe' : 'test'; },
   provider: 'Stripe',
 };
 export const isTest = () => PAYMENTS.mode === 'test';

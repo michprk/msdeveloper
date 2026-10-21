@@ -136,7 +136,7 @@ Les fonctions sont dans `server/supabase/functions` :
      - `customer.updated`.
 
    Note le secret de signature `whsec_…`.
-5. Dans ton terminal, les secrets (tapés par toi, jamais copiés ailleurs) :
+5. Dans ton terminal, les secrets (tapés par toi, jamais copiés ailleurs). Ensuite, dans `config.js`, mets `PAYMENTS_LIVE = true` : tant que c'est `false`, les comptes et la synchro marchent déjà, et l'abonnement reste en aperçu.
 
    ```powershell
    supabase secrets set STRIPE_SECRET_KEY=sk_test_... STRIPE_WEBHOOK_SECRET=whsec_... STRIPE_PRICE_PRO=price_... STRIPE_PRICE_PRO_YEAR=price_... STRIPE_PRICE_PREMIUM=price_... STRIPE_PRICE_PREMIUM_YEAR=price_...

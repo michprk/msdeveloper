@@ -5,11 +5,11 @@ import { S, update, on, can, schoolOnly, calls, startOfDay, DAY } from '../store
 import { ic, esc, num, dateLong, when, ring, bar, avatar, ago, register, toast, confirmSheet } from '../ui.js';
 import { logoMark } from '../icons.js';
 import { trialStrip } from './common.js';
-import { clearDemo } from '../data/demo.js';
+
 import { taskRow, quickAdd } from './tasks.js';
 import { dailyQuiz } from './quiz.js';
 import { kpiCard, metricIds, hasData, withSample } from './overview.js';
-import { unreadCount } from './notifications.js';
+import { unreadCount, unreadUrgent } from './notifications.js';
 import { t as tr } from '../strings.js';
 
 export function nextToCall(s) {
@@ -21,7 +21,7 @@ export function nextToCall(s) {
 }
 
 // Cloche du centre de notifications, avec le nombre de non lues
-const bell = () => { const n = unreadCount(); return `<a class="icon-btn bell" href="#/notifications" aria-label="${n ? `Notifications : ${n} non lue${n > 1 ? 's' : ''}` : 'Notifications'}">${ic('bell')}${n ? `<b class="bell-n">${n > 99 ? '99+' : n}</b>` : ''}</a>`; };
+const bell = () => { const n = unreadCount(); return `<a class="icon-btn bell" href="#/notifications" aria-label="${n ? `Notifications : ${n} non lue${n > 1 ? 's' : ''}` : 'Notifications'}">${ic('bell')}${n ? `<b class="bell-n ${unreadUrgent() ? '' : 'is-info'}">${n > 99 ? '99+' : n}</b>` : ''}</a>`; };
 
 export function home() {
   const s = S(), p = s.profile, g = s.goals;
@@ -135,6 +135,7 @@ register({
   'clear-demo': async () => {
     const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: tr('home.clearDemo'), ok: 'Effacer', danger: true });
     if (!ok) return;
+    const { clearDemo } = await import('../data/demo.js');
     update((s) => clearDemo(s));
     toast('Données de démonstration effacées');
   },

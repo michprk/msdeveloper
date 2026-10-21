@@ -4,7 +4,7 @@
 import { S } from '../store.js';
 import { ic } from '../ui.js';
 import { pageHead } from './common.js';
-import { cloudReady, cloudMock, cloudUser, authMode } from '../cloud.js';
+import { cloudMock, cloudUser, authMode, paymentsLive } from '../cloud.js';
 
 export const PRIVACY_UPDATED = '21 octobre 2026';
 
@@ -43,7 +43,7 @@ export function privacyView() {
       </ul>`)}
     ${sec('tiers', 'Connecteurs, aperçus et paiement', `<p><b>Canva, Figma, Notion, Drive, GitHub</b> : l'application enregistre seulement le lien que vous collez. L'aperçu intégré Figma ou Canva ne se charge que si vous touchez « Afficher l'aperçu » ; le service concerné reçoit alors votre adresse IP et applique sa propre politique de confidentialité. L'import Notion par fichier lit les fichiers que vous choisissez, sur l'appareil.</p>
       <p><b>Connexion directe à Notion</b> (si vous l'activez) : MindView lit seulement les pages et bases que vous avez choisies dans la fenêtre d'autorisation de Notion. Les demandes passent par le serveur de MindView, qui garde la clé d'accès Notion et transmet les données sans les conserver ; le secret de l'intégration n'est jamais dans l'application. Ce que vous importez est enregistré sur cet appareil ; ce que vous envoyez va dans votre espace Notion. « Se déconnecter de Notion » efface le lien et demande au serveur d'oublier la clé ; dans Notion : Paramètres → Connexions → MindView.</p>
-      <p><b>Paiement</b> : ${cloudReady() && !cloudMock() ? 'il passe par Stripe, un prestataire spécialisé : votre numéro de carte est saisi chez Stripe et ne transite jamais par l\'application ni par le serveur de MindView.' : 'en ce moment, l\'abonnement fonctionne en mode test et aucune donnée bancaire n\'est demandée. Au lancement, le paiement passera par un prestataire spécialisé (Stripe) : votre numéro de carte ne transitera jamais par l\'application.'}</p>
+      <p><b>Paiement</b> : ${paymentsLive() && !cloudMock() ? 'il passe par Stripe, un prestataire spécialisé : votre numéro de carte est saisi chez Stripe et ne transite jamais par l\'application ni par le serveur de MindView.' : 'en ce moment, l\'abonnement fonctionne en mode test et aucune donnée bancaire n\'est demandée. Au lancement, le paiement passera par un prestataire spécialisé (Stripe) : votre numéro de carte ne transitera jamais par l\'application.'}</p>
       <p><b>Notifications</b> : elles sont calculées sur l'appareil, sans serveur d'envoi.</p>`)}
     ${sec('securite', 'Sécurité', `<p>Le code de verrouillage est enregistré sous forme d'empreinte irréversible (SHA-256). Les données elles-mêmes ne sont pas chiffrées sur l'appareil : protégez-le par un code, et rangez vos fichiers de sauvegarde en lieu sûr, car ils contiennent tout votre compte.</p>`)}
     ${sec('compte', 'Si vous créez un compte en ligne', `<p>Le compte sert à vous connecter, à retrouver vos données sur vos autres appareils et à gérer l'abonnement. Il est hébergé dans l'Union européenne (Supabase, centre de données de Francfort) et enregistre :</p>

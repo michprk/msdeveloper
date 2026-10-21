@@ -9,7 +9,7 @@
 //   jamais de contenu, et seulement avec un compte et si la personne ne l'a pas refusé.
 // - Serveur factice (1.15) : ?cloud=mock dans l'adresse (mémorisé pour la session) ou CLOUD.mock = true.
 //   Tout se joue dans le navigateur, pour essayer les comptes, la synchro et le paiement sans rien créer.
-import { CLOUD, AUTH_MODE } from './config.js';
+import { CLOUD, AUTH_MODE, PAYMENTS_LIVE } from './config.js';
 import { S, update, DAY, GRACE_DAYS } from './store.js';
 import { tv } from './strings.js';
 
@@ -25,6 +25,8 @@ const base = () => (cloudMock() ? MOCK_URL : CLOUD.url.replace(/\/$/, ''));
 export const cloudReady = () => cloudMock() || !!(CLOUD.url && CLOUD.anonKey);
 // Mode des comptes réellement actif : en ligne seulement si demandé ET si le serveur est configuré
 export const authMode = () => ((AUTH_MODE === 'online' || cloudMock()) && cloudReady() ? 'online' : 'local');
+// Paiement réel : serveur configuré ET Stripe branché (PAYMENTS_LIVE). Le serveur factice simule tout.
+export const paymentsLive = () => cloudMock() || (cloudReady() && PAYMENTS_LIVE);
 // Adresse de retour (liens e-mail, Google, Stripe) : cette page, sans paramètres ni route
 export const appUrl = () => location.origin + location.pathname;
 export const providers = () => (cloudMock() ? ['google'] : (CLOUD.providers || []).filter((p) => ['google', 'apple'].includes(p)));
@@ -210,7 +212,7 @@ export function applySubscription(row) {
   });
 }
 export async function refreshSubscription() {
-  if (!cloudUser()) return null;
+  if (!cloudUser() || !paymentsLive()) return null;
   const rows = await call('/rest/v1/subscriptions?select=plan,status,billing_interval,has_payment_method,current_period_end,cancel_at_period_end&limit=1');
   const row = rows?.[0] || null;
   applySubscription(row);

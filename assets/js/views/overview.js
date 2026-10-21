@@ -56,6 +56,8 @@ export function daily(id, days) {
 function delta(id, days) {
   const s = st(), M = METRICS[id];
   const cur = M.get(s, period(days)), prev = M.get(s, period(days, 1));
+  // Compte plus récent que la période précédente : rien de comparable encore (pas de « −100 % » ni de « +900 % »)
+  if ((s.createdAt || 0) > period(days, 1)[0]) return { cur, dir: 0, txt: 'Nouveau', plain: true, young: true };
   if (M.rate) {
     if (cur === null || prev === null) return { cur, dir: 0, txt: cur === null ? 'pas encore d\'appel' : 'première période' };
     const d = cur - prev;
@@ -76,7 +78,7 @@ export function kpiCard(id, days, { href = '#/apercu' } = {}) {
   return `<a class="kpi2 k-${M.tone}" href="${href}">
     <span class="kpi2-h"><span class="kpi2-l">${esc(mLabel(id))}</span><span class="kpi2-ic">${ic(M.icon)}</span></span>
     <span class="kpi2-v">${M.fmt(d.cur)}</span>
-    <span class="kpi2-d ${d.dir > 0 ? 'up' : d.dir < 0 ? 'down' : 'flat'}">${d.dir && !d.plain ? ic('arrowR', d.dir > 0 ? 'up-ic' : 'down-ic') : ''}${word ? `<span class="sr-only">${word} de </span>` : ''}<b>${d.txt}</b><span>${d.plain ? 'rien du' : 'vs'} ${rangeLabel(period(days, 1))}</span></span>
+    <span class="kpi2-d ${d.dir > 0 ? 'up' : d.dir < 0 ? 'down' : 'flat'}">${d.dir && !d.plain ? ic('arrowR', d.dir > 0 ? 'up-ic' : 'down-ic') : ''}${word ? `<span class="sr-only">${word} de </span>` : ''}<b>${d.txt}</b><span>${d.young ? `comparaison après ${days} jours complets` : `${d.plain ? 'rien du' : 'vs'} ${rangeLabel(period(days, 1))}`}</span></span>
     ${sparkline(spark)}
   </a>`;
 }
@@ -193,7 +195,8 @@ function gaugeCard() {
   const goal = Math.max(200, Math.ceil(Math.max(cur, prev) * 1.25 / 50) * 50);
   const p = Math.min(1, cur / goal);
   const R = 80, L = Math.PI * R;
-  const diff = prev ? Math.round(((cur - prev) / prev) * 100) : null;
+  // Évolution seulement si la semaine précédente était entièrement couverte par le compte
+  const diff = prev && (st().createdAt || 0) <= period(7, 1)[0] ? Math.round(((cur - prev) / prev) * 100) : null;
   return `<section class="card fx fx-gauge rise">
     <header class="fx-h"><span class="fx-ic">${ic('bolt')}</span><h2>${tr('ov.reg')}</h2></header>
     <div class="fx-g"><svg viewBox="0 0 200 112" aria-hidden="true"><defs><pattern id="fx-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#eef0fb"/><line x1="0" y1="0" x2="0" y2="8" stroke="#d5d9f3" stroke-width="3"/></pattern></defs>

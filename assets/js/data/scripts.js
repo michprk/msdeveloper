@@ -5,37 +5,10 @@ import { SECTORS } from './sectors.js';
 import { PLUS } from './sector-plus.js';
 import { META, STEP_PLUS } from './script-plus.js';
 import { SIT } from './situations.js';
+import { SERVICES, SERVICE_IDS, WEB_SERVICES, typo } from './services.js';
+import { onSectors } from '../store.js';
+export { SERVICES, SERVICE_IDS, WEB_SERVICES, typo };
 
-export const SERVICES = {
-  site: {
-    id: 'site', label: 'Création de site web', short: 'Site web', icon: 'monitor',
-    what: (p) => `on crée des sites internet pour les ${p} {de_ville}`,
-    sujet: 'votre site internet', theme: 'leur site internet',
-    emailSubjects: ['Une idée pour {entreprise}', '{entreprise} sur Google', 'Question rapide'],
-  },
-  auto: {
-    id: 'auto', label: 'Automatisation', short: 'Automatisation', icon: 'bolt',
-    what: (p) => `on aide les ${p} {de_ville} à gagner du temps en automatisant les rendez-vous, les rappels et les relances`,
-    sujet: 'du temps que vous pourriez gagner chaque semaine', theme: 'l\'automatisation de leurs tâches répétitives',
-    emailSubjects: ['Une idée pour gagner du temps chez {entreprise}', 'Question rapide sur vos rendez-vous', '{entreprise} : une heure de gagnée par jour ?'],
-  },
-  seo: {
-    id: 'seo', label: 'Référencement', short: 'Référencement', icon: 'trend',
-    what: (p) => `on aide les ${p} {de_ville} à sortir en premier sur Google et Google Maps`,
-    sujet: 'votre visibilité sur Google', theme: 'leur visibilité sur Google',
-    emailSubjects: ['{entreprise} sur Google Maps', 'Une idée pour {entreprise}', 'Question rapide'],
-  },
-  // Pour tous les autres métiers : les textes reprennent l'offre décrite dans le profil.
-  offre: {
-    id: 'offre', label: 'Votre propre offre', short: 'Votre offre', icon: 'briefcase',
-    what: (p) => `on s'occupe de {offre} pour les ${p} {de_ville}`,
-    sujet: '{offre}', theme: '{offre}',
-    emailSubjects: ['Une idée pour {entreprise}', 'Question rapide', '{entreprise} : {offre}'],
-  },
-};
-export const SERVICE_IDS = ['site', 'auto', 'seo', 'offre'];
-// Services dont les textes sont écrits secteur par secteur (les autres sont générés)
-export const WEB_SERVICES = ['site', 'auto', 'seo'];
 
 // Arguments génériques pour « Votre offre », tirés de la fiche secteur
 const low = (s) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s);
@@ -69,6 +42,7 @@ export const FREE_CHANNELS = ['appel'];
 
 let custom = [];
 export const setCustomSectors = (list) => { custom = list || []; };
+onSectors(setCustomSectors);
 export const allSectors = () => [...SECTORS, ...custom];
 export const getSector = (id) => allSectors().find((s) => s.id === id);
 
@@ -228,9 +202,6 @@ export const VAR_LABELS = {
 };
 const VOWEL = /^[aeiouyhéèêëàâîïôöûüœ]/i;
 const escHTML = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-export const typo = (s) => s
-  .replace(/ ([:;?!»])/g, ' $1').replace(/« /g, '« ')
-  .replace(/(\d) (h|€|%|min)(?![A-Za-zÀ-ÿ])/g, '$1 $2');
 
 export function fill(text, ctx, html = true) {
   const src = html ? escHTML(text) : text;

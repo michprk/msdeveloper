@@ -1,14 +1,14 @@
 // Devis : un devis par client, suivi de « brouillon » à « accepté » ou « refusé ».
 // Envoyé → une relance est prévue dans 3 jours. Accepté → la fiche passe en client signé
 // et un projet est créé (voir updateProspect dans store.js).
-import { S, update, can, uid, DAY, startOfDay, startOfMonth, getProspect, updateProspect, logActivity, addTask, getQuote, quoteTotals, QUOTE_STATUS } from '../store.js';
+import { S, update, can, uid, DAY, startOfDay, startOfMonth, getProspect, updateProspect, logActivity, addTask, getQuote, quoteTotals, QUOTE_STATUS, FOLLOW_DAYS, toFollow } from '../store.js';
 import { ic, esc, eur, eur2, num, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, dateShort, ago } from '../ui.js';
 import { pageHead, paywall } from './common.js';
 
-export const FOLLOW_DAYS = 3;
+export { FOLLOW_DAYS, toFollow };
 const ORDER = ['brouillon', 'envoye', 'accepte', 'refuse'];
 const chip = (st) => `<span class="chip t-${QUOTE_STATUS[st]?.[1] || 'grey'}">${QUOTE_STATUS[st]?.[0] || ''}</span>`;
-export const toFollow = (qt) => qt.status === 'envoye' && qt.sentAt && Date.now() - qt.sentAt > FOLLOW_DAYS * DAY;
+
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 
 export function newQuote(pid = '') {

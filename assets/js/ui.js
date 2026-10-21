@@ -81,6 +81,9 @@ export function sheet(html, { cls = '', onClose } = {}) {
   d.className = `sheet ${cls}`;
   d.innerHTML = `<div class="sheet-in" role="document"><span class="sheet-grab" aria-hidden="true"></span>${html}</div>`;
   document.body.append(d);
+  // Nom accessible de la fenêtre : son titre (lu par les lecteurs d'écran à l'ouverture)
+  const h = d.querySelector('.sheet-h h2, h2');
+  if (h) { h.id ||= `sh-${Date.now().toString(36)}`; d.setAttribute('aria-labelledby', h.id); }
   d.showModal();
   requestAnimationFrame(() => d.classList.add('open'));
   d.addEventListener('click', (e) => { if (e.target === d) closeSheet(d); });

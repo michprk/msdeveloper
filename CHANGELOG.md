@@ -2,6 +2,78 @@
 
 Les versions avant la 1.10 sont décrites dans le [README](README.md) (sections « Nouveautés »).
 
+## 1.17.0 — 21/10/2026 · Phase 6 : finitions
+
+Les mesures ont été faites avec un banc d'analyse maison (`_msdeveloper-src/tests/a11y.js`). L'API PageSpeed (Lighthouse) refuse les requêtes sans clé, d'où ce banc. Il passe sur 24 écrans et relève :
+- le contraste du texte, selon les seuils WCAG AA (4,5:1, et 3:1 pour le grand texte) ;
+- le texte de moins de 13 px ;
+- les boutons et les champs sans nom accessible ;
+- le débordement horizontal.
+
+**Accessibilité : avant → après** (téléphone 375 px et ordinateur, clair et sombre)
+
+| | Avant | Après |
+|---|---|---|
+| Textes sous le contraste AA, mode clair | 128 | 0 |
+| Textes sous le contraste AA, mode sombre | 124 | 0 |
+| Textes de moins de 13 px | 473 | 0 |
+| Boutons ou champs sans nom | 0 | 0 |
+| Écrans qui débordent à 375 px | 1 | 0 |
+| Écrans qui débordent avec le texte « Très grand » | 4 | 0 |
+
+Ce qui a changé :
+- **Couleurs**
+  - Gris secondaire plus foncé (`--muted`) et ocre plus foncé.
+  - Nouveau jeton `--blue-ink` pour le texte bleu sur fond bleu clair (badges Pro, puces, étiquettes).
+  - En mode sombre, texte foncé sur les boutons bleus (`--on-blue`), car le blanc ne passait pas.
+  - Badges de notifications lisibles.
+  - Surlignage des notes lisible en mode sombre.
+- **Tailles** : plus aucun texte utile sous 13 px (185 règles relevées).
+- **Petits écrans**
+  - Les boutons longs passent à la ligne au lieu de déborder.
+  - Les en-têtes, la barre du calendrier, les modes de concentration et la minuterie se replient quand le texte est agrandi.
+- **Clavier**
+  - Le lien « Aller au contenu » ramenait à l'accueil (il passait par le routeur) : il place maintenant le focus sur l'écran.
+  - Chaque fenêtre porte le nom de son titre (`aria-labelledby`).
+  - Le focus reste visible partout.
+- **Texte plus grand** : déjà appliqué à toute l'application (zoom). Vérifié sur tous les écrans, sans débordement.
+
+**Notifications**
+- Le badge ne compte plus les données d'exemple. Un compte neuf n'a donc pas de badge.
+- Rouge seulement pour ce qui demande d'agir (retard, conflit, relance). Couleur neutre pour un rappel ou une échéance.
+
+**Vue d'ensemble**
+- Pas de pourcentage tant que le compte est plus récent que la période de comparaison : « Nouveau · comparaison après 7 jours complets ».
+- Même règle pour la jauge de régularité.
+- La semaine en cours reste « en cours » (1.16).
+
+**Performance**
+- Écrans chargés à la demande :
+  - au démarrage, 26 fichiers JavaScript (425 Ko) au lieu de 58 (1 269 Ko), soit −66 % ;
+  - un écran est téléchargé à sa première ouverture, et les autres au premier geste (ou après 8 secondes) ;
+  - un bouton d'un écran pas encore chargé fonctionne quand même : il charge tout, puis agit.
+- Liens coupés pour ne pas tout entraîner :
+  - le moteur de scripts (134 Ko) ne se charge plus avec le stockage ;
+  - la carte quiz de l'accueil n'entraîne plus l'éditeur de notes ni le tableau blanc ;
+  - l'accueil ne charge plus le CRM ;
+  - les notifications ne chargent plus les devis.
+- Le service hors ligne s'enregistre après le premier affichage.
+
+**Comptes et paiement**
+- « Continuer sans compte » à l'accueil en mode en ligne (moins de 13 ans, pas d'e-mail) : tout reste sur l'appareil.
+- Nouveau réglage `PAYMENTS_LIVE` dans `config.js`. Les comptes en ligne et la synchronisation peuvent être allumés avant Stripe. L'abonnement reste alors en aperçu, sur l'appareil.
+
+**Tests**
+- Banc `a11y` (contraste, tailles, noms, débordement ; aussi sur l'accueil d'un nouveau compte).
+- Playwright `phase6-finitions` :
+  - chargement à la demande ;
+  - bouton d'un écran pas encore chargé ;
+  - badge (exemples, rappel, retard) ;
+  - vue d'ensemble d'un compte récent ;
+  - texte très grand sans débordement ;
+  - clavier ;
+  - « Continuer sans compte ».
+
 ## 1.16.0 — 21/10/2026 · Faire connaître MindView
 
 **Page de présentation** (`presentation/`, https://michprk.github.io/msdeveloper/presentation/)
