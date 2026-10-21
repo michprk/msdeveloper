@@ -6,7 +6,7 @@ import { pageHead, paywall } from './common.js';
 import { QUALIF } from '../data/script-plus.js';
 import { PRESETS, preset } from '../data/presets.js';
 import { taskSheet, taskRow } from './tasks.js';
-import { template } from '../data/templates.js';
+import { newPage } from './notes.js';
 import { linksBlock } from './connect.js';
 import { toFollow } from './quotes.js';
 
@@ -298,10 +298,9 @@ register({
     notesTimer = setTimeout(() => update((s) => { const p = s.prospects.find((x) => x.id === el.dataset.id); if (p) p.notes = el.value; }, { silent: true }), 400);
   },
   'page-for': (b) => {
-    const p = getProspect(b.dataset.pid);
-    const tpl = template('rdv');
-    const page = addPage({ title: `${tpl.title}${p.entreprise}`, icon: tpl.icon, prospectId: p.id, blocks: tpl.blocks.map(([t, x, a]) => ({ id: 'b' + Math.random().toString(36).slice(2, 9), t, x: x || '', ...(t === 'qa' ? { a: a || '' } : {}) })) });
-    location.hash = `#/note/${page.id}`;
+    // Même création qu'un modèle de Notes (blocs mis en forme, couverture, limite de la version gratuite)
+    const page = newPage('rdv', { prospectId: b.dataset.pid });
+    if (page) location.hash = `#/note/${page.id}`;
   },
 }, {
   prospect: (data, f) => {

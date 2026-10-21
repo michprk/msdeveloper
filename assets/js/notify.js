@@ -4,13 +4,14 @@
 // (ou vient d'être ouverte) — l'iPhone exige en plus que l'app soit installée sur l'écran d'accueil.
 import { S, update, dayKey, startOfDay, DAY } from './store.js';
 import { toast } from './ui.js';
+import { t as tr } from './strings.js';
 
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 
 export function notifSupport() {
   if ('Notification' in window) return { ok: true, hint: '' };
-  if (isIOS() && !standalone()) return { ok: false, hint: 'Sur iPhone, installez d\'abord l\'application sur l\'écran d\'accueil : les notifications s\'activent ensuite.' };
+  if (isIOS() && !standalone()) return { ok: false, hint: tr('nf.ios') };
   return { ok: false, hint: 'Ce navigateur ne permet pas les notifications. Les rappels s\'afficheront dans l\'application.' };
 }
 
@@ -59,7 +60,7 @@ function check() {
     const t0 = startOfDay();
     const today = s.tasks.filter((t) => !t.done && t.due && t.due < t0 + DAY).length;
     update((st) => { st.lastDigest = key; }, { silent: true });
-    if (today) show('Votre journée', `${today} tâche${today > 1 ? 's' : ''} aujourd'hui${s.profile.usages?.includes('prospecter') ? ` · objectif ${s.goals.appelsJour} appels` : ''}.`, 'digest', '#/');
+    if (today) show(tr('nf.day'), `${today} tâche${today > 1 ? 's' : ''} aujourd'hui${s.profile.usages?.includes('prospecter') ? ` · objectif ${s.goals.appelsJour} appels` : ''}.`, 'digest', '#/');
   }
 }
 
@@ -70,5 +71,5 @@ export function startReminders() {
 }
 
 export function testNotification() {
-  show('Rappel · dans 10 min', 'Ceci est une notification de test : vos rappels ressembleront à ça.', 'test-' + Date.now(), '#/taches');
+  show('Rappel · dans 10 min', tr('nf.test'), 'test-' + Date.now(), '#/taches');
 }

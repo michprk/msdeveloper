@@ -1,8 +1,8 @@
 // Quiz intégrés. Chaque question : [énoncé, [réponses], index de la bonne réponse, explication].
-// mod : module auquel le quiz se rattache (pour le quiz du jour et l'ordre d'affichage).
+// mod : module du quiz (organiser et apprendre : pour tous ; clients et prospecter : module Entrepreneur). added : date d'ajout (badge « Nouveau » pendant 14 jours).
 export const QUIZZES = [
   {
-    id: 'organisation', title: 'S\'organiser et gérer son temps', icon: 'checkSquare', mod: 'organiser',
+    id: 'organisation', title: 'S\'organiser et gérer son temps', icon: 'checkSquare', mod: 'organiser', added: '2026-10-15',
     desc: 'Eisenhower, Pomodoro, la règle des deux minutes et les bonnes habitudes.',
     qs: [
       ['La matrice d\'Eisenhower classe les tâches selon deux critères. Lesquels ?', ['L\'urgence et l\'importance', 'La durée et la difficulté', 'Le coût et le bénéfice', 'La date et la personne'], 0, 'Important et urgent : à faire tout de suite. Important mais pas urgent : à planifier. C\'est dans cette deuxième case que se trouve l\'essentiel du travail utile.'],
@@ -18,7 +18,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'objectifs', title: 'Se fixer des objectifs', icon: 'target', mod: 'organiser',
+    id: 'objectifs', title: 'Se fixer des objectifs', icon: 'target', mod: 'organiser', added: '2026-10-15',
     desc: 'SMART, OKR, indicateurs et petits calculs pour un plan réaliste.',
     qs: [
       ['Que signifie le « M » de la méthode SMART ?', ['Motivant', 'Mesurable', 'Mensuel', 'Modeste'], 1, 'Spécifique, Mesurable, Atteignable, Réaliste, Temporel : un objectif qu\'on peut vérifier à une date donnée.'],
@@ -34,7 +34,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'apprendre', title: 'Apprendre et retenir', icon: 'cards', mod: 'apprendre',
+    id: 'apprendre', title: 'Apprendre et retenir', icon: 'cards', mod: 'apprendre', added: '2026-10-15',
     desc: 'Répétition espacée, autotest, technique Feynman, prise de notes.',
     qs: [
       ['Qu\'est-ce que la répétition espacée ?', ['Relire une leçon dix fois de suite', 'Revoir une notion à intervalles de plus en plus longs', 'Apprendre deux matières en même temps', 'Faire une pause toutes les heures'], 1, 'Revoir une notion au moment où on commence à l\'oublier renforce la mémoire bien mieux qu\'une longue révision unique.'],
@@ -50,7 +50,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'relation', title: 'Relation client et CRM', icon: 'users', mod: 'clients',
+    id: 'relation', title: 'Relation client et CRM', icon: 'users', mod: 'clients', added: '2026-10-15',
     desc: 'Pipeline, prochaine action, satisfaction, avis et fidélisation.',
     qs: [
       ['À quoi sert un CRM ?', ['À faire sa comptabilité', 'À suivre chaque client ou prospect : échanges, étapes, prochaines actions', 'À créer un site internet', 'À envoyer des factures'], 1, 'Customer Relationship Management : la mémoire de toute votre relation client, au même endroit.'],
@@ -66,7 +66,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'telephone', title: 'Prospecter au téléphone', icon: 'phone', mod: 'prospecter',
+    id: 'telephone', title: 'Prospecter au téléphone', icon: 'phone', mod: 'prospecter', added: '2026-10-15',
     desc: 'Ouvrir l\'appel, poser les bonnes questions, fixer le rendez-vous.',
     qs: [
       ['Quel est l\'objectif principal d\'un appel à froid ?', ['Vendre immédiatement', 'Obtenir un rendez-vous ou une prochaine étape', 'Présenter toute son offre', 'Envoyer un devis'], 1, 'Au téléphone, on vend le rendez-vous, pas le produit.'],
@@ -82,7 +82,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'objections', title: 'Répondre aux objections', icon: 'shield', mod: 'prospecter',
+    id: 'objections', title: 'Répondre aux objections', icon: 'shield', mod: 'prospecter', added: '2026-10-15',
     desc: '« Trop cher », « Envoyez un e-mail », « Pas le temps »…',
     qs: [
       ['Quelle est la première chose à faire face à une objection ?', ['Contredire immédiatement', 'Accueillir l\'objection (« Je comprends ») avant de répondre', 'Baisser le prix', 'Changer de sujet'], 1, 'Accueillir désamorce la tension. Ensuite seulement, on questionne et on répond.'],
@@ -98,7 +98,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'prix', title: 'Prix, devis et négociation', icon: 'invoice', mod: 'clients',
+    id: 'prix', title: 'Prix, devis et négociation', icon: 'invoice', mod: 'clients', added: '2026-10-15',
     desc: 'Trois formules, remises, acompte, marge et relance du devis.',
     qs: [
       ['Pourquoi présenter trois formules plutôt qu\'une ?', ['Pour compliquer le choix', 'Parce que le client compare vos options entre elles, plutôt que vous et un concurrent', 'C\'est obligatoire', 'Pour vendre la moins chère'], 1, 'L\'option du milieu paraît souvent la plus raisonnable : c\'est celle à recommander.'],
@@ -114,7 +114,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'google', title: 'Être visible sur Google', icon: 'globe', mod: 'prospecter',
+    id: 'google', title: 'Être visible sur Google', icon: 'globe', mod: 'prospecter', added: '2026-10-15',
     desc: 'Fiche Google, avis, recherches locales et bases du référencement.',
     qs: [
       ['Qu\'est-ce que la fiche Google Business Profile ?', ['Une publicité payante', 'La fiche gratuite d\'une entreprise sur Google Maps et dans la recherche', 'Un réseau social', 'Un site internet'], 1, 'Horaires, photos, avis, téléphone : c\'est souvent le premier contact d\'un client avec un commerce local.'],
@@ -130,7 +130,7 @@ export const QUIZZES = [
     ],
   },
   {
-    id: 'gestion', title: 'Les bases de la gestion', icon: 'calculator', mod: 'clients',
+    id: 'gestion', title: 'Les bases de la gestion', icon: 'calculator', mod: 'clients', added: '2026-10-15',
     desc: 'Chiffre d\'affaires, bénéfice, trésorerie, seuil de rentabilité.',
     qs: [
       ['Quelle est la différence entre chiffre d\'affaires et bénéfice ?', ['Aucune', 'Le chiffre d\'affaires est le total des ventes ; le bénéfice, ce qui reste après les charges', 'Le bénéfice est toujours plus grand', 'Le chiffre d\'affaires est mensuel'], 1, 'On peut avoir un beau chiffre d\'affaires et aucun bénéfice si les charges sont trop lourdes.'],

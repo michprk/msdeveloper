@@ -2,6 +2,7 @@
 import { S, update, on, schoolOnly, uid, addTask, toggleTask, getProspect, getProject, startOfDay, startOfWeek, DAY, TONES } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, when, time, toLocalInput, fromLocalInput, enableDnD, clearDraft, cap } from '../ui.js';
 import { pageHead } from './common.js';
+import { t as tr } from '../strings.js';
 
 const WD = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -117,7 +118,7 @@ export function tasksView(params, q) {
   const listBody = () => {
     if (!open.length && !done.length && lid) return `<div class="empty card"><span class="empty-ic">${ic('checkSquare')}</span>
       <p class="empty-t">Cette liste est vide</p>
-      <p class="empty-p">Ajoutez une tâche ci-dessus : elle sera rangée dans cette liste.</p>
+      <p class="empty-p">${tr('tk.listEmpty')}</p>
       <button class="btn btn-primary" data-act="task-new" data-list="${lid}">${ic('plus')}<span>Ajouter une tâche</span></button></div>`;
     if (!open.length && !done.length) return firstTasks();
     const used = new Set();
@@ -133,8 +134,8 @@ export function tasksView(params, q) {
     return `<section class="kcol" data-col="${k}" role="listitem" aria-label="${label}"><header class="kcol-h"><i class="dot t-${tone}"></i><span>${label}</span><b>${items.length}</b></header>
       <div class="kcol-b">${items.map((t) => `<a class="kcard ${t.done ? 'is-done' : ''}" href="#/taches" draggable="false" data-id="${t.id}" data-act="task-open">
         <p class="kcard-t">${t.prio ? `<i class="flag f${t.prio}">${ic('flag')}</i>` : ''}${esc(t.title)}</p>
-        <div class="kcard-f">${t.due ? `<span class="kcard-n ${!t.done && t.due < Date.now() ? 'is-late' : ''}">${ic('clock')}${when(t.due)}</span>` : '<span></span>'}${t.list && listOf(t.list) ? `<span class="lst t-${listOf(t.list).tone}"><i class="dot"></i>${esc(listOf(t.list).name)}</span>` : ''}</div></a>`).join('') || '<p class="kcol-empty">Glissez une tâche ici</p>'}</div></section>`;
-  }).join('')}</div><p class="hint">${matchMedia('(pointer:fine)').matches ? 'Glissez les tâches d\'une colonne à l\'autre.' : 'Appui long sur une tâche pour la déplacer.'}</p>`;
+        <div class="kcard-f">${t.due ? `<span class="kcard-n ${!t.done && t.due < Date.now() ? 'is-late' : ''}">${ic('clock')}${when(t.due)}</span>` : '<span></span>'}${t.list && listOf(t.list) ? `<span class="lst t-${listOf(t.list).tone}"><i class="dot"></i>${esc(listOf(t.list).name)}</span>` : ''}</div></a>`).join('') || `<p class="kcol-empty">${tr('tk.dropHere')}</p>`}</div></section>`;
+  }).join('')}</div><p class="hint">${matchMedia('(pointer:fine)').matches ? tr('tk.dragCols') : 'Appui long sur une tâche pour la déplacer.'}</p>`;
 
   const l = lid && listOf(lid);
   const html = `
@@ -165,17 +166,17 @@ const EXAMPLES = () => (schoolOnly() ? ['Réviser le chapitre 3 demain 18h', 'Re
 function firstTasks() {
   return `<section class="card onboard-empty rise">
     <span class="empty-ic">${ic('checkSquare')}</span>
-    <h2>Créez votre première tâche</h2>
-    <p>Notez tout ce que vous avez à faire : chaque tâche arrive le bon jour sur l'écran Aujourd'hui, avec un rappel si vous lui donnez une heure. Plus rien ne reste dans votre tête.</p>
+    <h2>${tr('tk.empty.t')}</h2>
+    <p>${tr('tk.empty.p')}</p>
     <button class="btn btn-primary btn-lg" data-act="task-new">${ic('plus')}<span>Créer ma première tâche</span></button>
-    <p class="oe-k">Ou ajoutez un exemple en un geste</p>
+    <p class="oe-k">${tr('tk.empty.ex')}</p>
     <div class="chips-wrap oe-ex">${EXAMPLES().map((x) => `<button class="chip-btn" data-act="task-example" data-t="${esc(x)}">${ic('plus')}${esc(x)}</button>`).join('')}</div>
     <div class="demo-preview" aria-hidden="true">
       <span class="tag">Exemple</span>
       <div class="dp-row"><span class="tick"></span><span><b>${schoolOnly() ? 'Réviser le chapitre 3 d’histoire' : 'Envoyer le devis à Maison Lemaire'}</b><em>Aujourd'hui · 17 h · ${schoolOnly() ? 'École' : 'Travail'}</em></span></div>
       <div class="dp-row"><span class="tick is-done"></span><span><b>Réserver le train pour Gand</b><em>Terminée</em></span></div>
     </div>
-    <p class="oe-foot">Vous voulez d'abord voir l'application remplie ? <button class="link" data-act="load-demo">Charger des données d'exemple</button>, effaçables en un geste.</p>
+    <p class="oe-foot">${tr('tk.empty.demo')} <button class="link" data-act="load-demo">Charger des données d'exemple</button>, effaçables en un geste.</p>
   </section>`;
 }
 
@@ -210,7 +211,7 @@ export function taskSheet({ pid = '', task = null, list = '', title = '', projec
       <div class="field"><span class="field-l">Échéance</span>
         <div class="chips-wrap due-chips">${chipDays().map(([l, v]) => `<button type="button" class="chip-btn" data-act="due-chip" data-v="${v}">${l}</button>`).join('')}</div>
         <input class="inp" type="datetime-local" name="due" value="${t.due ? toLocalInput(t.due) : ''}" aria-label="Date et heure">
-        <span class="field-h">Sans heure précise : laissez 00:00, aucune notification ne sera envoyée.</span></div>
+        <span class="field-h">${tr('tk.noHour')}</span></div>
       <div class="form-2">${field('Projet', select('projectId', [['', 'Aucun projet'], ...projects.map((x) => [x.id, x.name])], t.projectId || ''), projects.length ? '' : '<button type="button" class="link" data-act="go-projects">Créer un projet</button>')}${field('Statut', select('status', TSTATUS, st))}</div>
       <div class="form-2">${field('Priorité', select('prio', PRIO, String(t.prio || 0)))}${field('Liste', select('list', [['', 'Aucune'], ...s.lists.map((x) => [x.id, x.name])], t.list || ''))}</div>
       ${crm ? `<div class="form-2">${field('Type', select('kind', [['tache', 'Tâche'], ['appel', 'Appel'], ['relance', 'Relance'], ['rdv', 'Rendez-vous']], t.kind || 'tache'))}${field(`Fiche (${esc(s.crm.noun.toLowerCase())})`, select('prospectId', [['', 'Aucune'], ...s.prospects.map((x) => [x.id, x.entreprise])], t.prospectId || ''))}</div>` : ''}

@@ -1,8 +1,9 @@
 // Études : matières, emploi du temps, examens (et planificateur de révisions), moyennes,
 // révision espacée et mode concentration. Pensé pour le secondaire, le supérieur et la formation.
-import { S, update, can, uid, DAY, startOfDay, startOfWeek, dayKey, TONES, addTask, newProject, canAddProject, getProject, projectProgress } from '../store.js';
+import { S, update, can, need, PLANS, uid, DAY, startOfDay, startOfWeek, dayKey, TONES, addTask, newProject, canAddProject, getProject, projectProgress } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, dateShort, dateLong, ring, bar, num } from '../ui.js';
 import { pageHead, paywall } from './common.js';
+import { t as tr } from '../strings.js';
 import { qaCards } from './notes.js';
 
 const TONE_NAMES = { grey: 'Gris', sky: 'Bleu clair', blue: 'Bleu', navy: 'Bleu nuit', sand: 'Sable', olive: 'Olive', rose: 'Rose' };
@@ -80,8 +81,8 @@ export function studiesView() {
   const html = `${pageHead('Études', { kicker: dateLong(), actions: `<button class="btn btn-primary fab-dup" data-act="exam-new">${ic('plus')}<span>Examen</span></button>` })}
     ${empty ? `<section class="card onboard-empty rise">
       <span class="empty-ic">${ic('book')}</span>
-      <h2>Votre année, bien rangée</h2>
-      <p>Ajoutez vos matières, votre emploi du temps et vos examens : MindView vous montre chaque jour quoi réviser, combien de jours il reste, et votre moyenne.</p>
+      <h2>${tr('st.empty.t')}</h2>
+      <p>${tr('st.empty.p')}</p>
       <button class="btn btn-primary btn-lg" data-act="subject-new">${ic('plus')}<span>Ajouter mes matières</span></button>
       ${demo(`<div class="dp-q"><span><b>Examen d'histoire</b><em>Révolution française · 5 chapitres</em></span><span class="dp-qv"><b>J−9</b><span class="chip t-sky">60 % révisé</span></span></div>
         <div class="dp-q"><span><b>Maths — 8 h 30</b><em>Salle B12 · M. Dupont</em></span><span class="dp-qv"><b>Aujourd'hui</b></span></div>
@@ -90,8 +91,8 @@ export function studiesView() {
     <div class="kpi-grid n4 st-kpis">
       ${kpi('sky', 'target', 'Prochain examen', next ? countdown(next.date) : '—', next ? esc(next.title) : 'Aucun examen prévu', '#/etudes/examens')}
       ${kpi('blue', 'calendar', 'Cours aujourd\'hui', today.length ? num(today.length) : '—', nextCourse ? `${esc(subject(nextCourse.subjectId)?.name || 'Cours')} à ${hhmm(toMin(nextCourse.start))}` : today.length ? 'Journée terminée' : 'Pas de cours', '#/etudes/emploi')}
-      ${kpi('olive', 'cards', 'Cartes à réviser', sr.total ? num(sr.due) : '—', sr.total ? `sur ${num(sr.total)} cartes` : 'Créez des questions dans vos notes', '#/etudes/revision')}
-      ${kpi('navy', 'award', 'Moyenne générale', avg === null ? '—' : `${fmtAvg(avg)}<small> /20</small>`, avg === null ? 'Ajoutez vos notes' : focusWeek ? `${hhmm(focusWeek)} de travail cette semaine` : `Objectif : ${num(Number(s.profile.target) || 12)} / 20`, '#/etudes/moyennes')}
+      ${kpi('olive', 'cards', 'Cartes à réviser', sr.total ? num(sr.due) : '—', sr.total ? `sur ${num(sr.total)} cartes` : tr('st.kpi.cards'), '#/etudes/revision')}
+      ${kpi('navy', 'award', 'Moyenne générale', avg === null ? '—' : `${fmtAvg(avg)}<small> /20</small>`, avg === null ? tr('st.kpi.grades') : focusWeek ? `${hhmm(focusWeek)} de travail cette semaine` : `Objectif : ${num(Number(s.profile.target) || 12)} / 20`, '#/etudes/moyennes')}
     </div>
     <div class="st-two">
       <section class="card rise">
@@ -100,13 +101,13 @@ export function studiesView() {
       </section>
       <section class="card rise">
         <header class="card-h"><div><h2>Aujourd'hui</h2><p>${WD[todayIdx()]}</p></div><a class="link" href="#/etudes/emploi">Emploi du temps</a></header>
-        ${today.length ? `<ul class="tt-day">${today.map((c) => courseItem(c, nowMin)).join('')}</ul>` : `<p class="muted pad">${s.courses.length ? 'Pas de cours aujourd\'hui.' : 'Ajoutez vos cours pour les voir ici chaque jour.'}</p>${s.courses.length ? '' : `<button class="btn btn-ghost" data-act="course-new">${ic('plus')}<span>Ajouter un cours</span></button>`}`}
+        ${today.length ? `<ul class="tt-day">${today.map((c) => courseItem(c, nowMin)).join('')}</ul>` : `<p class="muted pad">${s.courses.length ? 'Pas de cours aujourd\'hui.' : tr('st.today.none')}</p>${s.courses.length ? '' : `<button class="btn btn-ghost" data-act="course-new">${ic('plus')}<span>Ajouter un cours</span></button>`}`}
       </section>
     </div>
-    <h2 class="sec-title">Outils</h2>
+    <h2 class="sec-title st-tools-h">Tout pour réviser</h2>
     <div class="tool-grid st-tools">
-      ${[['#/etudes/emploi', 'calendar', 'Emploi du temps', 'Vos cours de la semaine', 'timetable'], ['#/etudes/examens', 'target', 'Examens', 'Compte à rebours et planificateur', ''], ['#/etudes/moyennes', 'award', 'Moyennes', 'Coefficients, objectif, note à viser', 'grades'], ['#/etudes/revision', 'cards', 'Révision espacée', 'Chaque carte au bon moment', 'spaced'], ['#/concentration', 'hourglass', 'Concentration', 'Minuteur Pomodoro', 'focus'], ['#/quiz', 'quiz', 'Quiz', 'Quiz du jour et vos quiz', '']]
-        .map(([h, i, t, d, f], k) => `<a class="card tool rise" style="--i:${k}" href="${h}"><span class="tool-ic">${ic(i)}</span><b>${t}</b><span>${d}</span>${f && !can(f) ? `<span class="badge b-${['planner', 'spaced', 'focusStats'].includes(f) ? 'premium' : 'pro'}">${['planner', 'spaced', 'focusStats'].includes(f) ? 'Premium' : 'Pro'}</span>` : ''}</a>`).join('')}
+      ${[['#/etudes/emploi', 'calendar', 'Emploi du temps', 'Les cours de la semaine', 'timetable'], ['#/etudes/examens', 'target', 'Examens', 'Compte à rebours et planificateur', ''], ['#/etudes/moyennes', 'award', 'Moyennes', 'Coefficients, objectif, note à viser', 'grades'], ['#/etudes/revision', 'cards', 'Révision espacée', 'Chaque carte au bon moment', 'spaced'], ['#/concentration', 'hourglass', 'Concentration', 'Minuteur Pomodoro', 'focus'], ['#/quiz', 'quiz', 'Quiz', 'Quiz du jour et fiches de révision', '']]
+        .map(([h, i, t, d, f], k) => `<a class="card tool rise" style="--i:${k}" href="${h}"><span class="tool-ic">${ic(i)}</span><b>${t}</b><span>${d}</span>${f && !can(f) ? `<span class="badge b-${need(f)}">${PLANS[need(f)].name}</span>` : ''}</a>`).join('')}
     </div>
     ${subjectsCard()}`;
   return { title: 'Études', tab: 'etudes', fab: 'exam-new', html };
@@ -119,7 +120,7 @@ const courseItem = (c, nowMin = -1) => {
   return `<li><button class="tt-item k-${x?.tone || 'grey'} ${live ? 'is-live' : ''}" data-act="course-edit" data-id="${c.id}"><span class="tt-time">${hhmm(toMin(c.start))}<em>${hhmm(toMin(c.end))}</em></span><span class="tt-b"><b>${esc(x?.name || c.title || 'Cours')}</b><span>${[c.room && `Salle ${esc(c.room)}`, c.teacher && esc(c.teacher)].filter(Boolean).join(' · ')}</span></span>${live ? '<span class="chip t-olive">En cours</span>' : ''}</button></li>`;
 };
 export function timetableView() {
-  const head = pageHead('Emploi du temps', { back: '#/etudes', kicker: 'Vos cours, chaque semaine', actions: can('timetable') ? `<button class="btn btn-primary fab-dup" data-act="course-new">${ic('plus')}<span>Cours</span></button>` : '' });
+  const head = pageHead('Emploi du temps', { back: '#/etudes', kicker: tr('st.tt.kicker'), actions: can('timetable') ? `<button class="btn btn-primary fab-dup" data-act="course-new">${ic('plus')}<span>Cours</span></button>` : '' });
   if (!can('timetable')) return { title: 'Emploi du temps', tab: 'etudes', html: `${head}${locked('timetable', demo(`<div class="tt-mini">${['Maths 8 h 30', 'Histoire 10 h 20', 'Anglais 13 h'].map((t, i) => `<span class="tt-mb k-${['blue', 'sand', 'olive'][i]}">${t}</span>`).join('')}</div>`))}` };
   const s = S();
   const days = s.courses.some((c) => +c.day === 6) ? 7 : s.courses.some((c) => +c.day === 5) ? 6 : 5;
@@ -138,8 +139,8 @@ export function timetableView() {
   </div></div>`;
   const html = `${head}
     ${s.courses.length ? `<section class="card rise tt-today"><header class="card-h"><div><h2>Aujourd'hui</h2><p>${WD[todayIdx()]}</p></div></header>${coursesOn(todayIdx()).length ? `<ul class="tt-day">${coursesOn(todayIdx()).map((c) => courseItem(c, nowMin)).join('')}</ul>` : '<p class="muted pad">Pas de cours aujourd\'hui.</p>'}</section>
-      <section class="card rise tt-card">${grid}<p class="hint">Touchez un cours pour le modifier. Vos cours apparaissent aussi dans le calendrier.</p></section>`
-    : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('calendar')}</span><h2>Ajoutez votre premier cours</h2><p>Chaque cours revient chaque semaine, avec sa salle et son professeur. Vous le retrouvez sur l'écran Aujourd'hui et dans le calendrier.</p>
+      <section class="card rise tt-card">${grid}<p class="hint">${tr('st.tt.hint')}</p></section>`
+    : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('calendar')}</span><h2>${tr('st.tt.empty.t')}</h2><p>${tr('st.tt.empty.p')}</p>
       <button class="btn btn-primary btn-lg" data-act="course-new">${ic('plus')}<span>Ajouter un cours</span></button>
       ${demo(`<div class="tt-mini">${['Lun · Maths 8 h 30', 'Lun · Histoire 10 h 20', 'Mar · Anglais 13 h'].map((t, i) => `<span class="tt-mb k-${['blue', 'sand', 'olive'][i]}">${t}</span>`).join('')}</div>`)}</section>`}
     ${subjectsCard()}`;
@@ -219,7 +220,7 @@ function examHero(x) {
     <section class="card fx xm-gauge rise">
       <header class="fx-h"><span class="fx-ic">${ic('book')}</span><h2>Révisions</h2></header>
       <div class="fx-g">${gauge(g.pct)}<p class="fx-gv"><b>${g.pct} %</b><span>${g.total ? `${g.done} séance${g.done > 1 ? 's' : ''} sur ${g.total}` : 'Aucune séance prévue'}</span></p></div>
-      <p class="fx-gn">${g.next ? `<span class="fx-badge">${ic('clock')}</span><span>Prochaine : ${esc(g.next.title)} · ${when(g.next.due)}</span>` : g.total && g.done === g.total ? `<span class="fx-badge">${ic('check')}</span><span>Tout est révisé. Un dernier quiz ?</span>` : `<span class="fx-badge">${ic('sliders')}</span><span>Planifiez vos révisions : une séance par chapitre.</span>`}</p>
+      <p class="fx-gn">${g.next ? `<span class="fx-badge">${ic('clock')}</span><span>Prochaine : ${esc(g.next.title)} · ${when(g.next.due)}</span>` : g.total && g.done === g.total ? `<span class="fx-badge">${ic('check')}</span><span>Tout est révisé. Un dernier quiz ?</span>` : `<span class="fx-badge">${ic('sliders')}</span><span>${tr('st.ex.plan')}</span>`}</p>
     </section>
     <section class="card fx xm-days-c rise">
       <header class="fx-h"><span class="fx-ic">${ic('calendar')}</span><h2>Les 14 prochains jours</h2></header>
@@ -245,10 +246,10 @@ export function examsView(params, q = {}) {
   const focus = (q.e && up.find((x) => x.id === q.e)) || up[0];
   const html = `${pageHead('Examens', { back: '#/etudes', kicker: up.length ? `${up.length} à venir` : 'Compte à rebours et révisions', actions: `<button class="btn btn-primary fab-dup" data-act="exam-new">${ic('plus')}<span>Examen</span></button>` })}
     ${focus ? `<div class="xm-grid">${examHero(focus)}</div>` : ''}
-    ${up.length > 1 ? `<h2 class="sec-title">Tous vos examens</h2><div class="xm-list">${up.map(examCard).join('')}</div>` : ''}
+    ${up.length > 1 ? `<h2 class="sec-title">${tr('st.ex.all')}</h2><div class="xm-list">${up.map(examCard).join('')}</div>` : ''}
     ${past.length ? `<h2 class="sec-title">Passés</h2><ul class="rows card">${past.slice(0, 8).map((x) => `<li><div class="row"><span class="menu-ic">${ic('checkCircle')}</span><span class="row-b"><b>${esc(x.title)}</b><span>${subject(x.subjectId) ? `${esc(subject(x.subjectId).name)} · ` : ''}${dateShort(x.date)}</span></span><button class="icon-btn" data-act="exam-edit" data-id="${x.id}" aria-label="Modifier">${ic('edit')}</button></div></li>`).join('')}</ul>` : ''}
-    ${s.exams.length ? '' : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('target')}</span><h2>Ajoutez votre premier examen</h2>
-        <p>La date, la matière et les chapitres : MindView compte les jours, crée un projet de révision avec une tâche par chapitre, et répartit vos révisions jour par jour.</p>
+    ${s.exams.length ? '' : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('target')}</span><h2>${tr('st.ex.empty.t')}</h2>
+        <p>${tr('st.ex.empty.p')}</p>
         <button class="btn btn-primary btn-lg" data-act="exam-new">${ic('plus')}<span>Ajouter un examen</span></button>
         ${demo(`<p class="dp-t">Examen d'histoire <span class="chip t-sand">J−9</span></p><p class="dp-s">Révolution française · Empire · Révolution industrielle</p><span class="bar olive"><i style="width:60%"></i></span>
           <div class="dp-row"><span class="tick is-done"></span><span><b>Fiche : la Révolution française</b><em>Lundi 17 h</em></span></div><div class="dp-row"><span class="tick"></span><span><b>Réviser : l'Empire</b><em>Jeudi 17 h</em></span></div>`)}</section>`}`;
@@ -316,7 +317,7 @@ function planSheet(x) {
 // ---------- Moyennes ----------
 export function gradesView(params, q) {
   const head = pageHead('Moyennes', { back: '#/etudes', kicker: 'Notes, coefficients et objectif', actions: can('grades') ? `<button class="btn btn-primary fab-dup" data-act="grade-new">${ic('plus')}<span>Note</span></button>` : '' });
-  if (!can('grades')) return { title: 'Moyennes', tab: 'etudes', html: `${head}${locked('grades', demo('<div class="dp-q"><span><b>Histoire</b><em>3 notes · coef. 2</em></span><span class="dp-qv"><b>14,5 / 20</b></span></div><div class="dp-q"><span><b>Maths</b><em>Il vous faut 12 au prochain contrôle</em></span><span class="dp-qv"><b>11,2 / 20</b></span></div>'))}` };
+  if (!can('grades')) return { title: 'Moyennes', tab: 'etudes', html: `${head}${locked('grades', demo(`<div class="dp-q"><span><b>Histoire</b><em>3 notes · coef. 2</em></span><span class="dp-qv"><b>14,5 / 20</b></span></div><div class="dp-q"><span><b>Maths</b><em>${tr('st.gr.demo')}</em></span><span class="dp-qv"><b>11,2 / 20</b></span></div>`))}` };
   const s = S();
   const target = Number(s.profile.target) || 12;
   const avg = generalAverage();
@@ -329,7 +330,7 @@ export function gradesView(params, q) {
     return `<section class="card gr-card k-${x.tone} rise">
       <header class="gr-h"><span class="gr-dot"></span><div><h2>${esc(x.name)}</h2><p>${g.length ? `${g.length} note${g.length > 1 ? 's' : ''}` : 'Aucune note'} · coef. ${num(Number(x.coef) || 1)}</p></div><b class="gr-avg ${a !== null && a < 10 ? 'is-low' : ''}">${fmtAvg(a)}<small> /20</small></b></header>
       ${a !== null ? `<div class="gr-bar"><span class="bar"><i style="width:${Math.min(100, (a / 20) * 100)}%"></i></span><i class="gr-target" style="left:${(target / 20) * 100}%" title="Objectif ${target}"></i></div>` : ''}
-      ${need !== null ? `<p class="gr-need">${need <= 0 ? `Objectif ${num(target)} atteint dans cette matière.` : a >= target ? `Objectif ${num(target)} atteint : au prochain contrôle, ${num(Math.round(need * 10) / 10)}/20 suffit pour rester au-dessus.` : need > 20 ? `Objectif ${num(target)} difficile à atteindre en un seul contrôle : il faudrait ${num(Math.round(need * 10) / 10)}/20.` : `Pour ${num(target)} de moyenne, il vous faut <b>${num(Math.round(need * 10) / 10)}/20</b> au prochain contrôle.`}</p>` : ''}
+      ${need !== null ? `<p class="gr-need">${need <= 0 ? `Objectif ${num(target)} atteint dans cette matière.` : a >= target ? `Objectif ${num(target)} atteint : au prochain contrôle, ${num(Math.round(need * 10) / 10)}/20 suffit pour rester au-dessus.` : need > 20 ? `Objectif ${num(target)} difficile à atteindre en un seul contrôle : il faudrait ${num(Math.round(need * 10) / 10)}/20.` : tr('st.gr.need', { target: num(target), need: num(Math.round(need * 10) / 10) })}</p>` : ''}
       ${g.length ? `<ul class="gr-list">${g.map((y) => `<li><button class="row" data-act="grade-edit" data-id="${y.id}"><span class="row-b"><b>${esc(y.label || 'Contrôle')}</b><span>${y.date ? dateShort(y.date) : ''}${Number(y.coef) !== 1 ? ` · coef. ${num(Number(y.coef))}` : ''}</span></span><b class="gr-v">${num(Number(y.value))}<small>/${num(Number(y.max))}</small></b></button></li>`).join('')}</ul>` : ''}
       <button class="link" data-act="grade-new" data-s="${x.id}">${ic('plus')}Ajouter une note</button>
     </section>`;
@@ -337,11 +338,11 @@ export function gradesView(params, q) {
   const html = `${head}
     ${s.subjects.length ? `<section class="card gr-sum rise">
         <div class="hero-ring">${ring(avg || 0, 20, { size: 120, stroke: 10 })}<div class="hero-ring-v"><b>${fmtAvg(avg)}</b><span>/20</span></div></div>
-        <div><h2>Moyenne générale</h2><p>${avg === null ? 'Ajoutez une première note pour la calculer.' : avg >= target ? `Au-dessus de votre objectif de ${num(target)}. Continuez.` : `Votre objectif : ${num(target)}. Il manque ${num(Math.round((target - avg) * 10) / 10)} point${target - avg >= 2 ? 's' : ''}.`}</p>
+        <div><h2>Moyenne générale</h2><p>${avg === null ? tr('st.gr.first') : avg >= target ? tr('st.gr.above', { target: num(target) }) : tr('st.gr.below', { target: num(target), gap: num(Math.round((target - avg) * 10) / 10), s: target - avg >= 2 ? 's' : '' })}</p>
           <label class="field gr-target-f"><span class="field-l">Objectif</span>${select('target', [8, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((n) => [n, `${n} / 20`]), target, 'data-act-change="grade-target"')}</label></div>
       </section>
       <div class="gr-grid">${rows}</div>`
-      : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('award')}</span><h2>Commencez par vos matières</h2><p>Chaque matière a son coefficient ; chaque note, le sien. MindView calcule vos moyennes et la note qu'il vous faut au prochain contrôle.</p>
+      : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('award')}</span><h2>${tr('st.gr.empty.t')}</h2><p>${tr('st.gr.empty.p')}</p>
         <button class="btn btn-primary btn-lg" data-act="subject-new">${ic('plus')}<span>Ajouter une matière</span></button></section>`}
     ${subjectsCard()}`;
   return { title: 'Moyennes', tab: 'etudes', fab: 'grade-new', html };
@@ -383,7 +384,7 @@ export function grade(card, r) {
   update((s) => { s.srs[card] = x; const k = dayKey(); s.srsLog = { ...(s.srsLog || {}), [k]: ((s.srsLog || {})[k] || 0) + 1 }; }, { silent: true });
 }
 export function revisionView(params, q) {
-  const head = pageHead('Révision espacée', { back: '#/etudes', kicker: 'Chaque carte revient juste avant que vous l\'oubliiez' });
+  const head = pageHead('Révision espacée', { back: '#/etudes', kicker: tr('st.srs.kicker') });
   if (!can('spaced')) return { title: 'Révision espacée', tab: 'etudes', html: `${head}${locked('spaced', demo('<p class="dp-t">Aujourd\'hui : 18 cartes <span class="chip t-olive">7 nouvelles</span></p><p class="dp-s">Révolution française · Anglais vocabulaire · Biologie</p><span class="bar olive"><i style="width:40%"></i></span>'))}` };
   const s = S(), now = Date.now();
   const cards = allCards();
@@ -401,7 +402,7 @@ export function revisionView(params, q) {
     const ses = srsSession;
     if (ses.i >= ses.queue.length) {
       const html = `${head}<section class="card qz-res rise"><div class="hero-ring">${ring(ses.ok, Math.max(1, ses.done), { size: 140, stroke: 11 })}<div class="hero-ring-v"><b>${ses.done}</b><span>cartes</span></div></div>
-        <div><h2>${ses.done ? 'Révision du jour terminée' : 'Rien à réviser maintenant'}</h2><p>${ses.done ? `${ses.ok} sue${ses.ok > 1 ? 's' : ''} sur ${ses.done}. Les cartes ratées reviennent dans dix minutes ; les autres, dans quelques jours.` : 'Toutes vos cartes sont à jour. Revenez demain.'}</p></div></section>
+        <div><h2>${ses.done ? 'Révision du jour terminée' : 'Rien à réviser maintenant'}</h2><p>${ses.done ? `${ses.ok} sue${ses.ok > 1 ? 's' : ''} sur ${ses.done}. Les cartes ratées reviennent dans dix minutes ; les autres, dans quelques jours.` : tr('st.srs.done')}</p></div></section>
         <div class="act-row"><a class="btn btn-primary" href="#/etudes/revision">Terminer</a></div>`;
       return { title: 'Révision espacée', tab: 'etudes', html, after() { srsSession = null; } };
     }
@@ -441,7 +442,7 @@ export function revisionView(params, q) {
       </section>
       <section class="card rise"><header class="card-h"><div><h2>Cette semaine</h2><p>${week.reduce((a, b) => a + b, 0)} cartes révisées</p></div></header>
         <div class="mini-bars">${week.map((v, i) => `<span style="--v:${Math.min(100, (v / Math.max(1, ...week)) * 100)}%"><i></i><em>${WDS[(new Date(startOfDay() - (6 - i) * DAY).getDay() + 6) % 7]}</em></span>`).join('')}</div></section>`
-      : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('cards')}</span><h2>Créez vos premières cartes</h2><p>Dans une page de notes, ajoutez des blocs « Question / réponse » (tapez « ?? » puis espace). Chacun devient une carte, qui revient au bon moment.</p>
+      : `<section class="card onboard-empty rise"><span class="empty-ic">${ic('cards')}</span><h2>${tr('st.srs.empty.t')}</h2><p>${tr('st.srs.empty.p')}</p>
         <button class="btn btn-primary btn-lg" data-act="page-new" data-tpl="revision">${ic('plus')}<span>Créer une fiche de révision</span></button></section>`}`;
   return { title: 'Révision espacée', tab: 'etudes', html };
 }
@@ -482,7 +483,7 @@ function finishPhase() {
     const min = Math.round(timer.total / 60e3);
     if (min >= 1) logSession(min, timer);
     timer = newTimer('timer', keepOf(timer));
-    toast(min >= 1 ? `${min} minute${min > 1 ? 's' : ''} enregistrée${min > 1 ? 's' : ''} dans vos séances.` : 'Le temps est écoulé.', { title: 'Minuteur terminé' });
+    toast(min >= 1 ? `${min} minute${min > 1 ? 's' : ''} enregistrée${min > 1 ? 's' : ''} ${tr('st.fo.inSessions')}.` : 'Le temps est écoulé.', { title: 'Minuteur terminé' });
   } else if (timer.phase === 'work') {
     const min = Math.round(timer.total / 60e3);
     logSession(min, timer);
@@ -603,12 +604,12 @@ export function focusView() {
     </div>
     <div class="st-two">
       <section class="card rise"><header class="card-h"><div><h2>Aujourd'hui</h2><p>${todaySes.length} séance${todaySes.length > 1 ? 's' : ''} · ${hhmm(todayMin)}</p></div></header>
-        ${todaySes.length ? `<ul class="rows">${todaySes.slice().reverse().slice(0, 8).map((x) => `<li><div class="row"><span class="menu-ic">${ic('hourglass')}</span><span class="row-b"><b>${esc(x.label || subject(x.subjectId)?.name || s.tasks.find((y) => y.id === x.taskId)?.title || 'Séance de travail')}</b><span>${new Date(x.at).getHours()} h ${String(new Date(x.at).getMinutes()).padStart(2, '0')}</span></span><b>${x.min} min</b></div></li>`).join('')}</ul>` : '<p class="muted pad">Lancez une première séance : elle s\'enregistre ici.</p>'}
+        ${todaySes.length ? `<ul class="rows">${todaySes.slice().reverse().slice(0, 8).map((x) => `<li><div class="row"><span class="menu-ic">${ic('hourglass')}</span><span class="row-b"><b>${esc(x.label || subject(x.subjectId)?.name || s.tasks.find((y) => y.id === x.taskId)?.title || 'Séance de travail')}</b><span>${new Date(x.at).getHours()} h ${String(new Date(x.at).getMinutes()).padStart(2, '0')}</span></span><b>${x.min} min</b></div></li>`).join('')}</ul>` : `<p class="muted pad">${tr('st.fo.first')}</p>`}
       </section>
       <section class="card rise"><header class="card-h"><div><h2>Cette semaine</h2><p>${hhmm(week.reduce((a, b) => a + b, 0))} de travail</p></div>${can('focusStats') ? '' : '<span class="badge b-premium">Premium</span>'}</header>
         ${can('focusStats') ? `<div class="mini-bars">${week.map((v, i) => `<span style="--v:${Math.min(100, (v / Math.max(1, ...week)) * 100)}%" title="${hhmm(v)}"><i></i><em>${WDS[i]}</em></span>`).join('')}</div>
           ${bySubj.length ? `<ul class="fo-subj">${bySubj.map(([x, mm]) => `<li><span class="subj k-${x.tone}"><i></i>${esc(x.name)}</span>${bar(mm, Math.max(...bySubj.map((r) => r[1])), '')}<b>${hhmm(mm)}</b></li>`).join('')}</ul>` : ''}`
-          : '<p class="muted pad">Vos heures de travail par jour et par matière, et votre régularité, avec Premium.</p>'}
+          : `<p class="muted pad">${tr('feat.focusStats')}</p>`}
       </section>
     </div>`;
   return {
@@ -693,7 +694,7 @@ register({
   'fo-field': (el) => { timer = { ...(timer && timer.mode === tmode() ? timer : newTimer(tmode(), keepOf(timer))), [el.name]: el.value }; saveTimer(); rr(); },
   // Changer de mode : seulement à l'arrêt, pour ne rien perdre
   'fo-mode': (b) => {
-    if (timer?.running) { toast('Mettez d\'abord le temps en cours en pause.', { title: 'Déjà lancé' }); return; }
+    if (timer?.running) { toast(tr('st.fo.pauseFirst'), { title: 'Déjà lancé' }); return; }
     const keep = keepOf(timer);
     update((s) => { s.focus.mode = b.dataset.m; });
     timer = newTimer(b.dataset.m, keep); saveTimer(); rr();
@@ -706,13 +707,13 @@ register({
     if (min < 1) { toast('Moins d\'une minute : rien à enregistrer.', { title: 'Chronomètre' }); return; }
     logSession(min, timer);
     timer = newTimer('chrono', keepOf(timer)); saveTimer(); rr();
-    toast(`${min} minute${min > 1 ? 's' : ''} ajoutée${min > 1 ? 's' : ''} à vos séances.`, { title: 'Séance enregistrée' });
+    toast(`${min} minute${min > 1 ? 's' : ''} ajoutée${min > 1 ? 's' : ''} ${tr('st.fo.toSessions')}.`, { title: 'Séance enregistrée' });
   },
 }, {
   // Minuteur : une durée au choix, de 1 minute à 12 heures
   'fo-custom': (d) => {
     const v = Math.min(720, (Number(d.h) || 0) * 60 + (Number(d.m) || 0));
-    if (v < 1) { toast('Choisissez au moins une minute.', { title: 'Minuteur' }); return; }
+    if (v < 1) { toast(tr('st.fo.oneMin'), { title: 'Minuteur' }); return; }
     update((s) => { s.focus.timerMin = v; });
     timer = newTimer('timer', keepOf(timer)); saveTimer(); rr();
   },
@@ -733,7 +734,7 @@ register({
       subjectId = ex?.id || 'sj-' + uid();
       if (!ex) update((s) => { s.subjects.push({ id: subjectId, name: title, tone: TONES[s.subjects.length % TONES.length], coef: 1 }); }, { silent: true });
     }
-    if (!subjectId) { err.textContent = 'Choisissez une matière ou écrivez un intitulé.'; err.hidden = false; return; }
+    if (!subjectId) { err.textContent = tr('st.course.need'); err.hidden = false; return; }
     const patch = { subjectId, title: subjectId ? '' : title, day: +d.day, start: d.start, end: d.end, room: (d.room || '').trim(), teacher: (d.teacher || '').trim() };
     if (f.dataset.id) update((s) => { Object.assign(s.courses.find((c) => c.id === f.dataset.id), patch); });
     else update((s) => { s.courses.push({ id: 'co-' + uid(), ...patch }); });
@@ -765,7 +766,7 @@ register({
     const x = S().exams.find((y) => y.id === f.dataset.id); if (!x) return;
     const [hh, mm] = (d.hour || '17:00').split(':').map(Number);
     const plan = buildPlan(x, { hour: (hh || 17) + (mm || 0) / 60, perDay: +d.perDay || 2, mock: d.mock === 'on' });
-    if (!plan.length) { toast('L\'examen est trop proche pour répartir des révisions. Révisez aujourd\'hui !', { title: 'Pas assez de jours' }); return; }
+    if (!plan.length) { toast(tr('st.plan.tooClose'), { title: 'Pas assez de jours' }); return; }
     let projectId = x.projectId && getProject(x.projectId) ? x.projectId : null;
     if (!projectId && canAddProject()) { const pr = newProject({ name: x.title, icon: 'book', tone: subject(x.subjectId)?.tone || 'sky', due: x.date }); projectId = pr.id; update((s) => { s.projects.unshift(pr); s.exams.find((y) => y.id === x.id).projectId = pr.id; }, { silent: true }); }
     update((s) => { s.tasks = s.tasks.filter((t) => !(t.examId === x.id && !t.done)); }, { silent: true });

@@ -6,6 +6,7 @@ import { sparkline, lineChart, donut } from '../charts.js';
 import { pageHead } from './common.js';
 import { QUIZZES } from '../data/quizzes.js';
 import { sampleState } from '../data/sample.js';
+import { t as tr } from '../strings.js';
 
 // Source des chiffres : les données de l'utilisateur, ou l'exemple quand il n'a encore rien.
 let SRC = null;
@@ -193,19 +194,19 @@ function gaugeCard() {
   const R = 80, L = Math.PI * R;
   const diff = prev ? Math.round(((cur - prev) / prev) * 100) : null;
   return `<section class="card fx fx-gauge rise">
-    <header class="fx-h"><span class="fx-ic">${ic('bolt')}</span><h2>Votre régularité</h2></header>
+    <header class="fx-h"><span class="fx-ic">${ic('bolt')}</span><h2>${tr('ov.reg')}</h2></header>
     <div class="fx-g"><svg viewBox="0 0 200 112" aria-hidden="true"><defs><pattern id="fx-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#eef0fb"/><line x1="0" y1="0" x2="0" y2="8" stroke="#d5d9f3" stroke-width="3"/></pattern></defs>
       <path d="M20 100A80 80 0 0 1 180 100" fill="none" stroke="url(#fx-hatch)" stroke-width="26" stroke-linecap="round"/>
       <path d="M20 100A80 80 0 0 1 180 100" fill="none" stroke="var(--fx-lav)" stroke-width="26" stroke-linecap="round" stroke-dasharray="${(L * p).toFixed(1)} ${L.toFixed(1)}"/></svg>
       <p class="fx-gv"><b>${num(cur)}</b><span>points cette semaine</span></p></div>
-    <p class="fx-gn">${diff === null ? `<span class="fx-badge">${ic('bolt')}</span>Votre première semaine : chaque tâche terminée compte.` : `<span class="fx-badge ${diff >= 0 ? '' : 'is-down'}">${ic('arrowR', diff >= 0 ? 'up-ic' : 'down-ic')}</span>${diff >= 0 ? `${diff} % de plus que la semaine dernière` : `${Math.abs(diff)} % de moins que la semaine dernière`}`}</p>
+    <p class="fx-gn">${diff === null ? `<span class="fx-badge">${ic('bolt')}</span>${tr('ov.firstWeek')}` : `<span class="fx-badge ${diff >= 0 ? '' : 'is-down'}">${ic('arrowR', diff >= 0 ? 'up-ic' : 'down-ic')}</span>${diff >= 0 ? `${diff} % de plus que la semaine dernière` : `${Math.abs(diff)} % de moins que la semaine dernière`}`}</p>
     <p class="fx-gh">10 points par tâche terminée, 1 par minute de travail, 2 par carte révisée.</p>
   </section>`;
 }
 function upgradeCard() {
-  if (can('crm') && can('planner')) return `<a class="card fx fx-up is-done rise" href="#/tableaux"><h2>Tout est ouvert</h2><p>Premium : études et entrepreneuriat. Un tableau blanc vous attend.</p><span class="fx-up-b">Ouvrir le tableau blanc</span></a>`;
+  if (can('crm') && can('planner')) return `<a class="card fx fx-up is-done rise" href="#/tableaux"><h2>Tout est ouvert</h2><p>${tr('ov.allOpen')}</p><span class="fx-up-b">Ouvrir le tableau blanc</span></a>`;
   const target = can('planner') ? 'premium' : 'pro';
-  return `<a class="card fx fx-up rise" href="#/abonnement"><h2>${target === 'pro' ? 'Passez à Pro' : 'Passez à Premium'}</h2><p>${target === 'pro' ? 'Notes, tableaux blancs et outils de révision sans limite.' : 'Ajoutez l\'entrepreneuriat : clients, devis, prospection.'}</p><span class="fx-up-b">Voir les formules</span></a>`;
+  return `<a class="card fx fx-up rise" href="#/abonnement"><h2>${target === 'pro' ? tr('ov.goPro') : tr('ov.goPremium')}</h2><p>${target === 'pro' ? 'Notes, tableaux blancs et outils de révision sans limite.' : tr('ov.goPremium.p')}</p><span class="fx-up-b">Voir les formules</span></a>`;
 }
 function quickCard() {
   const items = [['#/taches?new=1', 'checkSquare', 'Tâche'], ['#/notes', 'page', 'Note'], ['#/tableaux', 'compose', 'Tableau'], ['#/projets', 'folder', 'Projet'], [on('etudes') ? '#/concentration' : '#/agenda', on('etudes') ? 'hourglass' : 'calendar', on('etudes') ? 'Minuteur' : 'Agenda']];
@@ -214,8 +215,8 @@ function quickCard() {
 function moodCard() {
   const v = (S().moods || {})[dayKey()];
   return `<section class="card fx fx-mood rise"><div class="fx-dots" aria-hidden="true"><i class="on"></i><i></i><i></i></div>
-    <h2>${v ? 'Merci, c\'est noté' : 'Comment s\'est passée votre journée ?'}</h2>
-    <div class="fx-rate" role="radiogroup" aria-label="Votre journée, de 1 à 5">${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="${v === n ? 'on' : ''}" role="radio" aria-checked="${v === n}" data-act="ov-mood" data-v="${n}">${n}</button>`).join('')}</div>
+    <h2>${v ? 'Merci, c\'est noté' : tr('ov.mood')}</h2>
+    <div class="fx-rate" role="radiogroup" aria-label="${tr('ov.moodAria')}">${[1, 2, 3, 4, 5].map((n) => `<button type="button" class="${v === n ? 'on' : ''}" role="radio" aria-checked="${v === n}" data-act="ov-mood" data-v="${n}">${n}</button>`).join('')}</div>
   </section>`;
 }
 function dashboard(q) {
@@ -248,9 +249,9 @@ function overviewView(q, example) {
   if (example) act.list = act.list.map((e) => ({ ...e, href: '#/apercu' }));
   const br = breakdown();
   const html = `
-    ${pageHead('Vue d\'ensemble', { kicker: example ? 'Aperçu avec des données d\'exemple' : 'Vos chiffres, calculés à partir de vos propres données', actions: `<nav class="seg seg-sm ov-period" aria-label="Période"><a class="seg-i ${days === 7 ? 'is-on' : ''}" href="${href({ p: '' })}">7 jours</a><a class="seg-i ${days === 30 ? 'is-on' : ''}" href="${href({ p: '30' })}">30 jours</a></nav>` })}
+    ${pageHead('Vue d\'ensemble', { kicker: example ? 'Aperçu avec des données d\'exemple' : tr('ov.kicker'), actions: `<nav class="seg seg-sm ov-period" aria-label="Période"><a class="seg-i ${days === 7 ? 'is-on' : ''}" href="${href({ p: '' })}">7 jours</a><a class="seg-i ${days === 30 ? 'is-on' : ''}" href="${href({ p: '30' })}">30 jours</a></nav>` })}
     ${example ? `<section class="example-bar rise"><span class="tag">Exemple</span>
-        <p><b>Voici à quoi ressemblera votre vue d'ensemble.</b> Ces chiffres sont fictifs : les vôtres les remplacent dès votre première tâche terminée${on('clients') ? ' ou votre première fiche' : ''}.</p>
+        <p>${tr('ov.example', { fiche: on('clients') ? tr('ov.example.fiche') : '' })}</p>
         <div class="end-a"><a class="btn btn-primary btn-sm" href="#/taches?new=1">${ic('plus')}<span>Créer ma première tâche</span></a>${on('clients') ? `<a class="btn btn-ghost btn-sm" href="#/crm?new=1">${ic('users')}<span>Ajouter un client</span></a>` : ''}</div>
       </section>` : ''}
     <div class="${example ? 'is-example' : ''}">
@@ -263,7 +264,7 @@ function overviewView(q, example) {
         <div class="ov-tools">${chartIds.length > 1 ? `<label class="sr-only" for="ov-m">Indicateur</label><select id="ov-m" class="inp ov-sel" data-act-change="ov-metric">${chartIds.map((id) => `<option value="${id}" ${id === m ? 'selected' : ''}>${esc(mLabel(id))}</option>`).join('')}</select>` : ''}${anyChart ? '<button class="chip-btn" data-act="ov-table" aria-pressed="false">Tableau</button>' : ''}</div></header>
       ${anyChart ? `<div class="chart ln-chart" id="ov-line" data-label="${esc(mLabel(m))}, ${days} derniers jours" data-series="${esc(mLabel(m).toLowerCase())}"></div>
         <table class="ch-table tbl" hidden><thead><tr><th>Jour</th><th>${esc(mLabel(m))}</th></tr></thead><tbody>${series.map((d) => `<tr><td>${esc(d.full)}</td><td>${METRICS[m].fmt(d.value)}</td></tr>`).join('')}</tbody></table>`
-        : `<div class="mini-empty">${ic('chart')}<p>Rien sur cette période pour « ${esc(mLabel(m))} ». Choisissez un autre indicateur ou passez à 30 jours.</p></div>`}
+        : `<div class="mini-empty">${ic('chart')}<p>Rien sur cette période pour « ${esc(mLabel(m))} ». ${tr('ov.pickOther')}</p></div>`}
     </section>` : ''}
     <div class="ov-two">
       <section class="card ov-act rise">

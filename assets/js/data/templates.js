@@ -8,7 +8,7 @@ const RED = (t) => `<span style="text-decoration-line:underline;text-decoration-
 
 export const TEMPLATES = [
   {
-    id: 'vierge', name: 'Page vierge', icon: 'page', desc: 'Commencez à écrire, tapez « / » pour choisir un bloc.',
+    id: 'vierge', name: 'Page vierge', icon: 'page', desc: ['Commence à écrire, tape « / » pour choisir un bloc.', 'Commencez à écrire, tapez « / » pour choisir un bloc.'],
     title: '', blocks: [['p', '']],
   },
   {
@@ -16,9 +16,9 @@ export const TEMPLATES = [
     title: 'Cours — ',
     blocks: [
       { t: 'p', h: '<i>Matière · chapitre · date du cours</i>' },
-      { t: 'callout', h: '<b>En une phrase :</b> ', ph: 'ce que ce chapitre explique, avec vos mots.' },
+      { t: 'callout', h: '<b>En une phrase :</b> ', ph: ['ce que ce chapitre explique, avec tes mots.', 'ce que ce chapitre explique, avec vos mots.'] },
       { t: 'h2', x: '1. Les idées clés' },
-      { t: 'ol', x: '', ph: 'La première idée, surlignez le mot important' },
+      { t: 'ol', x: '', ph: ['La première idée, surligne le mot important', 'La première idée, surlignez le mot important'] },
       { t: 'ol', x: '', ph: 'La deuxième idée' },
       { t: 'ol', x: '', ph: 'La troisième idée' },
       { t: 'h2', x: '2. Les définitions' },
@@ -26,7 +26,7 @@ export const TEMPLATES = [
       { t: 'def', x: '', a: '', ph: 'Terme', pha: 'Sa définition' },
       { t: 'def', x: '', a: '', ph: 'Terme', pha: 'Sa définition' },
       { t: 'h2', x: '3. Le schéma' },
-      { t: 'callout', v: 'lav', h: `Ouvrez un <b>tableau blanc</b> (modèle « Schéma de cours ») pour dessiner le schéma, puis notez ici ce qu'il montre.` },
+      { t: 'callout', v: 'lav', h: ['Ouvre un <b>tableau blanc</b> (modèle « Schéma de cours ») pour dessiner le schéma, puis note ici ce qu\'il montre.', 'Ouvrez un <b>tableau blanc</b> (modèle « Schéma de cours ») pour dessiner le schéma, puis notez ici ce qu\'il montre.'] },
       { t: 'p', x: '', ph: 'Ce que montre le schéma, en deux lignes' },
       { t: 'h2', x: '4. Les dates et les chiffres' },
       { t: 'table', rows: [['Date ou chiffre', 'Ce que ça représente'], ['', ''], ['', '']] },
@@ -76,7 +76,7 @@ export const TEMPLATES = [
       { t: 'todo', x: 'Refaire un examen blanc dans les conditions réelles' },
       { t: 'todo', x: 'Relire tous les encadrés « À retenir »' },
       { t: 'todo', x: 'Préparer le matériel : calculatrice, stylos, carte d\'étudiant' },
-      { t: 'callout', v: 'lime', h: `${RED('Dormir compte autant que réviser')} : visez <b>8 heures</b> la veille de l'examen.` },
+      { t: 'callout', v: 'lime', h: [`${RED('Dormir compte autant que réviser')} : vise <b>8 heures</b> la veille de l'examen.`, `${RED('Dormir compte autant que réviser')} : visez <b>8 heures</b> la veille de l'examen.`] },
     ],
   },
   {
@@ -91,7 +91,7 @@ export const TEMPLATES = [
       { t: 'h2', x: 'Les phrases utiles' },
       { t: 'qa', x: '', a: '', ph: 'En français', pha: 'Dans la langue' },
       { t: 'qa', x: '', a: '', ph: 'En français', pha: 'Dans la langue' },
-      { t: 'callout', v: 'lav', h: 'Cochez un mot quand vous le connaissez sans regarder : l\'avancement de la page se met à jour.' },
+      { t: 'callout', v: 'lav', h: ['Coche un mot quand tu le connais sans regarder : l\'avancement de la page se met à jour.', 'Cochez un mot quand vous le connaissez sans regarder : l\'avancement de la page se met à jour.'] },
     ],
   },
   {
@@ -125,7 +125,7 @@ export const TEMPLATES = [
     id: 'checklist', name: 'Liste de contrôle', icon: 'checkSquare', cover: 'lime', desc: 'Les étapes à ne jamais oublier, à cocher, avec l\'avancement.',
     title: 'Liste de contrôle',
     blocks: [
-      { t: 'p', h: '<i>Pour une chose que vous faites souvent : un lancement, une livraison, un départ en voyage…</i>' },
+      { t: 'p', h: ['<i>Pour une chose que tu fais souvent : un départ en voyage, une rentrée, un exposé…</i>', '<i>Pour une chose que vous faites souvent : un lancement, une livraison, un départ en voyage…</i>'] },
       { t: 'prog' },
       { t: 'h2', x: 'Avant' },
       { t: 'todo', x: '' }, { t: 'todo', x: '' },
@@ -139,7 +139,7 @@ export const TEMPLATES = [
     id: 'idees', name: 'Boîte à idées', icon: 'inbox', cover: 'rose', desc: 'Tout noter, trier plus tard.',
     title: 'Idées',
     blocks: [
-      { t: 'callout', v: 'lav', h: 'Notez tout ici, <b>sans trier</b>. Une fois par semaine, transformez les meilleures en tâches (menu du bloc → « Créer une tâche »).' },
+      { t: 'callout', v: 'lav', h: ['Note tout ici, <b>sans trier</b>. Une fois par semaine, transforme les meilleures en tâches (menu du bloc → « Créer une tâche »).', 'Notez tout ici, <b>sans trier</b>. Une fois par semaine, transformez les meilleures en tâches (menu du bloc → « Créer une tâche »).'] },
       { t: 'ul', x: '' }, { t: 'ul', x: '' }, { t: 'ul', x: '' },
       { t: 'h2', x: 'Les meilleures' },
       { t: 'table', rows: [['Idée', 'Pourquoi', 'Première étape'], ['', '', '']] },

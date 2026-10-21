@@ -1,7 +1,7 @@
 // MindView — démarrage, coquille, routeur, navigation par modules, événements délégués.
-import { S, onChange, access, billing, trialLeft, PLANS, on, schoolOnly, syncBilling, dayKey } from './store.js';
+import { S, update, onChange, access, billing, trialLeft, PLANS, on, schoolOnly, syncBilling, dayKey } from './store.js';
 import { ic, logoMark } from './icons.js';
-import { actions, forms, esc, toast, avatar, validateForm, fieldError, setFieldError, refreshNeeds, saveDraft } from './ui.js';
+import { actions, forms, esc, toast, avatar, validateForm, fieldError, setFieldError, refreshNeeds, saveDraft, register } from './ui.js';
 import { home } from './views/home.js';
 import { library, sectorPage, reader } from './views/scripts.js';
 import { callView, setCallRerender, resetCall } from './views/call.js';
@@ -30,6 +30,7 @@ import { bootLock } from './lock.js';
 import { accessLabel } from './views/common.js';
 import { cloudUser, refreshSubscription, checkActivation, track } from './cloud.js';
 import { authButton } from './views/account.js';
+import { t as tr } from './strings.js';
 
 const ROUTES = [
   [/^(accueil)?$/, home],
@@ -100,24 +101,24 @@ function tabs() {
   const mid = TAB_DEFS.filter((t) => on(t[4]) && !(t[0] === 'academie' && schoolOnly())).slice(0, 3);
   return [['accueil', 'Aujourd\'hui', 'home', '#/'], ...mid, ['plus', 'Plus', 'grid', '#/plus']];
 }
+// Menu latéral (1.10) : une dizaine d'entrées visibles au départ. Études et Entrepreneur sont des sections
+// repliables (fermées par défaut, ouvertes quand on est sur l'un de leurs écrans) ; un module désactivé disparaît.
+// Choix mémorisé s'il existe ; sinon la section s'ouvre quand on est sur l'un de ses écrans
+const navOpen = (k, active) => { const o = S().prefs.navOpen || {}; return k in o ? !!o[k] : active; };
 function side() {
-  const s = S();
-  const favs = s.pages.filter((p) => p.fav).slice(0, 5);
+  const cur = navFor(parseHash().path, parseHash().query);
+  const sec = (key, title, href, items) => ({ key, title, href, items, open: navOpen(key, items.some((x) => x[0] === cur)) });
   return [
-    [null, [['accueil', 'Aujourd\'hui', 'home', '#/'], ['apercu', 'Vue d\'ensemble', 'chart', '#/apercu'], ['notifications', 'Notifications', 'bell', '#/notifications', '', unreadCount()]]],
-    on('organiser') ? ['S\'organiser', [['taches', 'Tâches', 'checkSquare', '#/taches'], ['projets', 'Projets', 'folder', '#/projets'], ['agenda', 'Calendrier', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ['tableaux', 'Tableau blanc', 'compose', '#/tableaux'], ...favs.map((p) => [`note:${p.id}`, p.title || 'Sans titre', p.icon || 'page', `#/note/${p.id}`, 'sub'])]]
-      : ['Projets', [['projets', 'Projets', 'folder', '#/projets']]],
-    on('etudes') && ['Études', [['etudes', 'Mes études', 'book', '#/etudes'], ['emploi', 'Emploi du temps', 'calendar', '#/etudes/emploi'], ['examens', 'Examens', 'target', '#/etudes/examens'], ['moyennes', 'Moyennes', 'award', '#/etudes/moyennes'], ['revision', 'Révision espacée', 'cards', '#/etudes/revision'], ['concentration', 'Concentration', 'hourglass', '#/concentration']]],
-    on('clients') && ['Clients', [['crm', noun(), 'users', '#/crm'], ['devis', 'Devis', 'invoice', '#/devis'], ['stats', 'Statistiques', 'chart', '#/outils/stats']]],
-    on('prospecter') && ['Prospecter', [['scripts', 'Scripts', 'script', '#/scripts'], ['appel', 'Session d\'appels', 'headset', '#/appel'], ['outils', 'Outils', 'briefcase', '#/outils']]],
-    on('apprendre') && ['Progresser', [['quiz', 'Quiz', 'quiz', '#/quiz'], ...(schoolOnly() ? [] : [['academie', 'Académie', 'book', '#/academie']])]],
-    ['Connecteurs', [['connecteurs', 'Tous les connecteurs', 'plug', '#/connecteurs'], ['cx-notion', 'Notion', 'page', '#/connecteurs?c=notion'], ['cx-figma', 'Figma', 'compose', '#/connecteurs?c=figma'], ['cx-canva', 'Canva', 'layers', '#/connecteurs?c=canva'], ['cx-google', 'Google', 'globe', '#/connecteurs?c=google'], ['cx-agenda', 'Agendas', 'calendar', '#/connecteurs?c=agenda']]],
+    { items: [['accueil', 'Aujourd\'hui', 'home', '#/'], ['apercu', 'Vue d\'ensemble', 'chart', '#/apercu'], ['taches', 'Tâches', 'checkSquare', '#/taches'], ['agenda', 'Calendrier', 'calendar', '#/agenda'], ['notes', 'Notes', 'page', '#/notes'], ['tableaux', 'Tableau blanc', 'compose', '#/tableaux'], ['projets', 'Projets', 'folder', '#/projets']] },
+    on('etudes') && sec('etudes', 'Études', '#/etudes', [['emploi', 'Emploi du temps', 'calendar', '#/etudes/emploi'], ['examens', 'Examens', 'target', '#/etudes/examens'], ['moyennes', 'Moyennes', 'award', '#/etudes/moyennes'], ['revision', 'Révision espacée', 'cards', '#/etudes/revision'], ['concentration', 'Concentration', 'hourglass', '#/concentration'], ['quiz', 'Quiz', 'quiz', '#/quiz']]),
+    on('entrepreneur') && sec('entrepreneur', 'Entrepreneur', '#/crm', [['crm', noun(), 'users', '#/crm'], ['devis', 'Devis', 'invoice', '#/devis'], ['scripts', 'Scripts', 'script', '#/scripts'], ['appel', 'Session d\'appels', 'headset', '#/appel'], ['stats', 'Statistiques', 'chart', '#/outils/stats'], ['outils', 'Outils', 'briefcase', '#/outils'], ['academie', 'Académie', 'book', '#/academie'], ...(on('etudes') ? [] : [['quiz', 'Quiz', 'quiz', '#/quiz']])]),
+    { items: [['connecteurs', 'Connecteurs', 'plug', '#/connecteurs']] },
   ].filter(Boolean);
 }
 function navFor(path, q = {}) {
   const STUDY = { etudes: 'etudes', 'etudes/emploi': 'emploi', 'etudes/examens': 'examens', 'etudes/moyennes': 'moyennes', 'etudes/revision': 'revision', concentration: 'concentration' };
   if (STUDY[path]) return STUDY[path];
-  if (path === 'connecteurs') return q.c ? `cx-${q.c}` : 'connecteurs';
+  if (path === 'connecteurs') return 'connecteurs';
   if (path.startsWith('tableau')) return 'tableaux';
   if (!path || path === 'accueil') return 'accueil';
   if (path === 'taches') return 'taches';
@@ -139,10 +140,10 @@ function navFor(path, q = {}) {
 const root = document.getElementById('app');
 root.innerHTML = `
   <a class="skip" href="#view">Aller au contenu</a>
-  <div class="offline-bar" role="status">${ic('globe')}<span>Hors connexion — tout continue de fonctionner, vos données sont sur cet appareil.</span></div>
+  <div class="offline-bar" role="status">${ic('globe')}<span>${tr('app.offline')}</span></div>
   <div class="shell">
     <aside class="side" aria-label="Navigation principale">
-      <a class="side-brand" href="#/">${logoMark()}<span>Mind<b>View</b></span></a>
+      <div class="side-head"><a class="side-brand" href="#/">${logoMark()}<span>Mind<b>View</b></span></a><a class="side-bell" data-nav="notifications" href="#/notifications" aria-label="Notifications">${ic('bell')}<b class="nav-badge" hidden></b></a></div>
       <div class="side-top"><button class="side-cta" data-act="create">${ic('plus')}<span>Nouveau</span></button><button class="side-search" data-act="search" aria-label="Rechercher (Ctrl K)">${ic('search')}<span>Rechercher</span><kbd>${/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'} K</kbd></button></div>
       <div class="side-groups"></div>
       <div class="side-foot"></div>
@@ -167,8 +168,8 @@ function sideFoot() {
   const s = S(), p = s.profile, a = access(), st = billing();
   return `${['trial', 'trialing', 'trial_canceling'].includes(st) && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('hourglass')}${st === 'trial' ? 'Essai gratuit' : `Essai ${PLANS[s.sub.plan].name}`}</span><b>${trialLeft()} jour${trialLeft() > 1 ? 's' : ''} restant${trialLeft() > 1 ? 's' : ''}</b><i style="--p:${(trialLeft() / 7) * 100}%"></i></a>`
     : st === 'past_due' ? `<a class="side-trial is-warn" href="#/abonnement"><span>${ic('bell')}Paiement refusé</span><b>Régler pour garder ${PLANS[a].name}</b></a>`
-      : a === 'free' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}Passez à Pro</span><b>Études, notes et tableaux illimités, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
-    <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>
+      : a === 'free' && !s.sub.demo ? `<a class="side-trial" href="#/abonnement"><span>${ic('diamond')}${tr('ov.goPro')}</span><b>Études, notes et tableaux illimités, ${PLANS.pro.price.toFixed(2).replace('.', ',')} €/mois</b></a>` : ''}
+    <a class="side-me" data-nav="compte" href="#/reglages">${avatar(p.prenom || 'M S')}<span><b>${esc(p.prenom || tr('app.account'))}</b><span>${esc(accessLabel())}</span></span>${ic('sliders', 'side-me-ic')}</a>
     ${authButton('side-auth')}`;
 }
 function drawNav() {
@@ -178,9 +179,40 @@ function drawNav() {
   navSig = sig;
   tabbar.style.gridTemplateColumns = `repeat(${t.length}, 1fr)`;
   tabbar.innerHTML = t.map(([id, l, i, h]) => `<a class="tab" data-nav="${id}" href="${h}"><span class="tab-ic">${ic(i)}</span><span>${esc(label(l))}</span></a>`).join('');
-  sideGroups.innerHTML = side().map(([g, items]) => `${g ? `<p class="side-g">${esc(g)}</p>` : ''}<nav class="side-nav" aria-label="${esc(g || 'Accueil')}">${items.map(([id, l, i, h, sub, badge]) => `<a class="side-i ${sub ? 'side-sub-i' : ''}" data-nav="${id}" href="${h}">${ic(i)}<span>${esc(l)}</span>${badge ? `<b class="nav-badge" aria-label="${badge} non lue${badge > 1 ? 's' : ''}">${badge > 99 ? '99+' : badge}</b>` : ''}</a>`).join('')}</nav>`).join('');
+  const links = (items) => items.map(([id, l, i, h]) => `<a class="side-i" data-nav="${id}" href="${h}">${ic(i)}<span>${esc(l)}</span></a>`).join('');
+  sideGroups.innerHTML = side().map((g) => (g.key
+    ? `<div class="side-sec ${g.open ? 'is-open' : ''}"><div class="side-sh"><a class="side-g" href="${g.href}">${esc(g.title)}</a><button class="side-tg" data-act="nav-toggle" data-g="${g.key}" aria-expanded="${g.open}" aria-controls="sg-${g.key}" aria-label="${g.open ? 'Replier' : 'Déplier'} ${esc(g.title)}">${ic('chevD')}</button></div>
+      <nav class="side-nav" id="sg-${g.key}" aria-label="${esc(g.title)}" ${g.open ? '' : 'hidden'}>${links(g.items)}</nav></div>`
+    : `<nav class="side-nav" aria-label="Navigation">${links(g.items)}</nav>`)).join('');
+  const n = unreadCount();
+  const bell = root.querySelector('.side-bell');
+  bell.querySelector('.nav-badge').hidden = !n;
+  bell.querySelector('.nav-badge').textContent = n > 99 ? '99+' : n;
+  bell.setAttribute('aria-label', n ? `Notifications : ${n} non lue${n > 1 ? 's' : ''}` : 'Notifications');
   root.querySelector('.side-foot').innerHTML = sideFoot();
 }
+
+// Entrée active du menu et de la barre d'onglets
+function markNav(path, query) {
+  const navId = navFor(path, query);
+  const tabIds = tabs().map((t) => t[0]);
+  const tabId = tabIds.includes(navId) ? navId : ['emploi', 'examens', 'moyennes', 'revision', 'concentration', 'quiz'].includes(navId) && tabIds.includes('etudes') ? 'etudes' : navId === 'agenda' && tabIds.includes('taches') ? 'taches' : navId.startsWith('note:') && tabIds.includes('notes') ? 'notes' : navId === 'accueil' ? 'accueil' : 'plus';
+  document.querySelectorAll('[data-nav]').forEach((a) => {
+    const isOn = a.classList.contains('tab') ? a.dataset.nav === tabId : a.dataset.nav === navId || (navId.startsWith('note:') && a.dataset.nav === 'notes');
+    a.classList.toggle('is-on', isOn);
+    if (isOn) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+  });
+}
+// Replier / déplier une section du menu (mémorisé sur l'appareil)
+register({
+  'nav-toggle': (b) => {
+    const k = b.dataset.g, open = b.getAttribute('aria-expanded') !== 'true';
+    update((s) => { s.prefs.navOpen = { ...(s.prefs.navOpen || {}), [k]: open }; }, { silent: true });
+    navSig = ''; drawNav();
+    const { path, query } = parseHash(); markNav(path, query);
+    root.querySelector(`.side-tg[data-g="${k}"]`)?.focus();
+  },
+});
 
 function render({ keepScroll = false } = {}) {
   const { path, query } = parseHash();
@@ -207,14 +239,7 @@ function render({ keepScroll = false } = {}) {
   view.classList.toggle('view-in', changed);
   if (changed) { void view.offsetWidth; view.classList.add('view-anim'); setTimeout(() => view.classList.remove('view-anim'), 600); }
   drawNav();
-  const navId = navFor(path, query);
-  const tabIds = tabs().map((t) => t[0]);
-  const tabId = tabIds.includes(navId) ? navId : ['emploi', 'examens', 'moyennes', 'revision', 'concentration'].includes(navId) && tabIds.includes('etudes') ? 'etudes' : navId === 'agenda' && tabIds.includes('taches') ? 'taches' : navId.startsWith('note:') && tabIds.includes('notes') ? 'notes' : navId === 'accueil' ? 'accueil' : 'plus';
-  document.querySelectorAll('[data-nav]').forEach((a) => {
-    const isOn = a.classList.contains('tab') ? a.dataset.nav === tabId : a.dataset.nav === navId || (navId.startsWith('note:') && a.dataset.nav === 'notes' && !document.querySelector(`.side [data-nav="${navId}"]`));
-    a.classList.toggle('is-on', isOn);
-    if (isOn) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
-  });
+  markNav(path, query);
   if (v.after) cleanup = v.after(view) || null;
   if (changed && !keepScroll) { window.scrollTo(0, 0); if (lastHash !== null) view.focus({ preventScroll: true }); }
   else window.scrollTo(0, y);
@@ -347,7 +372,7 @@ if (back) {
       if (row && ['active', 'trialing'].includes(row.status)) { toast(`Toutes les fonctions ${PLANS[row.plan]?.name || ''} sont ouvertes.`, { title: 'Paiement confirmé' }); return; }
       await new Promise((r) => setTimeout(r, 2000));
     }
-    toast('Le paiement est en cours de confirmation : revenez sur Abonnement dans un instant.', { title: 'Presque fini', ms: 5000 });
+    toast(tr('app.payPending'), { title: 'Presque fini', ms: 5000 });
   })();
   else setTimeout(() => toast('Paiement annulé : rien n\'a été prélevé.', { title: 'Abonnement' }), 600);
 } else if (cloudUser()) refreshSubscription().catch(() => null);
@@ -361,7 +386,7 @@ bootLock();
 // Tout fonctionne hors ligne ; on le dit simplement quand la connexion tombe.
 const net = () => document.body.classList.toggle('is-offline', !navigator.onLine);
 net();
-window.addEventListener('offline', () => { net(); toast('Tout continue de fonctionner : vos données sont enregistrées sur cet appareil.', { title: 'Hors connexion', ms: 4000 }); });
+window.addEventListener('offline', () => { net(); toast(tr('app.offlineToast'), { title: 'Hors connexion', ms: 4000 }); });
 window.addEventListener('online', () => { net(); toast('Connexion rétablie.', { ms: 1500 }); });
 if (splash) {
   // Première ouverture : l'écran de bienvenue joue lui-même l'animation du logo.

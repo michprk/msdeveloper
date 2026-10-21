@@ -1,25 +1,23 @@
 // Quiz : questions à choix multiple avec explication, quiz du jour, cartes de révision
-// tirées des notes (blocs Question / réponse), et vos propres quiz.
-import { S, update, can, on, uid, getPage, saveQuizResult, quizStreak, MODULE_IDS, startOfDay, DAY } from '../store.js';
+// tirées des notes (blocs Question / réponse et Définition), et les anciens quiz personnels.
+// Les quiz de commerce n'apparaissent qu'avec le module Entrepreneur.
+import { S, update, can, on, uid, getPage, saveQuizResult, quizStreak, startOfDay, DAY } from '../store.js';
 import { ic, esc, register, toast, confirmSheet, ring, bar, field, input, num } from '../ui.js';
 import { typo } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
-import { QUIZZES, getQuiz, QUESTION_COUNT } from '../data/quizzes.js';
+import { QUIZZES, getQuiz } from '../data/quizzes.js';
 import { qaCards } from './notes.js';
+import { t as tr } from '../strings.js';
 
 const T = (s) => esc(typo(String(s || '')));
 const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 const shuffle = (a) => { const b = [...a]; for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; };
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
-// Vos propres quiz se font dans une application connue et gratuite (MindView n'en crée plus)
-export const QUIZ_APPS = { quizlet: 'https://quizlet.com/create-set', kahoot: 'https://create.kahoot.it/', anki: 'https://apps.ankiweb.net/' };
-// Cartes des notes au format d'import Quizlet : « terme <tabulation> définition », une carte par ligne
-const quizletText = () => S().pages.flatMap((p) => qaCards(p)).map((c) => `${(c.x || '').replace(/\s+/g, ' ').trim()}\t${(c.a || '').replace(/\s+/g, ' ').trim()}`).join('\n');
-
-// Quiz du jour : un quiz différent chaque jour, pris dans les modules utilisés
+// Quiz visibles : ceux des modules actifs (organiser et apprendre pour tous, commerce avec Entrepreneur)
+export const visibleQuizzes = () => QUIZZES.filter((q) => on(q.mod));
+// Quiz du jour : un quiz différent chaque jour, parmi les quiz visibles
 export function dailyQuiz() {
-  const mods = S().profile.usages || MODULE_IDS;
-  const pool = [...QUIZZES.filter((q) => mods.includes(q.mod)), ...QUIZZES.filter((q) => !mods.includes(q.mod))];
+  const pool = visibleQuizzes();
   const n = Math.floor(startOfDay() / DAY);
   return pool[n % pool.length];
 }
@@ -36,51 +34,43 @@ function source(id) {
 }
 
 // ---------- Accueil ----------
+// « Nouveau » seulement pour un quiz ajouté il y a moins de 14 jours (date `added`)
+const isNew = (q) => !!q.added && Date.now() - Date.parse(q.added) < 14 * DAY;
 export function quizHome() {
   const s = S();
+  const list = visibleQuizzes();
   const daily = dailyQuiz();
   const dr = result(daily.id);
   const doneToday = dr && dr.at >= startOfDay();
-  const passed = QUIZZES.filter((q) => (result(q.id)?.best || 0) >= 80).length;
+  const passed = list.filter((q) => (result(q.id)?.best || 0) >= 80).length;
   const streak = quizStreak();
   const notePages = s.pages.filter((p) => qaCards(p).length);
-  const cardsN = notePages.reduce((n, p) => n + qaCards(p).length, 0);
-  const mods = s.profile.usages || MODULE_IDS;
-  const ordered = [...QUIZZES.filter((q) => mods.includes(q.mod)), ...QUIZZES.filter((q) => !mods.includes(q.mod))];
   const tile = (q, i) => {
     const r = result(q.id);
     return `<a class="card qz-tile rise" style="--i:${i}" href="#/quiz/${q.id}?restart=1">
       <span class="qz-ic">${ic(q.icon)}</span>
       <b>${T(q.title)}</b><span class="qz-d">${T(q.desc)}</span>
-      <span class="qz-f"><span class="muted-s">${q.qs.length} questions</span>${r ? `<span class="chip ${r.best >= 80 ? 't-olive' : 't-sky'}">${r.best >= 80 ? ic('check') : ''}${r.best} %</span>` : '<span class="chip">Nouveau</span>'}</span>
+      <span class="qz-f"><span class="muted-s">${q.qs.length} questions</span>${r ? `<span class="chip ${r.best >= 80 ? 't-olive' : 't-sky'}">${r.best >= 80 ? ic('check') : ''}${r.best} %</span>` : isNew(q) ? '<span class="chip">Nouveau</span>' : ''}</span>
     </a>`;
   };
   const html = `
-    ${pageHead('Quiz', { kicker: 'Vos quiz sur Quizlet, vos cartes de révision et les quiz MindView' })}
-    <section class="card qz-ext rise">
-      <div class="qz-ext-t"><p class="hero-k">Vos propres quiz</p><h2>Créez et jouez vos quiz sur Quizlet</h2>
-        <p>L'application de quiz la plus utilisée par les élèves et les étudiants, gratuite. Cartes, tests, jeux : vos quiz se créent là-bas, en quelques minutes.</p></div>
-      <div class="qz-ext-a">
-        <a class="btn btn-sky btn-lg" href="${QUIZ_APPS.quizlet}" target="_blank" rel="noopener noreferrer">${ic('external')}<span>Commencer</span></a>
-        ${cardsN ? `<button class="btn qz-ext-b" data-act="qz-export">${ic('upload')}<span>Envoyer mes ${cardsN} carte${cardsN > 1 ? 's' : ''} vers Quizlet</span></button>` : ''}
-      </div>
-      <p class="qz-alt">Autres applications gratuites : <a href="${QUIZ_APPS.kahoot}" target="_blank" rel="noopener noreferrer">Kahoot!</a> · <a href="${QUIZ_APPS.anki}" target="_blank" rel="noopener noreferrer">Anki</a></p>
-    </section>
-    ${s.quiz.mine.length ? `<h2 class="sec-title">Vos anciens quiz</h2><section class="card rise"><ul class="rows">${s.quiz.mine.map((m) => `<li><a class="row" href="#/quiz/${m.id}?restart=1"><span class="menu-ic">${ic('edit')}</span><span class="row-b"><b>${esc(m.title)}</b><span>${m.questions.length} question${m.questions.length > 1 ? 's' : ''}${result(m.id) ? ` · meilleur score ${result(m.id).best} %` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul></section>` : ''}
-    <h2 class="sec-title">Les quiz MindView</h2>
+    ${pageHead('Quiz', { kicker: tr('quiz.kicker') })}
     <section class="card qz-daily rise">
       <div class="qz-daily-t"><p class="hero-k">Quiz du jour</p><h2>${T(daily.title)}</h2><p>${doneToday ? `Fait aujourd'hui : ${dr.last} %. Un nouveau quiz demain.` : `${daily.qs.length} questions, environ ${Math.ceil(daily.qs.length * 0.4)} minutes.`}</p></div>
-      <a class="btn btn-sky" href="#/quiz/${daily.id}?restart=1">${ic(doneToday ? 'repeat' : 'play')}<span>${doneToday ? 'Refaire' : 'Jouer'}</span></a>
+      <a class="btn btn-sky btn-lg" href="#/quiz/${daily.id}?restart=1">${ic(doneToday ? 'repeat' : 'play')}<span>${doneToday ? 'Refaire' : 'Commencer'}</span></a>
     </section>
+    <h2 class="sec-title">${tr('quiz.mineTitle')}</h2>
+    <section class="card rise">${notePages.length ? `<ul class="rows">${notePages.map((p) => `<li><a class="row" href="#/quiz/note/${p.id}?restart=1"><span class="menu-ic">${ic('cards')}</span><span class="row-b"><b>${esc(p.title || 'Sans titre')}</b><span>${qaCards(p).length} carte${qaCards(p).length > 1 ? 's' : ''}${result('note:' + p.id) ? ` · ${result('note:' + p.id).last} % la dernière fois` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>
+      <div class="act-row"><button class="btn btn-ghost" data-act="page-new" data-tpl="revision">${ic('plus')}<span>Nouvelle fiche de révision</span></button></div>`
+      : `<div class="mini-empty">${ic('cards')}<p>${tr('quiz.mineEmpty')}</p></div>
+      <div class="demo-preview dp-mini" aria-hidden="true"><span class="tag">Exemple</span><div class="dp-flash"><em>Question</em><b>Durée d'un cycle Pomodoro ?</b><em>Réponse</em><span>25 minutes, puis 5 minutes de pause.</span></div></div><div class="act-row"><button class="btn btn-primary" data-act="page-new" data-tpl="revision">${ic('plus')}<span>Créer une fiche de révision</span></button></div>`}</section>
+    ${s.quiz.mine.length ? `<h2 class="sec-title">${tr('quiz.oldTitle')}</h2><section class="card rise"><ul class="rows">${s.quiz.mine.map((m) => `<li><a class="row" href="#/quiz/${m.id}?restart=1"><span class="menu-ic">${ic('edit')}</span><span class="row-b"><b>${esc(m.title)}</b><span>${m.questions.length} question${m.questions.length > 1 ? 's' : ''}${result(m.id) ? ` · meilleur score ${result(m.id).best} %` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul></section>` : ''}
+    <h2 class="sec-title">Tous les quiz</h2>
     <section class="qz-stats rise">
-      <div><b>${passed}</b><span>quiz réussis sur ${QUIZZES.length}</span>${bar(passed, QUIZZES.length, 'olive')}</div>
+      <div><b>${passed}</b><span>quiz réussis sur ${list.length}</span>${bar(passed, list.length, 'olive')}</div>
       <div><b>${streak}</b><span>jour${streak > 1 ? 's' : ''} d'affilée</span><i class="qz-flame">${ic('flame')}</i></div>
     </section>
-    <div class="qz-grid">${ordered.map(tile).join('')}</div>
-    ${on('organiser') ? `<h2 class="sec-title">À réviser depuis vos notes</h2>
-    <section class="card rise">${notePages.length ? `<ul class="rows">${notePages.map((p) => `<li><a class="row" href="#/quiz/note/${p.id}?restart=1"><span class="menu-ic">${ic('cards')}</span><span class="row-b"><b>${esc(p.title || 'Sans titre')}</b><span>${qaCards(p).length} carte${qaCards(p).length > 1 ? 's' : ''}${result('note:' + p.id) ? ` · ${result('note:' + p.id).last} % la dernière fois` : ''}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`
-      : `<div class="mini-empty">${ic('cards')}<p>Dans une page de notes, ajoutez des blocs « Question / réponse » (ou le modèle Fiche de révision) : ils deviennent des cartes à réviser ici.</p></div>
-      <div class="demo-preview dp-mini" aria-hidden="true"><span class="tag">Exemple</span><div class="dp-flash"><em>Question</em><b>Durée d'un cycle Pomodoro ?</b><em>Réponse</em><span>25 minutes, puis 5 minutes de pause.</span></div></div><div class="act-row"><button class="btn btn-ghost" data-act="page-new" data-tpl="revision">${ic('plus')}<span>Fiche de révision</span></button></div>`}</section>` : ''}`;
+    <div class="qz-grid">${list.map(tile).join('')}</div>`;
   return { title: 'Quiz', tab: 'quiz', html };
 }
 
@@ -118,7 +108,7 @@ export function quizPlay([id], q) {
         return `<button class="qz-opt ${cls}" data-act="qz-pick" data-pos="${pos}" ${answered ? 'disabled' : ''}><span class="qz-l">${LETTERS[pos]}</span><span>${T(item.opts[j])}</span>${answered && j === item.ok ? ic('check', 'qz-ck') : answered && pos === pick ? ic('x', 'qz-ck') : ''}</button>`;
       }).join('')}</div>
       ${answered ? `<div class="qz-why ${good ? 'ok' : 'ko'}" role="status"><p class="qz-why-k">${good ? 'Bonne réponse' : 'Pas tout à fait'}</p>${item.why ? `<p>${T(item.why)}</p>` : ''}</div>
-        <button class="btn btn-primary btn-block btn-lg" data-act="qz-next" autofocus>${run.i + 1 < n ? 'Question suivante' : 'Voir le résultat'}${ic('arrowR')}</button>` : `<p class="hint">Touchez une réponse${matchMedia('(pointer:fine)').matches ? ', ou tapez 1 à 4' : ''}.</p>`}
+        <button class="btn btn-primary btn-block btn-lg" data-act="qz-next" autofocus>${run.i + 1 < n ? 'Question suivante' : 'Voir le résultat'}${ic('arrowR')}</button>` : `<p class="hint">${tr('qz.hint', { keys: matchMedia('(pointer:fine)').matches ? tr('qz.hint.keys') : '' })}</p>`}
     </section>`;
   return {
     title: src.title, tab: 'quiz', html,
@@ -141,15 +131,15 @@ function resultView(src) {
   const wrong = run.order.filter((k, j) => run.perms[k][run.picks[j]] !== src.items[k].ok);
   if (!run.saved) { run.saved = true; saveQuizResult(src.id, score, n, wrong, run.partial); }
   const pct = Math.round((score / n) * 100);
-  const [head, text] = pct >= 80 ? ['Très bien', 'Vous maîtrisez le sujet. Revenez dans quelques jours pour ancrer ces réponses.']
-    : pct >= 50 ? ['Pas mal', 'Relisez les explications ci-dessous, puis refaites vos erreurs.']
-      : ['À revoir', 'Les explications ci-dessous sont faites pour ça : relisez-les, puis refaites le quiz.'];
+  const [head, text] = pct >= 80 ? ['Très bien', tr('qz.r.good')]
+    : pct >= 50 ? ['Pas mal', tr('qz.r.mid')]
+      : ['À revoir', tr('qz.r.low')];
   const best = result(src.id)?.best || pct;
   const html = `
     ${pageHead(T(src.title), { kicker: 'Résultat', back: '#/quiz' })}
     <section class="card qz-res rise">
       <div class="hero-ring">${ring(score, n, { size: 140, stroke: 11 })}<div class="hero-ring-v"><b>${score}<small>/${n}</small></b><span>${pct} %</span></div></div>
-      <div><h2>${head}</h2><p>${text}</p><p class="muted-s">${run.partial ? `Révision de vos erreurs · meilleur score sur le quiz complet : ${result(src.id)?.best ?? 0} %` : `Meilleur score : ${best} %`}</p></div>
+      <div><h2>${head}</h2><p>${text}</p><p class="muted-s">${run.partial ? `${tr('qz.errors')} · meilleur score sur le quiz complet : ${result(src.id)?.best ?? 0} %` : `Meilleur score : ${best} %`}</p></div>
     </section>
     <div class="act-row rise">
       ${wrong.length ? `<a class="btn btn-primary" href="#/quiz/${src.id}?restart=1&errors=1">${ic('repeat')}<span>Refaire mes ${wrong.length} erreur${wrong.length > 1 ? 's' : ''}</span></a>` : ''}
@@ -179,7 +169,7 @@ export function quizCards([pid], q) {
     return {
       title: 'Révision', tab: 'quiz', html: `${pageHead(esc(p.title || 'Révision'), { kicker: 'Révision terminée', back: `#/note/${pid}` })}
       <section class="card qz-res rise"><div class="hero-ring">${ring(known, total, { size: 140, stroke: 11 })}<div class="hero-ring-v"><b>${known}<small>/${total}</small></b><span>du premier coup</span></div></div>
-        <div><h2>${known === total ? 'Tout est su' : 'Bien joué'}</h2><p>${known === total ? 'Revenez dans quelques jours pour ancrer ces réponses.' : 'Les cartes ratées sont revenues en fin de série. Refaites une révision demain : c\'est là que la mémoire se consolide.'}</p></div></section>
+        <div><h2>${known === total ? 'Tout est su' : 'Bien joué'}</h2><p>${known === total ? tr('qz.fc.all') : tr('qz.fc.some')}</p></div></section>
       <div class="act-row"><a class="btn btn-primary" href="#/quiz/note/${pid}?restart=1">${ic('repeat')}<span>Réviser encore</span></a><a class="btn btn-ghost" href="#/note/${pid}">Retour à la page</a></div>`,
     };
   }
@@ -232,12 +222,6 @@ export function quizEdit([id]) {
 
 register({
   // Copie les cartes (copie immédiate, dans le geste), puis ouvre Quizlet : « Importer » et coller
-  'qz-export': () => {
-    const ta = document.createElement('textarea'); ta.value = quizletText(); ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
-    window.open(QUIZ_APPS.quizlet, '_blank', 'noopener');
-    toast('Sur Quizlet, cliquez sur « Importer », puis collez (Ctrl V) : chaque question et sa réponse deviennent une carte.', { title: 'Cartes copiées', ms: 7000 });
-  },
   'qz-pick': (b) => { if (!run || run.picks[run.i] !== undefined) return; run.picks[run.i] = +b.dataset.pos; if (navigator.userActivation?.isActive) navigator.vibrate?.(8); rr(); },
   'qz-next': () => { if (!run) return; if (run.i + 1 < run.order.length) run.i++; else run.finished = true; rr(); window.scrollTo(0, 0); },
   'fc-show': () => { if (deck) { deck.shown = true; rr(); } },

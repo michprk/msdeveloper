@@ -5,6 +5,7 @@ import { ic, esc, register, toast, time, dateDay, dateLong, num } from '../ui.js
 import { pageHead, paywall } from './common.js';
 import { taskRow, viewSeg, quickAdd, taskSheet } from './tasks.js';
 import { subject } from './studies.js';
+import { t as tr } from '../strings.js';
 
 const VIEWS = [['mois', 'Mois'], ['semaine', 'Semaine'], ['jour', 'Jour'], ['liste', 'Liste']];
 const WDS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
@@ -148,14 +149,14 @@ export function agenda(params, q) {
       ${kpi('blue', 'calendar', 'Cette semaine', num(wkTasks.length), `${open.filter((t) => t.due >= t0 && t.due < t0 + DAY).length} aujourd'hui`, '#/agenda?v=semaine')}
       ${kpi('rose', 'flame', 'En retard', num(late.length), late.length ? 'à replanifier' : 'Tout est à jour', '#/taches')}
       ${on('etudes') ? kpi('sky', 'target', 'Prochain examen', nextExam ? daysLeft(nextExam.date) : '—', nextExam ? esc(nextExam.title) : 'Aucun examen', '#/etudes/examens') : kpi('sand', 'flag', 'Prochaine échéance', nextDeadline ? daysLeft(nextDeadline.due) : '—', nextDeadline ? esc(nextDeadline.name) : 'Aucun projet daté', nextDeadline ? `#/projet/${nextDeadline.id}` : '#/projets')}
-      ${kpi('olive', 'checkCircle', 'Terminées cette semaine', num(doneWeek), doneWeek ? 'Bravo' : 'Cochez au fil des jours', '#/apercu')}
+      ${kpi('olive', 'checkCircle', 'Terminées cette semaine', num(doneWeek), doneWeek ? 'Bravo' : tr('ag.tick'), '#/apercu')}
     </div>
     <div class="cal-bar">
       <div class="cal-nav">${v !== 'liste' ? `<a class="icon-btn" href="${href({ d: ymd(step(-1)) })}" aria-label="Précédent">${ic('chevL')}</a><a class="btn btn-ghost btn-sm" href="${href({ d: ymd(t0) })}">Aujourd'hui</a><a class="icon-btn" href="${href({ d: ymd(step(1)) })}" aria-label="Suivant">${ic('chevR')}</a>` : ''}<h2 class="cal-title">${esc(title)}</h2></div>
       <nav class="seg seg-sm cal-views" aria-label="Affichage du calendrier">${VIEWS.map(([k, l]) => `<a class="seg-i ${v === k ? 'is-on' : ''}" href="${href({ v: k })}">${l}${(k === 'semaine' || k === 'jour') && !pro ? ` ${ic('lock')}` : ''}</a>`).join('')}</nav>
     </div>
     ${body}
-    ${pro && v !== 'liste' ? `<p class="hint">${matchMedia('(pointer:fine)').matches ? 'Glissez une tâche pour la déplacer. Cliquez sur un créneau vide pour ajouter une tâche à cette heure.' : 'Touchez une tâche pour la modifier, ou un jour pour y ajouter une tâche.'}</p>` : ''}`;
+    ${pro && v !== 'liste' ? `<p class="hint">${matchMedia('(pointer:fine)').matches ? tr('ag.dragHint') : tr('ag.touchHint')}</p>` : ''}`;
   return {
     title: 'Calendrier', tab: 'taches', fab: 'task-new', html,
     after(root) { return pro && v !== 'liste' ? calendarDnD(root, v) : null; },

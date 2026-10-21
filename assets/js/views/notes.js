@@ -9,6 +9,7 @@ import { clean, plain, hasFormat, caretOffset, caretAtEnd, setCaret, splitAtCare
 import { mountCanvas, FONTS, FONT_GROUPS } from '../draw.js';
 import { dataSheet } from './boards.js';
 import { TEMPLATES, template } from '../data/templates.js';
+import { t as tr, pick } from '../strings.js';
 // Modèles proposés : à l'école d'abord ceux qui servent aux cours ; jamais de compte rendu client sans CRM
 const SCHOOL_ORDER = ['vierge', 'cours', 'revision', 'planning', 'vocab', 'semaine', 'journal', 'checklist', 'idees', 'objectifs', 'budget', 'code', 'projet', 'reunion'];
 const tplList = () => (schoolOnly() ? SCHOOL_ORDER.map((id) => TEMPLATES.find((t) => t.id === id)).filter(Boolean) : TEMPLATES.filter((t) => t.id !== 'rdv' || on('clients')));
@@ -54,11 +55,11 @@ export function progress(p) {
   }
   return { n, d, pct: n ? Math.round((d / n) * 100) : 0 };
 }
-const progInner = (p) => { const { n, d, pct } = progress(p); return n ? `<span class="prog-h"><b>Avancement</b><span>${d} sur ${n} terminé${d > 1 ? 's' : ''}</span><em>${pct} %</em></span><span class="prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>` : '<span class="prog-h"><b>Avancement</b><span>Ajoutez des cases à cocher : la barre se remplit toute seule.</span></span><span class="prog-bar"><i style="width:0"></i></span>'; };
+const progInner = (p) => { const { n, d, pct } = progress(p); return n ? `<span class="prog-h"><b>Avancement</b><span>${d} sur ${n} terminé${d > 1 ? 's' : ''}</span><em>${pct} %</em></span><span class="prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span>` : `<span class="prog-h"><b>Avancement</b><span>${tr('nt.progEmpty')}</span></span><span class="prog-bar"><i style="width:0"></i></span>`; };
 const refreshProgress = (p) => document.querySelectorAll('.blk-prog .prog-w').forEach((el) => { el.innerHTML = progInner(p); });
 const BL = Object.fromEntries(BLOCKS.map((b) => [b[0], b]));
 const PAGE_ICONS = ['page', 'note', 'folder', 'briefcase', 'calendar', 'target', 'checkSquare', 'book', 'cards', 'users', 'star', 'flag', 'globe', 'camera', 'house', 'store', 'sun', 'inbox', 'bolt', 'compass'];
-const PH = { p: 'Écrivez, ou tapez « / » pour choisir un bloc', h1: 'Titre', h2: 'Sous-titre', todo: 'À faire', ul: 'Élément', ol: 'Élément', quote: 'Citation', callout: 'À retenir' };
+const PH = () => ({ p: tr('nt.ph'), h1: 'Titre', h2: 'Sous-titre', todo: 'À faire', ul: 'Élément', ol: 'Élément', quote: 'Citation', callout: 'À retenir' });
 const MD = [[/^#\s/, 'h1'], [/^##\s/, 'h2'], [/^[-*]\s/, 'ul'], [/^1[.)]\s/, 'ol'], [/^\[ ?\]\s/, 'todo'], [/^>\s/, 'quote'], [/^!\s/, 'callout'], [/^\?\?\s/, 'qa']];
 
 export const pageText = (p) => [p.title, ...p.blocks.map((b) => [b.x, b.a].filter(Boolean).join(' '))].join(' ');
@@ -87,6 +88,8 @@ export function newPage(tplId = 'vierge', { parent = null, prospectId = null, pr
 const untag = (h) => String(h || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '');
 function mkBlock(e) {
   const o = Array.isArray(e) ? { t: e[0], x: e[1] || '', ...(e[0] === 'qa' || e[0] === 'def' ? { a: e[2] || '' } : {}) } : { ...e };
+  // Textes au ton du profil : [tutoiement, vouvoiement]
+  for (const k of ['x', 'h', 'a', 'ha', 'ph', 'pha']) if (Array.isArray(o[k])) o[k] = pick(o[k]);
   if (o.h && !o.x) o.x = untag(o.h);
   if (o.ha && !o.a) o.a = untag(o.ha);
   if (o.st) o.st = { ...o.st };
@@ -94,10 +97,10 @@ function mkBlock(e) {
   return { id: bid(), x: '', ...o, ...(o.t === 'todo' ? { c: !!o.c } : {}), ...(isQA(o) ? { a: o.a || '' } : {}) };
 }
 function limitSheet() {
-  sheet(`${sheetHead('Cinq pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">Vos ${S().pages.length} pages restent modifiables. Vous pouvez aussi supprimer une page pour en créer une autre.</p></div>`, { cls: 'sheet-sm' });
+  sheet(`${sheetHead('Cinq pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">${tr('nt.limit', { n: S().pages.length })}</p></div>`, { cls: 'sheet-sm' });
 }
 export function templatesSheet(opts = {}) {
-  sheet(`${sheetHead('Nouvelle page', 'Partez d\'une page vierge ou d\'un modèle')}<div class="sheet-body"><div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}" ${opts.parent ? `data-parent="${opts.parent}"` : ''} ${opts.prospectId ? `data-pid="${opts.prospectId}"` : ''}><span class="tpl-cv cv-${t.cover || 'none'}"></span><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div></div>`, { cls: 'sheet-tall' });
+  sheet(`${sheetHead('Nouvelle page', tr('nt.newSub'))}<div class="sheet-body"><div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}" ${opts.parent ? `data-parent="${opts.parent}"` : ''} ${opts.prospectId ? `data-pid="${opts.prospectId}"` : ''}><span class="tpl-cv cv-${t.cover || 'none'}"></span><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(pick(t.desc))}</span></button>`).join('')}</div></div>`, { cls: 'sheet-tall' });
 }
 
 // ---------- Accueil des notes ----------
@@ -114,27 +117,32 @@ export function notesHome(params, q) {
       <span class="row-b"><b>${esc(p.title || 'Sans titre')}${p.demo ? '<span class="tag">Exemple</span>' : ''}</b><span>${ago(p.updatedAt)}${kids(p.id).length ? ` · ${kids(p.id).length} sous-page${kids(p.id).length > 1 ? 's' : ''}` : ''}${qaCards(p).length ? ` · ${qaCards(p).length} carte${qaCards(p).length > 1 ? 's' : ''}` : ''}${p.prospectId && getProspect(p.prospectId) ? ` · ${esc(getProspect(p.prospectId).entreprise)}` : ''}</span></span>
       ${p.fav ? ic('star', 'fav-ic') : ''}${ic('chevR', 'chev')}</a></li>${depth < 2 ? kids(p.id).map((c) => row(c, depth + 1)).join('') : ''}`;
   const html = `
-    ${pageHead('Notes', { kicker: pages.length ? `${pages.length} page${pages.length > 1 ? 's' : ''}${free ? ` sur ${LIMITS.freePages} (version gratuite)` : ''}` : 'Vos pages, vos idées, vos comptes rendus', actions: `<button class="icon-btn" data-act="page-templates" aria-label="Modèles" title="Modèles">${ic('layers')}</button><button class="btn btn-primary fab-dup" data-act="page-new" data-tpl="vierge">${ic('plus')}<span>Page</span></button>` })}
+    ${pageHead('Notes', { kicker: pages.length ? `${pages.length} page${pages.length > 1 ? 's' : ''}${free ? ` sur ${LIMITS.freePages} (version gratuite)` : ''}` : tr('nt.kicker'), actions: `<button class="icon-btn" data-act="page-templates" aria-label="Modèles" title="Modèles">${ic('layers')}</button><button class="btn btn-primary fab-dup" data-act="page-new" data-tpl="vierge">${ic('plus')}<span>Page</span></button>` })}
     ${!pages.length ? `<section class="card notes-empty rise">
         <span class="empty-ic">${ic('page')}</span>
-        <p class="empty-t">Votre première page</p>
+        <p class="empty-t">${tr('nt.empty.t')}</p>
         <p class="empty-p">Une page peut contenir du texte, des cases à cocher, des listes, des questions à réviser et d'autres pages.</p>
-        <div class="demo-preview dp-page" aria-hidden="true"><span class="tag">Exemple</span>
+        ${schoolOnly() ? `<div class="demo-preview dp-page" aria-hidden="true"><span class="tag">Exemple</span>
+          <p class="dp-pt"><span class="dp-pic">${ic('book')}</span>Cours — la cellule</p>
+          <p class="dp-h2">Les idées clés</p><p class="dp-li">Tout être vivant est fait de cellules</p><p class="dp-li">Le noyau contient l'ADN</p>
+          <p class="dp-h2">À réviser</p><div class="dp-row"><span class="tick is-done"></span><span><b>Le schéma de la cellule</b></span></div><div class="dp-row"><span class="tick"></span><span><b>Les définitions</b></span></div>
+        </div>
+        <button class="btn btn-primary btn-lg" data-act="page-new" data-tpl="cours">${ic('plus')}<span>Créer ma première fiche de cours</span></button>` : `<div class="demo-preview dp-page" aria-hidden="true"><span class="tag">Exemple</span>
           <p class="dp-pt"><span class="dp-pic">${ic('users')}</span>Réunion de lancement</p>
           <p class="dp-h2">Décisions</p><p class="dp-li">Site en ligne avant le 15</p><p class="dp-li">Séance photo mardi matin</p>
           <p class="dp-h2">Actions</p><div class="dp-row"><span class="tick is-done"></span><span><b>Envoyer la maquette</b></span></div><div class="dp-row"><span class="tick"></span><span><b>Réserver le photographe</b></span></div>
         </div>
-        <button class="btn btn-primary btn-lg" data-act="page-new" data-tpl="reunion">${ic('plus')}<span>Créer ma première page</span></button>
-        <p class="oe-foot">Ou partez d'un des modèles ci-dessous.</p>
+        <button class="btn btn-primary btn-lg" data-act="page-new" data-tpl="reunion">${ic('plus')}<span>Créer ma première page</span></button>`}
+        <p class="oe-foot">${tr('nt.empty.foot')}</p>
       </section>` : `
-    <div class="search rise"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="Chercher dans vos pages" data-filter=".page-row" aria-label="Chercher dans vos pages"></div>
+    <div class="search rise"><span class="search-ic">${ic('search')}</span><input class="inp" type="search" placeholder="${tr('nt.search')}" data-filter=".page-row" aria-label="${tr('nt.search')}"></div>
     <p class="muted center filter-empty" hidden>Aucune page ne contient ce mot.</p>
     ${favs.length ? `<h2 class="sec-title">Favoris</h2><div class="hscroll">${favs.map((p) => `<a class="mini-card page-card" href="#/note/${p.id}">${ic(p.icon || 'page')}<b>${esc(p.title || 'Sans titre')}</b><span>${ago(p.updatedAt)}</span></a>`).join('')}</div>` : ''}
     ${pages.length > 6 ? `<h2 class="sec-title">Récentes</h2><div class="hscroll">${recent.map((p) => `<a class="mini-card page-card" href="#/note/${p.id}">${ic(p.icon || 'page')}<b>${esc(p.title || 'Sans titre')}</b><span>${ago(p.updatedAt)}</span></a>`).join('')}</div>` : ''}
     <h2 class="sec-title">Toutes les pages</h2>
     <ul class="rows card pages-tree rise">${roots.map((p) => row(p)).join('')}</ul>`}
     <h2 class="sec-title">Modèles</h2>
-    <div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}"><span class="tpl-cv cv-${t.cover || 'none'}"></span><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join('')}</div>`;
+    <div class="tpl-grid">${tplList().map((t) => `<button class="tpl" data-act="page-new" data-tpl="${t.id}"><span class="tpl-cv cv-${t.cover || 'none'}"></span><span class="tpl-ic">${ic(t.icon)}</span><b>${esc(t.name)}</b><span>${esc(pick(t.desc))}</span></button>`).join('')}</div>`;
   return { title: 'Notes', tab: 'notes', fab: 'page-templates', html };
 }
 
@@ -168,7 +176,7 @@ function blockHtml(b, n, p) {
       : b.t === 'def' ? `<div class="qa-w def-w">${ce('qa-q def-t', 'x', 'Le terme')}${ce('qa-a def-d', 'a', 'Sa définition')}</div>`
         : b.t === 'table' ? tableHtml(b)
           : b.t === 'prog' ? `<div class="prog-w">${progInner(p)}</div>`
-            : ce('', 'x', PH[b.t] || '');
+            : ce('', 'x', PH()[b.t] || '');
   const st = b.st || {};
   return `<div class="blk blk-${b.t} ${b.ph || b.pha ? 'has-ph' : ''} ${b.c ? 'is-done' : ''} ${b.v ? `tone-${b.v}` : ''} ${st.fr ? `fr fr-${st.fr}` : ''} ${st.al ? `al-${st.al}` : ''}" data-bid="${b.id}"><button class="blk-h" data-act="blk-menu" aria-label="Options du bloc" tabindex="-1">${ic('drag')}</button>${lead}${body}</div>`;
 }
@@ -230,7 +238,7 @@ export function noteView([id]) {
       <button class="add-blk" data-act="blk-add-end">${ic('plus')}<span>Ajouter un bloc</span></button>
       <section class="subpages">
         <header><h2>Sous-pages</h2><button class="link" data-act="page-sub" data-id="${p.id}">${ic('plus')}Sous-page</button></header>
-        ${kids.length ? `<ul class="rows">${kids.map((k) => `<li><a class="row" href="#/note/${k.id}"><span class="menu-ic">${ic(k.icon || 'page')}</span><span class="row-b"><b>${esc(k.title || 'Sans titre')}</b><span>${ago(k.updatedAt)}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>` : '<p class="muted-s">Rangez ici les pages qui dépendent de celle-ci : un projet et ses comptes rendus, un cours et ses chapitres.</p>'}
+        ${kids.length ? `<ul class="rows">${kids.map((k) => `<li><a class="row" href="#/note/${k.id}"><span class="menu-ic">${ic(k.icon || 'page')}</span><span class="row-b"><b>${esc(k.title || 'Sans titre')}</b><span>${ago(k.updatedAt)}</span></span>${ic('chevR', 'chev')}</a></li>`).join('')}</ul>` : `<p class="muted-s">${tr('nt.subs')}</p>`}
       </section>
       <div class="slash" role="listbox" aria-label="Choisir un bloc" hidden></div>
     </article>`;
@@ -415,13 +423,13 @@ function editor(root, pid) {
     const id = curBlock();
     if (cmd === 'block') { if (id) applyType(id, v); return; }
     if (cmd === 'frame' || cmd === 'align') {
-      if (!id) { toast('Placez le curseur dans un bloc.'); return; }
+      if (!id) { toast(tr('nt.cursor')); return; }
       mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); x.st = { ...(x.st || {}) }; if (cmd === 'frame') x.st.fr = v; else x.st.al = x.st.al === 'center' ? 'right' : x.st.al === 'right' ? '' : 'center'; if (!x.st.fr) delete x.st.fr; if (!x.st.al) delete x.st.al; });
       const off = lastEl ? caretOffset(lastEl) : 0; const k = lastEl?.dataset.k || 'x';
       paint(id, off, k); flash();
       return;
     }
-    if (!restore()) { toast('Sélectionnez d\'abord du texte dans la page.'); return; }
+    if (!restore()) { toast(tr('nt.selectFirst')); return; }
     const exec = (c, val = null, css = false) => { document.execCommand('styleWithCSS', false, css); document.execCommand(c, false, val); };
     if (cmd === 'b') exec('bold');
     else if (cmd === 'i') exec('italic');
@@ -432,7 +440,7 @@ function editor(root, pid) {
     else if (cmd === 'hl') exec('hiliteColor', v, true);
     else if (cmd === 'font') exec('fontName', v, true);
     else if (cmd === 'size') exec('fontSize', v, true);
-    else if (cmd === 'red') { if (!wrapSelection({ 'text-decoration-line': 'underline', 'text-decoration-color': '#d92d20', 'text-decoration-thickness': '2px' })) toast('Sélectionnez les mots à souligner.'); }
+    else if (cmd === 'red') { if (!wrapSelection({ 'text-decoration-line': 'underline', 'text-decoration-color': '#d92d20', 'text-decoration-thickness': '2px' })) toast(tr('nt.selectRed')); }
     if (lastEl) save(lastEl);
   }
   bar.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) e.preventDefault(); });
@@ -453,7 +461,7 @@ function editor(root, pid) {
     drawPanel.hidden = !on2; bar.hidden = on2;
     art.classList.toggle('is-drawing', on2);
     ink.setActive(on2);
-    if (on2) { ink.setTool('pen'); toast('Dessinez, surlignez, encadrez directement sur la page. « Terminé » pour revenir au texte.', { title: 'Mode dessin', ms: 2600 }); }
+    if (on2) { ink.setTool('pen'); toast(tr('nt.drawOn'), { title: 'Mode dessin', ms: 2600 }); }
   }
   drawPanel.addEventListener('click', (e) => { const b = e.target.closest('.nt-done'); if (b) toggleDraw(false); });
   ink.setActive(false);
@@ -520,12 +528,12 @@ register({
     closeSheet(); location.hash = `#/note/${c.id}`; toast('Page dupliquée');
   },
   'page-copy': (b) => { copyText(toMarkdown(getPage(b.dataset.id)), 'Texte copié, prêt à coller'); closeSheet(); },
-  'page-export': (b) => { const p = getPage(b.dataset.id); download(`${(p.title || 'page').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60)}.md`, toMarkdown(p), 'text/markdown;charset=utf-8'); closeSheet(); toast('Le fichier est dans vos téléchargements.', { title: 'Page téléchargée' }); },
+  'page-export': (b) => { const p = getPage(b.dataset.id); download(`${(p.title || 'page').replace(/[\\/:*?"<>|]+/g, '-').slice(0, 60)}.md`, toMarkdown(p), 'text/markdown;charset=utf-8'); closeSheet(); toast(tr('nt.downloaded'), { title: 'Page téléchargée' }); },
   'page-del': async (b) => {
     const p = getPage(b.dataset.id);
     const fam = pageFamily(p.id);
     closeSheet(null, true);
-    if (!await confirmSheet({ title: `Supprimer « ${esc(p.title || 'Sans titre')} » ?`, text: fam.length > 1 ? `Ses ${fam.length - 1} sous-page${fam.length > 2 ? 's' : ''} seront supprimées aussi.` : 'Vous pourrez annuler juste après.', ok: 'Supprimer', danger: true })) return;
+    if (!await confirmSheet({ title: `Supprimer « ${esc(p.title || 'Sans titre')} » ?`, text: fam.length > 1 ? `Ses ${fam.length - 1} sous-page${fam.length > 2 ? 's' : ''} seront supprimées aussi.` : tr('nt.undoAfter'), ok: 'Supprimer', danger: true })) return;
     const removed = S().pages.filter((x) => fam.includes(x.id));
     update((s) => { s.pages = s.pages.filter((x) => !fam.includes(x.id)); });
     location.hash = p.parent && getPage(p.parent) ? `#/note/${p.parent}` : '#/notes';

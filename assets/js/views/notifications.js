@@ -6,6 +6,7 @@ import { ic, esc, eur, register, toast, when, dateShort, ago } from '../ui.js';
 import { pageHead } from './common.js';
 import { toFollow, FOLLOW_DAYS } from './quotes.js';
 import { taskSheet } from './tasks.js';
+import { t as tr } from '../strings.js';
 
 export const NOTIF_CATS = [
   ['retard', 'Tâches en retard', 'Ce qui aurait dû être fait', 'flame', 'rose'],
@@ -50,7 +51,7 @@ export function notificationsView(params, q) {
   const unread = list.filter((n) => !seen[n.id]).length;
   const off = NOTIF_CATS.filter(([k]) => !catOn(k)).length;
   const groups = NOTIF_CATS.map(([k, label, , icon, tone]) => [k, label, icon, tone, list.filter((n) => n.cat === k)]).filter((g) => g[4].length);
-  const html = `${pageHead('Notifications', { kicker: list.length ? `${unread ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est lu'} · ${list.length} au total` : 'Ce qui demande votre attention' })}
+  const html = `${pageHead('Notifications', { kicker: list.length ? `${unread ? `${unread} non lue${unread > 1 ? 's' : ''}` : 'Tout est lu'} · ${list.length} au total` : tr('ntf.kicker') })}
     ${unread ? '<div class="nf-bar"><button class="link" data-act="notif-read-all">Tout marquer comme lu</button></div>' : ''}
     ${list.length ? groups.map(([k, label, icon, tone, items]) => `<section class="card notif-g rise">
       <header class="card-h"><h2><span class="nf-ic k-${tone}">${ic(icon)}</span>${esc(label)}<b class="nf-count">${items.length}</b></h2></header>

@@ -2,9 +2,10 @@
 import { S, can, need, PLANS, access, billing, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
 import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
 import { checkoutSheet } from './billing.js';
+import { t as tr, has } from '../strings.js';
 
 // Positionnement : une phrase, un public, trois bénéfices, un exemple. Repris partout.
-export const PROMISE = 'Vos tâches, vos projets, vos notes et vos clients, au même endroit.';
+export const PROMISE = 'Les tâches, les projets, les notes et les révisions, au même endroit.';
 export const PITCH = 'L\'application d\'organisation pour tout le monde : réviser un examen, mener un projet de code, gérer son travail, son budget ou ses clients. Des tâches reliées à des projets qui avancent tout seuls, des notes en pages, des quiz, et un CRM qui parle votre métier.';
 export const AUDIENCE = 'Pour les étudiants qui révisent, les salariés, les développeurs, les indépendants, les commerçants et les petites équipes.';
 export const BENEFITS = [
@@ -53,12 +54,15 @@ const FEATURE_TEXT = {
 };
 
 export function paywall(feature, { compact = false } = {}) {
-  const [t, p] = FEATURE_TEXT[feature] || ['Fonction réservée aux abonnés', ''];
+  const [t0, p0] = FEATURE_TEXT[feature] || ['Fonction réservée aux abonnés', ''];
+  // Textes au ton du profil quand ils existent dans strings.js (feat.<fonction>)
+  const title = has(`feat.${feature}.t`) ? tr(`feat.${feature}.t`) : t0;
+  const p = has(`feat.${feature}`) ? tr(`feat.${feature}`) : p0;
   const plan = PLANS[need(feature)];
   const trialUsed = !!S().sub.trialStart;
   return `<section class="paywall ${compact ? 'is-compact' : ''}">
     <span class="paywall-ic">${ic('lock')}</span>
-    <h2>${t}</h2>
+    <h2>${title}</h2>
     <p>${p}</p>
     <div class="paywall-a">
       ${trialUsed ? '' : `<button class="btn btn-primary" data-act="start-trial" data-plan="${need(feature)}">Essayer ${plan.name} ${TRIAL_DAYS} jours gratuits</button>`}
@@ -80,9 +84,9 @@ export function trialStrip() {
     return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>Essai gratuit : <b>${n} jour${n > 1 ? 's' : ''}</b> restant${n > 1 ? 's' : ''}</span><span class="strip-a">Formules ${ic('chevR')}</span></a>`;
   }
   // Rappel deux jours avant la fin de l'essai : le prélèvement approche, l'annulation reste à un geste
-  if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>Votre essai ${PLANS[s.sub.plan].name} se termine le ${dateLong(s.sub.periodEnd).toLowerCase()} : ${PLANS[s.sub.plan].price.toFixed(2).replace('.', ',')} € seront prélevés.</span><span class="strip-a">Gérer</span></a>`;
-  if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>Paiement refusé : vous gardez l'accès jusqu'au ${dateLong(s.sub.graceEnd).toLowerCase()}.</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
-  if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>Votre essai est terminé — vos données sont conservées.</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
+  if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>${tr('strip.trialEnd', { plan: PLANS[s.sub.plan].name, date: dateLong(s.sub.periodEnd).toLowerCase(), price: PLANS[s.sub.plan].price.toFixed(2).replace('.', ',') })}</span><span class="strip-a">Gérer</span></a>`;
+  if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>${tr('strip.pastDue', { date: dateLong(s.sub.graceEnd).toLowerCase() })}</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
+  if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>${tr('strip.trialOver')}</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
   return '';
 }
 

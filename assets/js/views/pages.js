@@ -15,14 +15,15 @@ import { cloudUser, deleteCloudAccount, cloudMessage } from '../cloud.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
 import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow, lockAfter, sessionStart } from '../lock.js';
 import { fieldError, setFieldError, ago, time } from '../ui.js';
+import { t as tr, tv } from '../strings.js';
 
 // Enregistrement automatique avec statut visible : succès, ou erreur expliquée sans rien enregistrer.
 function saveForm(f, id, okMsg, save) {
   const st = document.getElementById(`st-${id}`);
   const bad = [...f.querySelectorAll('input, textarea, select')].map((el) => { const m = fieldError(el); setFieldError(el, m); return m ? el : null; }).filter(Boolean);
   if (bad.length) {
-    if (st) { st.className = 'save-st is-err'; st.innerHTML = `${ic('x')}<span>Non enregistré : corrigez le champ en rouge</span>`; }
-    toast('Corrigez le champ indiqué en rouge : rien n\'a été enregistré.', { title: 'Non enregistré', ms: 3500 });
+    if (st) { st.className = 'save-st is-err'; st.innerHTML = `${ic('x')}<span>${tr('set.fixRed')}</span>`; }
+    toast(tr('set.fixRedToast'), { title: 'Non enregistré', ms: 3500 });
     return;
   }
   save();
@@ -30,7 +31,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.9.1';
+const VERSION = '1.10.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -128,7 +129,7 @@ export function settings(params, q = {}) {
   const started = sessionStart();
   const html = `${pageHead('Compte', { kicker: 'Profil, sécurité, notifications et données' })}
     <section class="card account rise">
-      <div class="acc-top">${avatar(p.prenom || 'M S', 'xl')}<div><h2>${esc(p.prenom || 'Votre profil')}</h2><p>${esc([p.societe, p.email].filter(Boolean).join(' · ') || 'Société non renseignée')}</p>${planBadge()}</div></div>
+      <div class="acc-top">${avatar(p.prenom || 'M S', 'xl')}<div><h2>${esc(p.prenom || tr('set.profile'))}</h2><p>${esc([p.societe, p.email].filter(Boolean).join(' · ') || 'Société non renseignée')}</p>${planBadge()}</div></div>
       <a class="row" href="#/abonnement"><span class="menu-ic">${ic('diamond')}</span><span class="row-b"><b>Abonnement</b><span>${esc(accessLabel())}</span></span>${ic('chevR', 'chev')}</a>
       <div class="acc-note">${ic('shield')}<p><b>Votre compte, c'est cet appareil.</b> Il n'y a pas encore de compte en ligne : aucun mot de passe n'est stocké, rien n'est envoyé à un serveur. La connexion et la synchronisation entre appareils arriveront avec le paiement en ligne.</p></div>
     </section>
@@ -171,8 +172,8 @@ export function settings(params, q = {}) {
 
     <h2 class="sec-title" id="application">Application</h2>
     <section class="card rise" id="modules">
-      <header class="card-h"><div><h2>Modules</h2><p>Ce que vous utilisez apparaît dans la navigation ; le reste se cache, sans rien effacer</p></div></header>
-      <div class="ios-list">${MODULE_IDS.map((m) => `<label class="ios-row"><span class="mod-r"><span class="feat-ic f-${MODULES[m].tone}">${ic(MODULES[m].icon)}</span><span><b>${MODULES[m].label}</b><em>${MODULES[m].desc}</em></span></span><input type="checkbox" class="switch" ${on(m) ? 'checked' : ''} data-act-change="module" data-m="${m}" aria-label="${MODULES[m].label}"></label>`).join('')}</div>
+      <header class="card-h"><div><h2>Modules</h2><p>${tr('set.modules')}</p></div></header>
+      <div class="ios-list">${MODULE_IDS.filter((m) => !MODULES[m].core).map((m) => `<label class="ios-row"><span class="mod-r"><span class="feat-ic f-${MODULES[m].tone}">${ic(MODULES[m].icon)}</span><span><b>${MODULES[m].label}</b><em>${MODULES[m].desc}</em></span></span><input type="checkbox" class="switch" ${on(m) ? 'checked' : ''} data-act-change="module" data-m="${m}" aria-label="${MODULES[m].label}"></label>`).join('')}</div>
       ${p.metier && preset(p.metier) ? `<p class="field-h">Métier : ${esc(preset(p.metier).label)} · <a href="#/crm/personnaliser">changer le modèle du CRM</a></p>` : ''}
     </section>
     <section class="card rise">
@@ -200,13 +201,13 @@ export function settings(params, q = {}) {
         <label class="ios-row"><span><b>Rappel avant chaque tâche</b><em>Dix minutes avant chaque tâche à heure fixe.</em></span><input type="checkbox" class="switch" ${s.prefs.notifs !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="notifs" data-on="Rappels activés" data-off="Rappels désactivés"></label>
         <label class="ios-row"><span><b>Résumé du matin</b><em>Le nombre de tâches du jour, à partir de 7 h.</em></span><input type="checkbox" class="switch" ${s.prefs.digest !== false ? 'checked' : ''} data-act-change="pref-switch" data-k="digest" data-on="Résumé du matin activé" data-off="Résumé du matin désactivé"></label>
       </div>
-      ${perm === 'denied' ? '<p class="field-h">Pour les réactiver : réglages du navigateur (ou de l\'iPhone) → Notifications → MindView.</p>' : '<p class="field-h">Sans serveur d\'envoi, les rappels partent quand l\'application est ouverte ou vient de l\'être. Sur iPhone, installez-la d\'abord sur l\'écran d\'accueil.</p>'}
+      ${perm === 'denied' ? '<p class="field-h">Pour les réactiver : réglages du navigateur (ou de l\'iPhone) → Notifications → MindView.</p>' : `<p class="field-h">Sans serveur d'envoi, les rappels partent quand l'application est ouverte ou vient de l'être. ${tr('set.iphone')}</p>`}
       <div class="act-row">${perm === 'default' ? `<button class="btn btn-primary" data-act="notif-ask-sheet">${ic('bell')}<span>Autoriser</span></button>` : ''}<button class="btn btn-ghost" data-act="notif-test">${ic('bell')}<span>Envoyer une notification de test</span></button></div>
     </section>
 
     <h2 class="sec-title" id="securite">Sécurité et session</h2>
     <section class="card rise">
-      <header class="card-h"><div><h2>Code de verrouillage</h2><p>Protège l'accès si quelqu'un prend votre téléphone</p></div><span class="chip ${hasLock() ? 't-olive' : ''}">${ic('lock')}${hasLock() ? 'Activé' : 'Désactivé'}</span></header>
+      <header class="card-h"><div><h2>Code de verrouillage</h2><p>${tr('set.lock.p')}</p></div><span class="chip ${hasLock() ? 't-olive' : ''}">${ic('lock')}${hasLock() ? 'Activé' : 'Désactivé'}</span></header>
       <p class="body">Quatre chiffres demandés à l'ouverture. Le code est stocké sous forme chiffrée irréversible ; il ne chiffre pas les données et ne peut pas être récupéré : pensez à la sauvegarde.</p>
       ${hasLock() ? `<label class="field"><span class="field-l">Verrouillage automatique</span>${select('after', LOCK_AFTER, lockAfter(), 'data-act-change="lock-after"')}</label>` : ''}
       <div class="act-row">${!lockSupported() ? '<p class="field-h">Le verrouillage demande une connexion sécurisée (https).</p>' : hasLock() ? `<button class="btn btn-primary" data-act="lock-now">${ic('lock')}<span>Verrouiller maintenant</span></button><button class="btn btn-ghost" data-act="lock-change">Changer le code</button><button class="btn btn-ghost" data-act="lock-off">Désactiver</button>` : `<button class="btn btn-primary" data-act="lock-set">${ic('lock')}<span>Activer un code</span></button>`}</div>
@@ -270,21 +271,22 @@ export function more() {
   const s = S(), p = s.profile;
   const read = GUIDES.filter((g) => isRead(g.id)).length;
   const N = s.crm.noun || 'Clients';
+  const quizN = QUIZZES.filter((q) => on(q.mod)).length;
+  // Même ordre que le menu latéral : s'organiser, Études, Entrepreneur (si actifs), puis le compte
   const groups = [
-    ['Suivi', null, [['#/notifications', 'bell', 'Notifications', (() => { const n = unreadCount(); return n ? `${n} non lue${n > 1 ? 's' : ''} · retards, échéances, devis` : 'Retards, échéances, devis à relancer'; })()], ['#/apercu', 'chart', 'Vue d\'ensemble', 'Vos chiffres, l\'activité récente, la répartition']]],
-    ['S\'organiser', null, [...(on('organiser') ? [['#/taches', 'checkSquare', 'Tâches', `${s.tasks.filter((t) => !t.done).length} à faire · listes, tableau`]] : []), ['#/projets', 'folder', 'Projets', `${s.projects.filter((x) => x.status !== 'termine').length} en cours · progression automatique`], ...(on('organiser') ? [['#/agenda', 'calendar', 'Agenda', 'Vos tâches jour par jour'], ['#/notes', 'page', 'Notes', `${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · modèles, sous-pages`]] : [])]],
-    ['Tableau blanc et études', null, [...(on('organiser') ? [['#/tableaux', 'compose', 'Tableau blanc', `${s.boards.length ? `${s.boards.length} tableau${s.boards.length > 1 ? 'x' : ''} · ` : ''}dessin, schémas, graphiques`]] : []), ...(on('etudes') ? [['#/etudes', 'book', 'Mes études', 'Examens, cours du jour, moyenne'], ['#/etudes/emploi', 'calendar', 'Emploi du temps', 'Vos cours de la semaine', 'timetable'], ['#/etudes/examens', 'target', 'Examens', 'Compte à rebours et planificateur'], ['#/etudes/moyennes', 'award', 'Moyennes', 'Coefficients et objectif', 'grades'], ['#/etudes/revision', 'cards', 'Révision espacée', 'Chaque carte au bon moment', 'spaced'], ['#/concentration', 'hourglass', 'Concentration', 'Minuteur Pomodoro', 'focus']] : [])]],
-    ['Clients', 'clients', [['#/crm', 'users', N, `${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · pipeline`, 'crm'], ['#/devis', 'invoice', 'Devis', s.quotes.length ? `${s.quotes.length} devis · brouillon, envoyé, accepté` : 'Brouillon, envoyé, accepté, refusé', 'quote'], ['#/outils/messages', 'message', 'Messages prêts à envoyer', 'Confirmation, relance, avis', 'messages'], ['#/outils/stats', 'chart', 'Statistiques', 'Vos taux, étape par étape', 'stats']]],
-    ['Prospecter', 'prospecter', [['#/scripts', 'script', 'Scripts', `${scriptCount()} scripts prêts à l'emploi`], ['#/appel', 'headset', 'Session d\'appels', 'Le script pas à pas, le résultat en un geste', 'callMode'], ['#/outils/audit', 'clipboard', 'Audit express', 'La présence en ligne notée sur 10', 'audit'], ['#/outils/import', 'upload', 'Importer une liste', 'Depuis un tableur', 'import'], ['#/outils/entrainement', 'target', 'Entraînement', 'Répondre aux objections', 'training'], ['#/outils/mes-scripts', 'edit', 'Mes scripts et secteurs', 'Vos propres versions', 'myScripts']]],
-    ['Progresser', 'apprendre', [['#/quiz', 'quiz', 'Quiz', `${QUIZZES.length} quiz · quiz du jour, révision des notes`], ...(schoolOnly() ? [] : [['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`]])]],
-  ].filter(([, m, items]) => (!m || on(m)) && items.length);
-  const account = [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Modules, profil, sécurité, données'], ['#/connecteurs', 'plug', 'Connecteurs', 'Canva, Figma, Notion, Drive, agenda'], ['#/confidentialite', 'shield', 'Confidentialité et RGPD', 'Vos données restent sur cet appareil']];
-  const rows = (items) => `<ul class="menu card rise">${items.map(([h, i, t, d, f]) => `<li><a class="row" href="${h}"><span class="menu-ic">${ic(i)}</span><span class="row-b"><b>${esc(t)}</b><span>${esc(d)}</span></span>${f && !can(f) ? `<span class="badge b-${FEATURES[f]}">${PLANS[FEATURES[f]].name}</span>` : ''}${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`;
+    ['Suivi', null, [['#/notifications', 'bell', 'Notifications', (() => { const n = unreadCount(); return n ? `${n} non lue${n > 1 ? 's' : ''} · retards, échéances` : 'Retards, échéances, rappels'; })()], ['#/apercu', 'chart', 'Vue d\'ensemble', tv('Tes chiffres, ta régularité, ton calendrier', 'Vos chiffres, votre régularité, votre calendrier')]]],
+    ['S\'organiser', null, [['#/taches', 'checkSquare', 'Tâches', `${s.tasks.filter((t) => !t.done).length} à faire · listes, tableau`], ['#/agenda', 'calendar', 'Calendrier', 'Mois, semaine, jour'], ['#/notes', 'page', 'Notes', `${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · modèles, fiches`], ['#/tableaux', 'compose', 'Tableau blanc', `${s.boards.length ? `${s.boards.length} tableau${s.boards.length > 1 ? 'x' : ''} · ` : ''}dessin, schémas, écriture`], ['#/projets', 'folder', 'Projets', `${s.projects.filter((x) => x.status !== 'termine').length} en cours · progression automatique`]]],
+    ['Études', 'etudes', [['#/etudes', 'book', 'Mes études', 'Examens, cours du jour, moyenne'], ['#/etudes/emploi', 'calendar', 'Emploi du temps', 'Les cours de la semaine', 'timetable'], ['#/etudes/examens', 'target', 'Examens', 'Compte à rebours et planificateur'], ['#/etudes/moyennes', 'award', 'Moyennes', 'Coefficients et objectif', 'grades'], ['#/etudes/revision', 'cards', 'Révision espacée', 'Chaque carte au bon moment', 'spaced'], ['#/concentration', 'hourglass', 'Concentration', 'Minuteur, chronomètre, calculatrice', 'focus'], ['#/quiz', 'quiz', 'Quiz', `${quizN} quiz · quiz du jour, fiches de révision`]]],
+    ['Entrepreneur', 'entrepreneur', [['#/crm', 'users', N, `${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} · pipeline`, 'crm'], ['#/devis', 'invoice', 'Devis', s.quotes.length ? `${s.quotes.length} devis · brouillon, envoyé, accepté` : 'Brouillon, envoyé, accepté, refusé', 'quote'], ['#/scripts', 'script', 'Scripts d\'appel', 'Prêts à l\'emploi, par secteur'], ['#/appel', 'headset', 'Session d\'appels', 'Le script pas à pas, le résultat en un geste', 'callMode'], ['#/outils/stats', 'chart', 'Statistiques', 'Les taux, étape par étape', 'stats'], ['#/outils', 'briefcase', 'Outils', 'Messages, audit, import, entraînement'], ['#/academie', 'book', 'Académie', `${read} / ${GUIDES.length} guides lus`], ...(on('etudes') ? [] : [['#/quiz', 'quiz', 'Quiz', `${quizN} quiz · quiz du jour`]])]],
+  ].filter(([, m]) => !m || on(m));
+  const account = [['#/abonnement', 'diamond', 'Abonnement', accessLabel()], ['#/reglages', 'sliders', 'Compte et réglages', 'Modules, profil, sécurité, données'], ['#/connecteurs', 'plug', 'Connecteurs', 'Notion, liens et aperçus'], ['#/confidentialite', 'shield', 'Confidentialité et RGPD', tv('Où sont tes données', 'Où sont vos données')]];
+  const rows = (items) => `<ul class="menu card rise">${items.map(([h, i, ti, d, f]) => `<li><a class="row" href="${h}"><span class="menu-ic">${ic(i)}</span><span class="row-b"><b>${esc(ti)}</b><span>${esc(d)}</span></span>${f && !can(f) ? `<span class="badge b-${FEATURES[f]}">${PLANS[FEATURES[f]].name}</span>` : ''}${ic('chevR', 'chev')}</a></li>`).join('')}</ul>`;
+  const hidden = MODULE_IDS.filter((m) => !MODULES[m].core && !on(m)).map((m) => MODULES[m].label);
   const html = `${pageHead('Plus', { actions: `<button class="icon-btn" data-act="search" aria-label="Rechercher">${ic('search')}</button>` })}
-    <a class="card me rise" href="#/reglages">${avatar(p.prenom || 'M S', 'lg')}<span class="row-b"><b>${esc(p.prenom || 'Votre compte')}</b><span>${esc(p.societe || 'Ajoutez votre société')}</span></span>${planBadge()}</a>
+    <a class="card me rise" href="#/reglages">${avatar(p.prenom || 'M V', 'lg')}<span class="row-b"><b>${esc(p.prenom || tv('Ton compte', 'Votre compte'))}</b><span>${esc(p.societe || tv('Ajoute ton école ou ta société', 'Ajoutez votre société'))}</span></span>${planBadge()}</a>
     ${groups.map(([gname, , items]) => `<h2 class="sec-title">${gname}</h2>${rows(items)}`).join('')}
     <h2 class="sec-title">Compte</h2>${rows(account)}
-    <ul class="menu card rise"><li><a class="row" href="#/reglages?s=modules"><span class="menu-ic">${ic('grid')}</span><span class="row-b"><b>Afficher d'autres modules</b><span>${MODULE_IDS.filter((m) => !on(m)).map((m) => MODULES[m].label).join(', ') || 'Tous les modules sont affichés'}</span></span>${ic('chevR', 'chev')}</a></li>
+    <ul class="menu card rise"><li><a class="row" href="#/reglages?s=modules"><span class="menu-ic">${ic('grid')}</span><span class="row-b"><b>Modules</b><span>${hidden.length ? `Masqués : ${hidden.join(', ')}` : 'Tous les modules sont affichés'}</span></span>${ic('chevR', 'chev')}</a></li>
       <li><button class="row" data-act="install"><span class="menu-ic">${ic('install')}</span><span class="row-b"><b>Installer l'application</b><span>Sur l'écran d'accueil</span></span>${ic('chevR', 'chev')}</button></li></ul>`;
   return { title: 'Plus', tab: 'plus', html };
 }
@@ -330,18 +332,18 @@ register({
   },
   module: (el) => {
     const m = el.dataset.m;
-    const cur = S().profile.usages || MODULE_IDS;
+    const cur = S().profile.usages || ['organiser'];
     const next = el.checked ? [...new Set([...cur, m])] : cur.filter((x) => x !== m);
-    if (!next.length) { el.checked = true; toast('Gardez au moins un module.', { title: 'Impossible' }); return; }
-    update((s) => { s.profile.usages = MODULE_IDS.filter((x) => next.includes(x)); });
-    toast(el.checked ? `${MODULES[m].label} : affiché dans la navigation` : `${MODULES[m].label} : masqué. Vos données sont conservées.`, { ms: 2200 });
+
+    update((s) => { s.profile.usages = MODULE_IDS.filter((x) => x === 'organiser' || next.includes(x)); });
+    toast(el.checked ? `${MODULES[m].label} : affiché dans la navigation` : `${MODULES[m].label} : ${tr('set.modOff')}`, { ms: 2200 });
   },
   'pref-switch': (el) => { update((s) => { s.prefs[el.dataset.k] = el.checked; }, { silent: true }); toast(el.checked ? el.dataset.on || 'Activé' : el.dataset.off || 'Désactivé', { ms: 1600 }); },
   'acc-go': (b) => document.getElementById(b.dataset.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
   'lock-after': (el) => {
     const v = Number(el.value);
     update((s) => { if (s.lock) { s.lock.after = v; delete s.lock.auto; } }, { silent: true });
-    toast(v < 0 ? 'Le code sera demandé seulement à l\'ouverture.' : v === 0 ? 'Verrouillage dès que vous quittez l\'application.' : `Verrouillage après ${v} minute${v > 1 ? 's' : ''} hors de l'application.`, { title: 'Verrouillage automatique' });
+    toast(v < 0 ? 'Le code sera demandé seulement à l\'ouverture.' : v === 0 ? tr('set.lockNow') : `Verrouillage après ${v} minute${v > 1 ? 's' : ''} hors de l'application.`, { title: 'Verrouillage automatique' });
   },
   'replay-intro': () => { startOnboarding(true); location.hash = '#/bienvenue'; },
   'sectors-edit': () => sectorsSheet(),
@@ -482,9 +484,9 @@ export function installFlow() {
   const mac = /Macintosh/.test(ua) && !ios;
   const safari = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua);
   const steps = ios
-    ? ['Ouvrez cette page dans Safari.', 'Touchez le bouton Partager (le carré avec une flèche).', 'Choisissez « Sur l\'écran d\'accueil », puis « Ajouter ».']
-    : mac && safari ? ['Dans la barre de menus, ouvrez « Fichier ».', 'Choisissez « Ajouter au Dock ».', 'L\'application s\'ouvre ensuite depuis le Dock, dans sa propre fenêtre.']
-      : ['Ouvrez le menu du navigateur (⋮ ou …).', 'Choisissez « Installer l\'application » ou « Ajouter à l\'écran d\'accueil ».', 'L\'application s\'ouvre ensuite dans sa propre fenêtre.'];
+    ? [tr('inst.ios.1'), tr('inst.ios.2'), tr('inst.ios.3')]
+    : mac && safari ? [tr('inst.mac.1'), tr('inst.mac.2'), 'L\'application s\'ouvre ensuite depuis le Dock, dans sa propre fenêtre.']
+      : [tr('inst.web.1'), tr('inst.web.2'), 'L\'application s\'ouvre ensuite dans sa propre fenêtre.'];
   sheet(`${sheetHead('Installer MindView', ios ? 'iPhone et iPad' : mac ? 'Mac' : 'Android, PC et Mac')}<div class="sheet-body"><ol class="install-steps">${steps.map((x) => `<li>${x}</li>`).join('')}</ol></div>`, { cls: 'sheet-sm' });
 }
 export { CHANNELS, eur, AUDIENCE, BENEFITS, notifSheet };

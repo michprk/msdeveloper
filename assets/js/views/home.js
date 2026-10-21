@@ -10,6 +10,7 @@ import { taskRow, quickAdd } from './tasks.js';
 import { dailyQuiz } from './quiz.js';
 import { kpiCard, metricIds, hasData, withSample } from './overview.js';
 import { unreadCount } from './notifications.js';
+import { t as tr } from '../strings.js';
 
 export function nextToCall(s) {
   const t1 = startOfDay() + DAY;
@@ -46,17 +47,17 @@ export function home() {
 
   // Premiers pas, selon les modules choisis ; disparaît une fois tout fait
   const steps = [
-    ...(org ? [['Ajouter votre première tâche', `Écrivez-la comme vous la diriez : « ${schoolOnly() ? 'Réviser le chapitre 3 demain 18h' : 'Envoyer le devis vendredi'} ».`, s.tasks.length > 0, '#/taches?new=1'], ['Créer votre première page', schoolOnly() ? 'Une fiche de cours, un planning de révision, une liste d\'idées : partez d\'un modèle.' : 'Un compte rendu, un projet, une liste d\'idées : partez d\'un modèle.', s.pages.length > 0, '#/notes']] : []),
-    ...(on('etudes') ? [['Ajouter vos matières', 'Elles servent partout : cours, examens, notes, concentration.', s.subjects.length > 0, '#/etudes'], ['Ajouter votre prochain examen', 'Le compte à rebours commence, avec une tâche par chapitre.', s.exams.length > 0, '#/etudes/examens']] : []),
+    ...(org ? [[tr('home.c.task'), tr('home.c.task.p', { ex: schoolOnly() ? 'Réviser le chapitre 3 demain 18h' : 'Envoyer le devis vendredi' }), s.tasks.length > 0, '#/taches?new=1'], [tr('home.c.page'), schoolOnly() ? tr('home.c.page.school') : tr('home.c.page.pro'), s.pages.length > 0, '#/notes']] : []),
+    ...(on('etudes') ? [[tr('home.c.subjects'), 'Elles servent partout : cours, examens, notes, concentration.', s.subjects.length > 0, '#/etudes'], [tr('home.c.exam'), 'Le compte à rebours commence, avec une tâche par chapitre.', s.exams.length > 0, '#/etudes/examens']] : []),
     ...(on('clients') ? [['Adapter le CRM à votre métier', 'Des étapes et des champs prêts pour votre activité.', !!s.crm.preset || s.crm.extra.length > 0, '#/crm/personnaliser'], ['Ajouter votre premier client', 'Une fiche par client : historique, prochaine relance, notes.', s.prospects.length > 0, '#/crm?new=1']] : []),
     ...(pro ? [['Lire le script de votre secteur', 'Le bon discours, adapté au métier de la personne appelée.', s.recent.length > 0, '#/scripts']] : []),
-    ...(app ? [['Faire votre premier quiz', 'Dix questions, chacune expliquée.', Object.keys(s.quiz.results).length > 0, `#/quiz/${quiz.id}?restart=1`]] : []),
+    ...(app ? [[tr('home.c.quiz'), 'Dix questions, chacune expliquée.', Object.keys(s.quiz.results).length > 0, `#/quiz/${quiz.id}?restart=1`]] : []),
   ].slice(0, 5);
   const doneSteps = steps.filter((x) => x[2]).length;
 
   const heroTitle = !total ? 'Journée libre' : today.length ? `${num(today.length)} chose${today.length > 1 ? 's' : ''} à faire` : 'Tout est fait';
-  const heroSub = !total ? (upcoming ? `Rien d'urgent. Prochaine tâche : ${esc(upcoming.title)}, ${when(upcoming.due).toLowerCase()}.` : 'Rien n\'est prévu aujourd\'hui. Notez ce que vous avez en tête : c\'est la première chose à faire.')
-    : today.length ? [late ? `<b class="is-late">${late} en retard</b>` : '', nextTimed ? `prochaine : ${esc(nextTimed.title)} à ${when(nextTimed.due).split('· ')[1] || ''}` : ''].filter(Boolean).join(' · ') || 'Cochez au fil de la journée.'
+  const heroSub = !total ? (upcoming ? `Rien d'urgent. Prochaine tâche : ${esc(upcoming.title)}, ${when(upcoming.due).toLowerCase()}.` : tr('home.nothing'))
+    : today.length ? [late ? `<b class="is-late">${late} en retard</b>` : '', nextTimed ? `prochaine : ${esc(nextTimed.title)} à ${when(nextTimed.due).split('· ')[1] || ''}` : ''].filter(Boolean).join(' · ') || tr('home.tick')
       : `${doneToday} tâche${doneToday > 1 ? 's' : ''} terminée${doneToday > 1 ? 's' : ''} aujourd'hui. Bravo.`;
 
   const html = `
@@ -105,7 +106,7 @@ export function home() {
           const left = ex ? Math.round((startOfDay(ex.date) - t0) / DAY) : 0;
           return `<a class="card side-card study-card rise" style="--i:3" href="#/etudes">
             <span class="sc-cd">${ex ? `<b>${left === 0 ? 'J' : left}</b><em>${left === 0 ? 'aujourd\'hui' : left === 1 ? 'jour' : 'jours'}</em>` : `<b>${ic('book')}</b>`}</span>
-            <span class="row-b"><span class="day-k">Études</span><b>${ex ? esc(ex.title) : 'Ajoutez votre prochain examen'}</b><span>${next ? `Prochain cours : ${esc(s.subjects.find((x) => x.id === next.subjectId)?.name || 'Cours')} à ${next.start.replace(':', ' h ')}` : s.courses.length ? 'Plus de cours aujourd\'hui' : 'Emploi du temps, moyennes, révisions'}</span></span>${ic('chevR', 'chev')}
+            <span class="row-b"><span class="day-k">Études</span><b>${ex ? esc(ex.title) : tr('home.addExam')}</b><span>${next ? `Prochain cours : ${esc(s.subjects.find((x) => x.id === next.subjectId)?.name || 'Cours')} à ${next.start.replace(':', ' h ')}` : s.courses.length ? 'Plus de cours aujourd\'hui' : 'Emploi du temps, moyennes, révisions'}</span></span>${ic('chevR', 'chev')}
           </a>`;
         })() : ''}
         ${app ? `<a class="card side-card quiz-card rise" style="--i:4" href="#/quiz/${quiz.id}?restart=1">
@@ -120,7 +121,7 @@ export function home() {
 
       ${kpis.length ? `<section class="home-kpis rise ${real ? '' : 'is-example'}" style="--i:6" aria-label="Cette semaine">
         <header class="sec-row"><h2 class="sec-title">Cette semaine${real ? '' : ' <span class="tag">Exemple</span>'}</h2><a class="link" href="#/apercu">Vue d'ensemble ${ic('chevR')}</a></header>
-        ${real ? '' : '<p class="ex-note">Voici à quoi ressembleront vos chiffres. Ils apparaissent dès votre première tâche terminée.</p>'}
+        ${real ? '' : `<p class="ex-note">${tr('home.exNote')}</p>`}
         <div class="kpi-grid compact n${kpis.length}">${real ? kpis.map((id) => kpiCard(id, 7)).join('') : withSample(() => kpis.map((id) => kpiCard(id, 7, { href: '#/apercu' })).join(''))}</div>
       </section>` : ''}
     </div>
@@ -132,7 +133,7 @@ export function home() {
 register({
   'hide-start': () => { update((s) => { s.prefs.hideStart = true; }); toast('« Pour bien démarrer » n\'apparaîtra plus.', { title: 'Liste masquée', action: 'Annuler', onAction: () => update((s) => { s.prefs.hideStart = false; }) }); },
   'clear-demo': async () => {
-    const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: 'Tout ce qui est marqué « Exemple » sera supprimé. Ce que vous avez ajouté vous-même est conservé.', ok: 'Effacer', danger: true });
+    const ok = await confirmSheet({ title: 'Effacer les données de démonstration ?', text: tr('home.clearDemo'), ok: 'Effacer', danger: true });
     if (!ok) return;
     update((s) => clearDemo(s));
     toast('Données de démonstration effacées');

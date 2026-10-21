@@ -23,18 +23,18 @@ export const FEATURES = {
 };
 export const LIMITS = { freePages: 5, freeProjects: 1 };
 
-// Modules : chacun choisit ce qu'il utilise (accueil, puis Compte → Modules).
-// Une personne qui ne fait que des études ne voit rien de l'entrepreneuriat (clients, scripts, appels).
+// Modules (1.10) : « M'organiser » est toujours là ; « Études » est actif par défaut ;
+// « Entrepreneur » (CRM, devis, scripts d'appel, Académie, quiz de commerce) est désactivé par défaut
+// et ne s'allume que si le profil le demande ou dans Compte → Modules.
 export const MODULES = {
-  organiser: { label: 'M\'organiser', desc: 'Tâches, calendrier, notes et tableau blanc', icon: 'checkSquare', tone: 'blue' },
-  etudes: { label: 'Mes études', desc: 'Emploi du temps, examens, moyennes, révisions', icon: 'book', tone: 'sky' },
-  clients: { label: 'Suivre mes clients', desc: 'Un CRM adapté à votre métier, devis', icon: 'users', tone: 'olive' },
-  prospecter: { label: 'Trouver des clients', desc: 'Scripts d\'appel et mode appel', icon: 'phone', tone: 'sand' },
-  apprendre: { label: 'Apprendre et progresser', desc: 'Quiz et guides pratiques', icon: 'quiz', tone: 'navy' },
+  organiser: { label: 'M\'organiser', desc: 'Tâches, calendrier, notes, tableau blanc et projets', icon: 'checkSquare', tone: 'blue', core: true },
+  etudes: { label: 'Études', desc: 'Emploi du temps, examens, moyennes, révisions, concentration, quiz', icon: 'book', tone: 'sky' },
+  entrepreneur: { label: 'Entrepreneur', desc: 'CRM, devis, scripts d\'appel, statistiques, Académie', icon: 'briefcase', tone: 'olive' },
 };
 export const MODULE_IDS = Object.keys(MODULES);
+export const DEFAULT_USAGES = ['organiser', 'etudes'];
 // Études seulement : aucune trace d'entrepreneuriat (clients, scripts, appels, académie commerciale)
-export const schoolOnly = () => on('etudes') && !on('clients') && !on('prospecter');
+export const schoolOnly = () => !on('entrepreneur');
 
 // Étapes de base (utilisées par le mode appel). L'utilisateur peut les renommer
 // et ajouter ses propres étapes (CRM personnalisé) : voir computeStages().
@@ -76,10 +76,10 @@ export const SOURCES = ['Appel', 'Visite', 'Recommandation', 'Instagram', 'Site 
 export const PROJECT_STEPS = ['Acompte reçu', 'Contenus reçus', 'Maquette validée', 'Développement', 'Relecture client', 'Mise en ligne'];
 
 const defaults = () => ({
-  v: 3, onboarded: false, createdAt: Date.now(),
+  v: 4, onboarded: false, createdAt: Date.now(),
   profile: {
     prenom: '', societe: '', ville: 'Bruxelles', tel: '', email: '', adresse: '', tva: '', iban: '',
-    usages: [...MODULE_IDS], metier: '',
+    usages: [...DEFAULT_USAGES], situation: '', metier: '',
     service: 'site', prix: { site: '500 €', auto: '290 €', seo: '490 €', offre: '' }, secteurs: [], niveau: 'debut',
     offre: { quoi: '', resultat: '', exemple: '' },
     promesse: 'Prix fixe, délais tenus, et un seul interlocuteur du début à la fin.',
@@ -131,7 +131,8 @@ function sanitize(s) {
   s.activities.forEach((a) => { a.at = n(a.at) || Date.now(); });
   s.prospects.forEach((p) => { p.createdAt = n(p.createdAt) || Date.now(); p.updatedAt = n(p.updatedAt) || p.createdAt; if (p.next) p.next.due = n(p.next.due); });
   s.pages.forEach((p) => { p.blocks = Array.isArray(p.blocks) ? p.blocks : []; p.updatedAt = n(p.updatedAt) || Date.now(); p.createdAt = n(p.createdAt) || p.updatedAt; });
-  if (!Array.isArray(s.profile.usages) || !s.profile.usages.length) s.profile.usages = [...MODULE_IDS];
+  if (!Array.isArray(s.profile.usages) || !s.profile.usages.length) s.profile.usages = [...DEFAULT_USAGES];
+  s.profile.usages = ['organiser', ...MODULE_IDS.filter((m) => m !== 'organiser' && s.profile.usages.includes(m))];
   if (!Array.isArray(s.sub.history)) s.sub.history = [];
   if (!Array.isArray(s.quotes)) s.quotes = [];
   for (const k of ['subjects', 'courses', 'exams', 'grades', 'boards', 'hwrWords']) if (!Array.isArray(s[k])) s[k] = [];
@@ -164,6 +165,18 @@ function migrate(saved) {
     });
     (saved.prospects || []).forEach((p) => { if (!p.type) p.type = p.stage === 'signe' ? 'client' : 'prospect'; });
     saved.v = 3;
+  }
+  // Version 3 → 4 (1.10) : trois modules. Clients et Prospecter deviennent « Entrepreneur » ;
+  // quiz seuls → Études (pour garder les quiz visibles). Rien n'est retiré à quelqu'un qui l'utilisait.
+  if (saved && typeof saved === 'object' && saved.v < 4) {
+    const p = saved.profile || (saved.profile = {});
+    const u = Array.isArray(p.usages) ? p.usages : [];
+    const next = ['organiser'];
+    const pro = u.includes('clients') || u.includes('prospecter');
+    if (!u.length || u.includes('etudes') || p.situation === 'etudes' || (u.includes('apprendre') && !pro)) next.push('etudes');
+    if (pro) next.push('entrepreneur');
+    p.usages = next;
+    saved.v = 4;
   }
   return saved;
 }
@@ -253,7 +266,15 @@ export const resetState = () => replaceState(defaults());
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // ---------- Modules ----------
-export const on = (m) => (state.profile.usages || MODULE_IDS).includes(m);
+// Anciens noms (avant 1.10) encore utilisés dans les écrans : clients et prospecter = Entrepreneur ;
+// apprendre (quiz) = Études ou Entrepreneur.
+const LEGACY = { clients: 'entrepreneur', prospecter: 'entrepreneur' };
+export const on = (m) => {
+  const u = state.profile.usages || DEFAULT_USAGES;
+  if (m === 'organiser') return true;
+  if (m === 'apprendre') return u.includes('etudes') || u.includes('entrepreneur');
+  return u.includes(LEGACY[m] || m);
+};
 
 // ---------- Abonnement ----------
 // États : gratuit → essai (7 jours) → gratuit, ou abonné (actif) → résiliation programmée

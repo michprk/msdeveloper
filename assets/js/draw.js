@@ -4,6 +4,7 @@
 // en forme comme dans un traitement de texte, cases à cocher, post-it, bulles, graphiques et frises d'évolution.
 import { ic, esc } from './ui.js';
 import { clean } from './rich.js';
+import { t as tr, pick } from './strings.js';
 
 export const INK = [['#131a2a', 'Encre'], ['#155eef', 'Bleu'], ['#0f1e3d', 'Bleu nuit'], ['#d92d20', 'Rouge'], ['#2f9e44', 'Vert'], ['#616b33', 'Olive'], ['#f08c00', 'Orange'], ['#7048e8', 'Violet'], ['#e64980', 'Rose'], ['#8f6420', 'Brun'], ['#868e96', 'Gris'], ['#ffffff', 'Blanc']];
 export const MARK = [['#ffe066', 'Jaune'], ['#8ce99a', 'Vert'], ['#74c0fc', 'Bleu'], ['#faa2c1', 'Rose'], ['#ffc078', 'Orange'], ['#b197fc', 'Violet'], ['#63e6be', 'Turquoise'], ['#ff8787', 'Rouge']];
@@ -58,17 +59,18 @@ const LINE_K = ['line', 'arrow', 'darrow', 'curve'];
 const VOLUMES = ['cube', 'pave', 'cyl', 'cone', 'sphere', 'pyr'];
 const KNOWN_K = [...SHAPES.map(([k]) => k), ...VOLUMES];
 const HINTS = {
-  select: 'Touchez un élément pour le choisir, glissez pour le déplacer. Double-touchez un texte pour l\'écrire.',
-  pen: 'Dessinez. Gardez le doigt appuyé à la fin d\'un trait : il devient une forme parfaite (rond, carré, triangle, trait droit).',
-  write: 'Écrivez avec le doigt ou le stylet, puis levez-le : votre écriture devient du texte au bout d\'une seconde.',
-  highlighter: 'Surlignez. Gardez appuyé à la fin pour un trait bien droit.',
-  eraser: 'Passez sur un trait pour l\'effacer. En mode « Objet entier », tout l\'élément touché disparaît.',
-  shape: 'Choisissez une forme, puis glissez sur la feuille pour la tracer à la bonne taille.',
-  text: 'Touchez la feuille pour écrire au clavier. Tirez sur les bords pour élargir le cadre.',
-  list: 'Touchez la feuille pour créer une liste de cases à cocher. Une ligne par case.',
-  sticky: 'Touchez ou glissez pour poser un post-it.',
-  bubble: 'Glissez pour dessiner une bulle.', underline: 'Glissez sous un mot pour le souligner.', stamp: 'Touchez pour poser le symbole.',
-  chart: 'Glissez pour placer le graphique, puis « Données » pour saisir les valeurs.', timeline: 'Glissez pour placer la frise, puis « Données » pour les étapes.', hand: 'Glissez pour déplacer la vue.',
+  // [tutoiement, vouvoiement]
+  select: ['Touche un élément pour le choisir, glisse pour le déplacer. Touche deux fois un texte pour l\'écrire.', 'Touchez un élément pour le choisir, glissez pour le déplacer. Double-touchez un texte pour l\'écrire.'],
+  pen: ['Dessine. Garde le doigt appuyé à la fin d\'un trait : il devient une forme parfaite (rond, carré, triangle, trait droit).', 'Dessinez. Gardez le doigt appuyé à la fin d\'un trait : il devient une forme parfaite (rond, carré, triangle, trait droit).'],
+  write: ['Écris avec le doigt ou le stylet, puis lève-le : ton écriture devient du texte au bout d\'une seconde.', 'Écrivez avec le doigt ou le stylet, puis levez-le : votre écriture devient du texte au bout d\'une seconde.'],
+  highlighter: ['Surligne. Garde appuyé à la fin pour un trait bien droit.', 'Surlignez. Gardez appuyé à la fin pour un trait bien droit.'],
+  eraser: ['Passe sur un trait pour l\'effacer. En mode « Objet entier », tout l\'élément touché disparaît.', 'Passez sur un trait pour l\'effacer. En mode « Objet entier », tout l\'élément touché disparaît.'],
+  shape: ['Choisis une forme, puis glisse sur la feuille pour la tracer à la bonne taille.', 'Choisissez une forme, puis glissez sur la feuille pour la tracer à la bonne taille.'],
+  text: ['Touche la feuille pour écrire au clavier. Tire sur les bords pour élargir le cadre.', 'Touchez la feuille pour écrire au clavier. Tirez sur les bords pour élargir le cadre.'],
+  list: ['Touche la feuille pour créer une liste de cases à cocher. Une ligne par case.', 'Touchez la feuille pour créer une liste de cases à cocher. Une ligne par case.'],
+  sticky: ['Touche ou glisse pour poser un post-it.', 'Touchez ou glissez pour poser un post-it.'],
+  bubble: ['Glisse pour dessiner une bulle.', 'Glissez pour dessiner une bulle.'], underline: ['Glisse sous un mot pour le souligner.', 'Glissez sous un mot pour le souligner.'], stamp: ['Touche pour poser le symbole.', 'Touchez pour poser le symbole.'],
+  chart: ['Glisse pour placer le graphique, puis « Données » pour saisir les valeurs.', 'Glissez pour placer le graphique, puis « Données » pour saisir les valeurs.'], timeline: ['Glisse pour placer la frise, puis « Données » pour les étapes.', 'Glissez pour placer la frise, puis « Données » pour les étapes.'], hand: ['Glisse pour déplacer la vue.', 'Glissez pour déplacer la vue.'],
 };
 const DEF = {
   select: { lasso: 0 }, pen: { c: '#131a2a', w: 3.5, pt: 'bille' }, write: { c: '#131a2a', font: 'hand' }, highlighter: { c: '#ffe066', w: 20 }, underline: { c: '#d92d20', w: 3 },
@@ -164,7 +166,7 @@ function chartSvg(it) {
   const pad = 14, top = it.title ? 34 : 14, bottom = it.kind === 'pie' ? 14 : 30;
   let out = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="12" fill="#ffffff" stroke="#e3ddd1"/>`;
   if (it.title) out += `<text x="${x + pad}" y="${y + 22}" ${LBL} font-size="14" font-weight="700" fill="#131a2a">${esc(it.title)}</text>`;
-  if (!data.length) return out + `<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" ${LBL} font-size="13" fill="#676d7e">Touchez « Données » pour saisir les valeurs</text>`;
+  if (!data.length) return out + `<text x="${x + w / 2}" y="${y + h / 2}" text-anchor="middle" ${LBL} font-size="13" fill="#676d7e">${tr('dw.chartData')}</text>`;
   const max = Math.max(1, ...data.map((d) => Number(d.v) || 0));
   const fmt = (v) => String(Math.round((Number(v) || 0) * 100) / 100).replace('.', ',');
   const lbl = `${LBL} font-size="11.5" fill="#394155"`;
@@ -205,7 +207,7 @@ function timelineSvg(it) {
   const steps = (it.steps || []).filter((s) => s && (s.l || s.d));
   const midY = y + 60, n = Math.max(1, steps.length);
   let out = `<line x1="${x}" y1="${midY}" x2="${x + w}" y2="${midY}" stroke="${c}" stroke-width="3" stroke-linecap="round"/>${head(x, midY, x + w, midY, 3, c)}`;
-  if (!steps.length) return out + `<text x="${x + w / 2}" y="${midY + 30}" text-anchor="middle" ${LBL} font-size="13" fill="#676d7e">Touchez « Données » pour ajouter les étapes</text>`;
+  if (!steps.length) return out + `<text x="${x + w / 2}" y="${midY + 30}" text-anchor="middle" ${LBL} font-size="13" fill="#676d7e">${tr('dw.tlData')}</text>`;
   steps.forEach((s, i) => {
     const sx = r1(x + 24 + ((w - 64) * (n === 1 ? 0.5 : i / (n - 1)))), up = i % 2 === 0;
     out += `<circle cx="${sx}" cy="${midY}" r="8" fill="#ffffff" stroke="${c}" stroke-width="3"/>`;
@@ -844,7 +846,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     tool = t; if (t !== 'select') sel.clear();
     svg.dataset.tool = t; toolsBar(); trayHtml(); paintSel();
     if (t === 'write') { warmInk(); if (!ocrReady() && !ocrInstalling()) offerOCR(); }
-    if (!seenTips.has(t)) { seenTips.add(t); showTip(HINTS[t]); }
+    if (!seenTips.has(t)) { seenTips.add(t); showTip(pick(HINTS[t])); }
   }
   // Coller : au même endroit décalé si l'original est là, sinon au centre de la vue ; liens et groupes recréés
   const getClip = () => { if (clip) return clip; try { return JSON.parse(localStorage.getItem('msdev:wb-clip') || 'null'); } catch (e) { return null; } };
@@ -898,7 +900,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     if (c === 'copy' && sel.size) {
       clip = clone(selected());
       try { localStorage.setItem('msdev:wb-clip', JSON.stringify(clip)); } catch (e) { /* presse-papiers de la session seulement */ }
-      showTip(`${clip.length > 1 ? `${clip.length} éléments copiés` : 'Copié'}. Collez ici ou dans un autre tableau : outil Choisir → Coller (Ctrl V).`);
+      showTip(`${clip.length > 1 ? `${clip.length} éléments copiés` : 'Copié'}. ${tr('dw.paste')}`);
     }
     if (c === 'paste') paste();
     if (c === 'undo' && undoS.length) { finishEdit(); redoS.push(JSON.stringify(list)); list = JSON.parse(undoS.pop()); sel.clear(); commit(); }
@@ -913,7 +915,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     if (c === 'rowadd') { const it = selected()[0]; if (it?.t === 'list') { snapshot(); it.rows = [...(it.rows || []), { t: '', d: 0 }]; commit(); startEdit(it); } }
     if (c === 'ocr-install') startInstall();
     if (c === 'ocr-later') { stage.querySelector('.dw-card')?.remove(); try { localStorage.setItem('msdev:ocr-asked', '1'); } catch (e) { /* préférence locale */ } }
-    if (c === 'ink') { const it = selected()[0]; if (it?.hw?.ink) { snapshot(); const back = it.hw.ink.map((x) => ({ ...x, id: nid() })); list = list.filter((x) => x.id !== it.id).concat(back); sel = new Set(back.map((x) => x.id)); commit(); showTip('Votre écriture est revenue telle quelle.'); } }
+    if (c === 'ink') { const it = selected()[0]; if (it?.hw?.ink) { snapshot(); const back = it.hw.ink.map((x) => ({ ...x, id: nid() })); list = list.filter((x) => x.id !== it.id).concat(back); sel = new Set(back.map((x) => x.id)); commit(); showTip(tr('dw.handBack')); } }
   }
   function chooseAlt(i) {
     const it = selected()[0]; if (!it?.hw) return;
@@ -976,7 +978,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     el.className = 'dw-edit';
     el.contentEditable = 'true';
     el.setAttribute('role', 'textbox'); el.setAttribute('aria-multiline', 'true');
-    el.dataset.ph = 'Écrivez…';
+    el.dataset.ph = tr('dw.writePh');
     el.innerHTML = textHtml(it);
     stage.append(el);
     editing = { id: it.id, el, rich: true, before: JSON.stringify(it) };
@@ -1075,7 +1077,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     stage.insertAdjacentHTML('beforeend', `<div class="dw-card" role="dialog" aria-label="Lecture précise de l'écriture"><div class="dw-card-in">
       <span class="dw-card-ic">${ic('signature')}</span>
       <h3>Lecture précise de l'écriture</h3>
-      <p>Pour que votre écriture devienne le bon texte, MindView installe une seule fois un modèle d'intelligence artificielle entraîné sur de vraies écritures : environ 55 Mo à télécharger, de préférence en Wi-Fi. Il reste sur votre appareil, rien n'est envoyé.</p>
+      <p>${tr('dw.ai.p')}</p>
       <div class="dw-card-bar" hidden><i></i></div>
       <div class="dw-card-a"><button type="button" class="btn btn-primary" data-cmd="ocr-install">${ic('download')}<span>Installer maintenant</span></button><button type="button" class="btn btn-ghost" data-cmd="ocr-later">Plus tard</button></div>
     </div></div>`);
@@ -1083,18 +1085,18 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
   function paintCard(state) {
     const card = stage.querySelector('.dw-card'); if (!card) return;
     const bar = card.querySelector('.dw-card-bar'), a = card.querySelector('.dw-card-a');
-    if (state === 'done') { card.querySelector('h3').textContent = 'Lecture précise prête'; card.querySelector('p').textContent = 'Écrivez, levez le doigt : votre écriture devient du texte.'; bar.hidden = true; a.innerHTML = ''; setTimeout(() => card.remove(), 1600); return; }
+    if (state === 'done') { card.querySelector('h3').textContent = 'Lecture précise prête'; card.querySelector('p').textContent = tr('dw.ai.ready'); bar.hidden = true; a.innerHTML = ''; setTimeout(() => card.remove(), 1600); return; }
     if (state === 'fail') { bar.hidden = true; a.innerHTML = `<button type="button" class="btn btn-primary" data-cmd="ocr-install">Réessayer</button><button type="button" class="btn btn-ghost" data-cmd="ocr-later">Plus tard</button>`; return; }
     const p = Math.round((ocrPct || 0) * 100);
     bar.hidden = false; bar.querySelector('i').style.width = `${p}%`;
-    a.innerHTML = `<p class="dw-card-p">Installation… ${p} %. Vous pouvez continuer à dessiner pendant ce temps.</p>`;
+    a.innerHTML = `<p class="dw-card-p">Installation… ${p} %. ${tr('dw.ai.keep')}</p>`;
   }
   function startInstall() {
     if (ocrReady()) return;
     ocrPct = ocrPct || 0; if (tool === 'write') trayHtml(); paintCard();
     installOCR((p) => { ocrPct = p; if (tool === 'write') trayHtml(); paintCard(); })
-      .then(() => { ocrPct = null; if (tool === 'write') trayHtml(); paintCard('done'); showTip('Lecture précise installée : écrivez, votre écriture devient du texte.'); })
-      .catch(() => { ocrPct = null; if (tool === 'write') trayHtml(); paintCard('fail'); showTip('Installation interrompue (connexion ?). Réessayez depuis l\'outil Écriture.'); });
+      .then(() => { ocrPct = null; if (tool === 'write') trayHtml(); paintCard('done'); showTip(tr('dw.ai.done')); })
+      .catch(() => { ocrPct = null; if (tool === 'write') trayHtml(); paintCard('fail'); showTip(tr('dw.ai.fail')); });
   }
   stage.addEventListener('click', (e) => { const b = e.target.closest('.dw-card [data-cmd]'); if (b) command(b.dataset.cmd); });
 
@@ -1118,7 +1120,7 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     let r;
     try { r = await readInk(strokes, typeof words === 'function' ? words() : words || []); } catch (e) { r = null; }
     gLive.innerHTML = '';
-    if (!r?.text?.trim()) { inks.forEach((x) => delete x.ink); emit(); showTip('Écriture non reconnue : elle reste dessinée. Écrivez un peu plus grand, en lettres bien formées.'); return; }
+    if (!r?.text?.trim()) { inks.forEach((x) => delete x.ink); emit(); showTip(tr('dw.hw.none')); return; }
     if (!inks.every((x) => byId(x.id))) return;
     const font = style.write.font;
     const m = await fontMetrics(font);
@@ -1139,8 +1141,8 @@ export function mountCanvas({ stage, tools, props, mode = 'board', items = [], c
     paint();
     gItems.querySelector(`[data-id="${it.id}"]`)?.classList.add('dw-pop');
     emit(); history();
-    if (r.simple && !seenTips.has('hw-simple')) { seenTips.add('hw-simple'); showTip('Lecture simple : installez la lecture précise (outil Écriture) pour que votre écriture soit lue sans erreur.', 6000); }
-    else if (!seenTips.has('hw-done')) { seenTips.add('hw-done'); showTip('Mal lu ? Passez en mode Choisir et touchez le texte : autres lectures, correction au clavier, ou retour à votre écriture.', 6000); }
+    if (r.simple && !seenTips.has('hw-simple')) { seenTips.add('hw-simple'); showTip(tr('dw.hw.simple'), 6000); }
+    else if (!seenTips.has('hw-done')) { seenTips.add('hw-done'); showTip(tr('dw.hw.fix'), 6000); }
   }
 
   // ----- Gomme précise -----

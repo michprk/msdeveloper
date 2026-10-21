@@ -5,6 +5,7 @@ import { S, update, can, uid, canAddBoard } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, ago, download } from '../ui.js';
 import { pageHead, paywall } from './common.js';
 import { mountCanvas, renderItem, itemsBox, exportSVGFull, exportPNG, exportSVG, settle, FONTS, HAND_FONTS, HAND_NICK } from '../draw.js';
+import { t as tr } from '../strings.js';
 
 const BGS = [['dots', 'Points'], ['grid', 'Quadrillage'], ['seyes', 'Cahier (Seyès)'], ['lines', 'Lignes'], ['blank', 'Blanc']];
 const id9 = () => 'd' + Math.random().toString(36).slice(2, 9);
@@ -81,7 +82,7 @@ export function boardsView() {
     ${allowed ? '' : `<div class="bd-lock rise">${paywall('boards')}${demo}</div>`}
     ${list.length ? `<div class="bd-grid">${list.map((b) => `<a class="card bd-card rise" href="#/tableau/${b.id}">${thumb(b)}<span class="bd-b"><b>${esc(b.title || 'Sans titre')}</b><span>${(b.items || []).length} élément${(b.items || []).length > 1 ? 's' : ''} · ${ago(b.updatedAt)}</span></span></a>`).join('')}</div>`
       : allowed ? `<section class="card onboard-empty rise"><span class="empty-ic">${ic('signature')}</span><h2>Une feuille blanche, sans limite</h2>
-        <p>Écrivez avec le doigt : votre écriture devient un beau texte. Tracez une forme et gardez le doigt appuyé : elle devient parfaite. Surlignez de toutes les couleurs, cochez, reliez vos idées par des flèches, ajoutez des graphiques et des frises. Puis imprimez.</p>
+        <p>${tr('bd.empty.p')}</p>
         <button class="btn btn-primary btn-lg" data-act="board-new" data-tpl="vierge">${ic('plus')}<span>Créer mon premier tableau</span></button>${demo}</section>` : ''}
     ${allowed ? `<h2 class="sec-title">Partir d'un modèle</h2>
     <div class="bd-tpls">${Object.entries(TEMPLATES).map(([k, [name, icon, sub, make]]) => `<button class="bd-tpl" data-act="board-new" data-tpl="${k}">${thumb({ items: make() })}<span class="bd-tpl-b"><span class="tpl-ic">${ic(icon)}</span><span><b>${esc(name)}</b><em>${esc(sub)}</em></span></span></button>`).join('')}</div>` : ''}`;
@@ -164,11 +165,11 @@ export function boardView([id]) {
 function coachHtml() {
   const card = (title, text, svg) => `<li><svg viewBox="0 0 120 70" aria-hidden="true">${svg}</svg><b>${title}</b><span>${text}</span></li>`;
   return `<div class="bd-coach" role="dialog" aria-label="Bienvenue sur le tableau blanc"><div class="bd-coach-in">
-    <h2>Votre tableau blanc</h2>
+    <h2>${tr('bd.coach.t')}</h2>
     <ul>
-      ${card('Écrivez à la main', 'Avec l\'outil Écriture, votre écriture devient un beau texte au bout d\'une seconde.', `<path d="M10 44c6-1 8-12 11-20 2-6 5-6 4 2-1 6-3 14 1 12 4-2 5-9 8-9s0 8 3 8 4-6 7-6" fill="none" stroke="#131a2a" stroke-width="2.4" stroke-linecap="round"/><path d="M60 35h10m-4-4 4 4-4 4" fill="none" stroke="#155eef" stroke-width="2" stroke-linecap="round"/><text x="76" y="42" font-family="Caveat, cursive" font-size="20" fill="#131a2a">bonjour</text>`)}
-      ${card('Formes parfaites', 'Tracez un rond ou un carré au stylo et gardez le doigt appuyé : il devient parfait.', `<path d="M20 36c0-12 9-20 18-19s16 9 15 19-9 17-18 16-15-6-15-16z" fill="none" stroke="#868e96" stroke-width="2" stroke-dasharray="3 3"/><path d="M60 35h10m-4-4 4 4-4 4" fill="none" stroke="#155eef" stroke-width="2" stroke-linecap="round"/><circle cx="95" cy="35" r="17" fill="#dbe4ff" stroke="#155eef" stroke-width="2.4"/>`)}
-      ${card('Deux doigts pour la vue', 'Pincez pour zoomer, glissez à deux doigts pour vous déplacer. Un doigt dessine.', `<circle cx="45" cy="30" r="7" fill="#ffe066"/><circle cx="72" cy="40" r="7" fill="#ffe066"/><path d="M37 22l-8-8m51 34 8 8" stroke="#131a2a" stroke-width="2.2" stroke-linecap="round"/><path d="M26 14h4v4M90 56h-4v-4" fill="none" stroke="#131a2a" stroke-width="2.2" stroke-linecap="round"/>`)}
+      ${card(tr('bd.coach.w'), tr('bd.coach.w.p'), `<path d="M10 44c6-1 8-12 11-20 2-6 5-6 4 2-1 6-3 14 1 12 4-2 5-9 8-9s0 8 3 8 4-6 7-6" fill="none" stroke="#131a2a" stroke-width="2.4" stroke-linecap="round"/><path d="M60 35h10m-4-4 4 4-4 4" fill="none" stroke="#155eef" stroke-width="2" stroke-linecap="round"/><text x="76" y="42" font-family="Caveat, cursive" font-size="20" fill="#131a2a">bonjour</text>`)}
+      ${card('Formes parfaites', tr('bd.coach.s.p'), `<path d="M20 36c0-12 9-20 18-19s16 9 15 19-9 17-18 16-15-6-15-16z" fill="none" stroke="#868e96" stroke-width="2" stroke-dasharray="3 3"/><path d="M60 35h10m-4-4 4 4-4 4" fill="none" stroke="#155eef" stroke-width="2" stroke-linecap="round"/><circle cx="95" cy="35" r="17" fill="#dbe4ff" stroke="#155eef" stroke-width="2.4"/>`)}
+      ${card('Deux doigts pour la vue', tr('bd.coach.v.p'), `<circle cx="45" cy="30" r="7" fill="#ffe066"/><circle cx="72" cy="40" r="7" fill="#ffe066"/><path d="M37 22l-8-8m51 34 8 8" stroke="#131a2a" stroke-width="2.2" stroke-linecap="round"/><path d="M26 14h4v4M90 56h-4v-4" fill="none" stroke="#131a2a" stroke-width="2.2" stroke-linecap="round"/>`)}
     </ul>
     <div class="bd-coach-a"><button class="btn btn-primary" data-coach="write">${ic('signature')}<span>Essayer l'écriture</span></button><button class="btn btn-ghost" data-coach="ok">C'est parti</button></div>
   </div></div>`;
@@ -260,11 +261,11 @@ register({
   },
   'board-help': () => sheet(`${sheetHead('Gestes et raccourcis')}<div class="sheet-body bd-help">
     <h3>Au doigt ou au stylet</h3>
-    <ul><li><b>Écriture</b> : écrivez, levez le doigt, le texte apparaît (écritures ${HAND_FONTS.map((k) => HAND_NICK[k]).join(', ')}, et ${Object.keys(FONTS).length - 3} autres polices au choix). La première fois, la lecture précise s'installe sur l'appareil (environ 55 Mo téléchargés). Touchez-le avec Choisir pour voir les autres lectures, corriger ou retrouver votre écriture.</li>
-    <li><b>Forme parfaite</b> : au stylo ou au surligneur, gardez le doigt appuyé une demi-seconde à la fin du trait.</li>
+    <ul><li><b>Écriture</b> : ${tr('bd.help.w', { hands: HAND_FONTS.map((k) => HAND_NICK[k]).join(', '), n: Object.keys(FONTS).length - 3 })}</li>
+    <li><b>Forme parfaite</b> : ${tr('bd.help.s')}</li>
     <li><b>Deux doigts</b> : pincer pour zoomer, glisser pour se déplacer. Au stylet, la paume posée est ignorée.</li>
     <li><b>Cases</b> : un toucher sur la case la coche ou la décoche.</li>
-    <li><b>Texte</b> : tirez sur les poignées des côtés pour élargir le cadre ; la poignée du coin agrandit le texte.</li></ul>
+    <li><b>Texte</b> : ${tr('bd.help.t')}</li></ul>
     <h3>Au clavier</h3>
     <p>V choisir · P stylo · W écriture · M surligneur · E gomme · R formes · T texte · C cases · N post-it · B bulle · U souligner · K tampon · G graphique · J frise · H déplacer. Ctrl Z annuler, Ctrl Y rétablir, Ctrl D dupliquer, Suppr effacer, flèches pour ajuster au pixel près, Maj pour garder les proportions, espace + glisser pour se déplacer, Ctrl + molette pour zoomer.</p>
   </div>`, { cls: 'sheet-sm' }),

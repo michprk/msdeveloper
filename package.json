@@ -1,0 +1,11 @@
+{
+  "name": "mindview",
+  "private": true,
+  "description": "MindView : outils de test seulement (l'application n'a aucune dépendance et pas d'étape de compilation).",
+  "scripts": {
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.2"
+  }
+}

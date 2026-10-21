@@ -62,20 +62,24 @@ const FEATS = {
   pro: ['Notes et tableaux blancs illimités', 'Emploi du temps, examens et moyennes', 'Révision espacée, concentration, minuteur', 'Projets illimités et connecteurs'],
   premium: ['Tout Pro, pour les études', 'Un CRM adapté à votre métier', 'Devis, scripts d\'appel et mode appel', 'Statistiques et exports'],
 };
+// Une carte de situation (choix unique sur tout l'écran)
+const pickSit = ([id, l, sub, i]) => `<label class="pick-c"><input type="radio" name="situation" value="${id}" ${data().situation === id ? 'checked' : ''}><span class="pick-ic">${ic(i)}</span><b>${l}</b><em>${sub}</em></label>`;
 const BUSINESS = ['finance', 'freelance', 'commerce', 'artisan', 'conseil', 'agence'];
 // Études seulement : aucun module d'entrepreneuriat (clients, scripts, appels)
 const SCHOOL = (sit) => sit === 'etudes';
 const defisFor = (sit) => (SCHOOL(sit) ? DEFIS.filter(([id]) => !['clients', 'trouver'].includes(id)) : DEFIS);
+// Modules (1.10) : Études par défaut ; Entrepreneur seulement si le profil le demande (clients, prospection, métier à CRM)
 const modulesFor = (defis, sit = '') => {
-  const mods = ['organiser', 'etudes', 'clients', 'prospecter', 'apprendre'].filter((m) => m === 'organiser' || DEFIS.some(([id, , , , ms]) => defis.includes(id) && ms.includes(m)));
-  return SCHOOL(sit) ? [...new Set(['organiser', 'etudes', ...mods])].filter((m) => !['clients', 'prospecter'].includes(m)) : mods;
+  const pro = defis.includes('clients') || defis.includes('trouver') || !!SITUATIONS.find((x) => x[0] === sit)?.[4];
+  const study = !sit || SCHOOL(sit) || sit === 'autre' || defis.some((x) => ['reviser', 'examens', 'progresser'].includes(x));
+  return ['organiser', ...(study ? ['etudes'] : []), ...(pro ? ['entrepreneur'] : [])];
 };
 const advised = (d) => (d.defis.includes('clients') || d.defis.includes('trouver') || BUSINESS.includes(d.situation) ? 'premium' : 'pro');
 
 function data() {
   if (!ob.d) {
     const p = S().profile;
-    ob.d = { email: S().account?.email || p.email || '', acc: hasAccount() && loggedIn() ? 'done' : '', prenom: p.prenom || '', societe: p.societe || '', situation: p.situation || '', equipe: p.equipe || 'solo', team: p.team || '', defis: [...(p.defis || [])], metier: p.metier || S().crm.preset || '', service: p.service || 'offre', sugg: {}, plan: '' };
+    ob.d = { email: S().account?.email || p.email || '', acc: hasAccount() && loggedIn() ? 'done' : '', prenom: p.prenom || '', societe: p.societe || '', situation: p.situation || 'etudes', equipe: p.equipe || 'solo', team: p.team || '', defis: [...(p.defis || [])], metier: p.metier || S().crm.preset || '', service: p.service || 'offre', sugg: {}, plan: '' };
   }
   return ob.d;
 }
@@ -197,7 +201,9 @@ export function onboarding() {
     body = `<form class="ob-page" data-form="ob-you" id="ob-form" novalidate>
         <h1 class="ob-h">${d.prenom ? `${esc(cap(d.prenom))}, vous êtes…` : 'Vous êtes…'}</h1>
         <p class="ob-p">L'application se règle pour vous. Tout se change plus tard.</p>
-        <div class="pick-cards" role="radiogroup" aria-label="Votre situation">${SITUATIONS.map(([id, l, sub, i]) => `<label class="pick-c"><input type="radio" name="situation" value="${id}" ${d.situation === id ? 'checked' : ''}><span class="pick-ic">${ic(i)}</span><b>${l}</b><em>${sub}</em></label>`).join('')}</div>
+        <div class="pick-cards" role="radiogroup" aria-label="Votre situation">${SITUATIONS.filter(([id]) => id === 'etudes').map(pickSit).join('')}</div>
+        <details class="ob-more" ${SCHOOL(d.situation) ? '' : 'open'}><summary>${ic('chevD')}<span>Autres usages</span></summary>
+          <div class="pick-cards" role="radiogroup" aria-label="Autres usages">${SITUATIONS.filter(([id]) => id !== 'etudes').map(pickSit).join('')}</div></details>
         <div class="group ob-soc"><label class="group-r"><span>Société ou école</span><input name="societe" value="${esc(d.societe)}" placeholder="Facultatif" autocomplete="organization"></label></div>
       </form>
       <div class="ob-foot"><button class="btn btn-apple" type="submit" form="ob-form">Continuer</button></div>`;

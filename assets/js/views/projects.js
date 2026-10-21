@@ -5,6 +5,7 @@ import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, f
 import { pageHead, paywall } from './common.js';
 import { taskRow, quickAdd } from './tasks.js';
 import { linksBlock } from './connect.js';
+import { t as tr } from '../strings.js';
 
 const STATUS = { actif: ['En cours', 't-blue'], pause: ['En pause', 't-sand'], termine: ['Terminé', 't-olive'] };
 const ICONS = ['folder', 'briefcase', 'book', 'monitor', 'calendar', 'target', 'euro', 'camera', 'house', 'flag', 'star', 'users'];
@@ -42,12 +43,12 @@ export function projectsView(params, q) {
   const f = ['actif', 'pause', 'termine', 'tous'].includes(q.f) ? q.f : 'actif';
   const list = s.projects.filter((p) => f === 'tous' || (p.status || 'actif') === f).sort((a, b) => (a.due || 9e15) - (b.due || 9e15) || b.createdAt - a.createdAt);
   const n = (st) => s.projects.filter((p) => (p.status || 'actif') === st).length;
-  const html = `${pageHead('Projets', { kicker: s.projects.length ? `${n('actif')} en cours${can('projectsUnlimited') ? '' : ` · ${LIMITS.freeProjects} au maximum en version gratuite`}` : 'Vos projets avancent tâche après tâche', actions: `<button class="btn btn-primary fab-dup" data-act="project-new">${ic('plus')}<span>Projet</span></button>` })}
+  const html = `${pageHead('Projets', { kicker: s.projects.length ? `${n('actif')} en cours${can('projectsUnlimited') ? '' : ` · ${LIMITS.freeProjects} au maximum en version gratuite`}` : tr('pj.kicker'), actions: `<button class="btn btn-primary fab-dup" data-act="project-new">${ic('plus')}<span>Projet</span></button>` })}
     ${s.projects.length ? `<nav class="chips-row" aria-label="Filtrer les projets">${[['actif', 'En cours'], ['pause', 'En pause'], ['termine', 'Terminés'], ['tous', 'Tous']].map(([k, l]) => `<a class="chip-btn ${f === k ? 'is-on' : ''}" href="#/projets${k === 'actif' ? '' : `?f=${k}`}">${l} <b>${k === 'tous' ? s.projects.length : n(k)}</b></a>`).join('')}</nav>
       ${list.length ? `<div class="pj-grid">${list.map(card).join('')}</div>` : '<p class="muted pad">Aucun projet ici.</p>'}` : `
     <section class="card onboard-empty rise">
       <span class="empty-ic">${ic('folder')}</span>
-      <h2>Créez votre premier projet</h2>
+      <h2>${tr('pj.empty.t')}</h2>
       <p>Un examen à réviser, un site à lancer, un client, un déménagement : chaque projet regroupe ses tâches, et sa progression se calcule toute seule à chaque tâche cochée.</p>
       <button class="btn btn-primary btn-lg" data-act="project-new">${ic('plus')}<span>Créer mon premier projet</span></button>
       <div class="demo-preview dp-pj" aria-hidden="true"><span class="tag">Exemple</span>
@@ -86,7 +87,7 @@ export function projectView([id]) {
           <header class="card-h"><div><h2>Tâches du projet</h2><p>La progression suit les tâches cochées</p></div><button class="link" data-act="task-new" data-project="${id}">${ic('plus')}Tâche</button></header>
           ${quickAdd({ project: id, placeholder: 'Ajouter une tâche au projet…', cls: 'qadd-sm' })}
           ${ts.length ? `${sec('En cours', doing)}${sec('À faire', todo)}${done.length ? `<details class="pj-done"><summary>Terminées <b>${done.length}</b></summary><ul class="tasks">${done.map((t) => taskRow(t, { showProject: false })).join('')}</ul></details>` : ''}`
-            : '<p class="muted pad">Ajoutez les étapes du projet : chacune devient une tâche, avec sa date et sa priorité.</p>'}
+            : `<p class="muted pad">${tr('pj.steps')}</p>`}
         </section>
       </div>
       <div class="pj-side">
@@ -118,7 +119,7 @@ export function projectSheet(pr = null, preset = {}) {
     </form>`, { cls: 'sheet-tall' });
 }
 function limitSheet() {
-  sheet(`${sheetHead(`${LIMITS.freeProjects} projets en cours dans la version gratuite`)}<div class="sheet-body">${paywall('projectsUnlimited', { compact: true })}<p class="sheet-note">Terminez ou mettez en pause un projet pour en créer un autre, ou passez à Pro.</p></div>`, { cls: 'sheet-sm' });
+  sheet(`${sheetHead(`${LIMITS.freeProjects} projets en cours dans la version gratuite`)}<div class="sheet-body">${paywall('projectsUnlimited', { compact: true })}<p class="sheet-note">${tr('pj.limit')}</p></div>`, { cls: 'sheet-sm' });
 }
 
 register({
@@ -147,6 +148,6 @@ register({
     const tpl = PROJECT_TPL.find((t) => t[0] === f.dataset.tpl);
     (tpl?.[4] || []).forEach((title, k) => addTask({ title, projectId: pr.id, prospectId: pr.prospectId, createdAt: Date.now() + k }));
     closeSheet(); location.hash = `#/projet/${pr.id}`;
-    toast(tpl ? `${tpl[4].length} tâches prêtes : cochez-les au fil du projet.` : 'Ajoutez ses tâches : la progression se calcule toute seule.', { title: 'Projet créé' });
+    toast(tpl ? tr('pj.ready', { n: tpl[4].length }) : tr('pj.addTasks'), { title: 'Projet créé' });
   },
 });

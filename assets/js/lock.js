@@ -3,6 +3,7 @@
 // et ne peut pas être récupéré (pas de compte en ligne pour l'instant).
 import { S, update, resetState } from './store.js';
 import { logoMark } from './icons.js';
+import { t as tr } from './strings.js';
 
 const KEY = 'msdev:unlocked';
 const enc = new TextEncoder();
@@ -33,7 +34,7 @@ function showLock() {
   const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'del'];
   el.innerHTML = `<div class="lock-in">
       ${logoMark('lg')}
-      <p class="lock-t">Entrez votre code</p>
+      <p class="lock-t">${tr('lk.enter')}</p>
       <div class="lock-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <p class="lock-msg" role="alert" aria-live="assertive"></p>
       <div class="lock-pad">${keys.map((k) => (k ? `<button class="lock-k ${k === 'del' ? 'is-del' : ''}" data-k="${k}" aria-label="${k === 'del' ? 'Effacer' : k}">${k === 'del' ? 'Effacer' : k}</button>` : '<span></span>')).join('')}</div>
@@ -51,7 +52,7 @@ function showLock() {
     paint();
     if (code.length === 4) {
       if (await checkCode(code)) done();
-      else { el.classList.add('shake'); msg.textContent = 'Code incorrect. Réessayez.'; setTimeout(() => { el.classList.remove('shake'); code = ''; paint(); }, 450); }
+      else { el.classList.add('shake'); msg.textContent = tr('lk.wrong'); setTimeout(() => { el.classList.remove('shake'); code = ''; paint(); }, 450); }
     }
   };
   el.querySelectorAll('.lock-k').forEach((b) => b.addEventListener('click', () => press(b.dataset.k)));
@@ -62,7 +63,7 @@ function showLock() {
     const box = document.createElement('div');
     box.className = 'lock-reset';
     box.innerHTML = `<p>Sans compte en ligne, ce code ne peut pas être récupéré. Pour continuer, il faut effacer toutes les données de cet appareil (une sauvegarde peut ensuite être restaurée).</p>
-      <label><span>Tapez SUPPRIMER pour confirmer</span><input autocomplete="off" autocapitalize="characters"></label>
+      <label><span>${tr('lk.type')}</span><input autocomplete="off" autocapitalize="characters"></label>
       <button disabled>Effacer les données de cet appareil</button>`;
     el.querySelector('.lock-in').append(box);
     const inp = box.querySelector('input'), btn = box.querySelector('button');
