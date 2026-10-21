@@ -1,5 +1,12 @@
 # Paiements — passer du mode test à Stripe
 
+> **Depuis la 1.15, le guide à suivre est [BRANCHER.md](BRANCHER.md)** : comptes, stockage, Stripe et Notion en une seule fois. Ce qui a changé par rapport à la suite de ce document :
+> - connexion par e-mail et **mot de passe** (ou Google), plus le code à 6 chiffres ;
+> - essai de 7 jours **sans carte**, démarré par le serveur (pas de page Stripe), qui s'arrête tout seul sans moyen de paiement ;
+> - quatre prix (mensuel et annuel) ;
+> - un événement de plus au webhook (`customer.updated`) ;
+> - le portail client doit permettre d'ajouter un moyen de paiement.
+
 ## Où on en est (version 1.5, 15 octobre 2026)
 
 **Tout le code est prêt et éteint.** Tant que `assets/js/config.js` est vide, MindView reste en mode test : le parcours d'abonnement fonctionne sur l'appareil, sans carte et sans argent. Abonnement → « Vérifier les paiements » rejoue automatiquement 12 situations (essai, souscription, renouvellements, prorata, résiliation, reprise, refus, dates) et dit si tout est conforme.

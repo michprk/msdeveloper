@@ -4,6 +4,7 @@ import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
 import { checkoutSheet } from './billing.js';
 import { t as tr, has } from '../strings.js';
 import { authMode } from '../auth.js';
+import { cloudUser } from '../cloud.js';
 
 // Positionnement : une phrase, un public, trois bénéfices, un exemple. Repris partout.
 export const PROMISE = 'Les tâches, les projets, les notes et les révisions, au même endroit.';
@@ -86,6 +87,7 @@ export function trialStrip() {
     return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>Essai gratuit : <b>${n} jour${n > 1 ? 's' : ''}</b> restant${n > 1 ? 's' : ''}</span><span class="strip-a">Formules ${ic('chevR')}</span></a>`;
   }
   // Rappel deux jours avant la fin de l'essai : le prélèvement approche, l'annulation reste à un geste
+  if (st === 'trialing' && s.sub.card === 0 && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>${tr('strip.trialEndFree', { plan: PLANS[s.sub.plan].name, date: dateLong(s.sub.periodEnd).toLowerCase() })}</span><span class="strip-a">Garder ${PLANS[s.sub.plan].name}</span></a>`;
   if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>${tr('strip.trialEnd', { plan: PLANS[s.sub.plan].name, date: dateLong(s.sub.periodEnd).toLowerCase(), price: (s.sub.interval === 'year' ? PLANS[s.sub.plan].yearly : PLANS[s.sub.plan].price).toFixed(2).replace('.', ',') })}</span><span class="strip-a">Gérer</span></a>`;
   if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>${tr('strip.pastDue', { date: dateLong(s.sub.graceEnd).toLowerCase() })}</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
   if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>${tr('strip.trialOver')}</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
@@ -108,7 +110,24 @@ export function trialStrip() {
 // et qu'aucune sauvegarde n'a été faite depuis 14 jours. « Plus tard » le cache 14 jours.
 export function backupStrip() {
   const s = S();
-  if (authMode() !== 'local' || s.sub.demo) return '';
+  if (s.sub.demo) return '';
+  // En ligne (1.15) : adresse à confirmer, ou pas encore de compte (les données ne sont que sur l'appareil)
+  if (authMode() === 'online') {
+    if (cloudUser()) return '';
+    if (s.account?.pending) {
+      return `<section class="nudge nudge-bk" aria-label="Compte">
+        <span class="nudge-ic">${ic('mail')}</span>
+        <div class="nudge-b"><b>Confirme ton adresse</b><p>${tr('acc.pending', { email: esc(s.account.email) })}</p>
+          <div class="nudge-a"><button class="btn btn-primary btn-sm" data-act="acc-resend">Renvoyer l'e-mail</button><button class="btn btn-ghost btn-sm" data-act="acc-open" data-m="in">J'ai confirmé · Me connecter</button></div></div>
+      </section>`;
+    }
+    if (!s.onboarded || Date.now() - (s.prefs.backupLater || 0) < 14 * 864e5) return '';
+    return `<section class="nudge nudge-bk" aria-label="Compte">
+      <span class="nudge-ic">${ic('user')}</span>
+      <div class="nudge-b"><b>${tr('data.account.t')}</b><p>${tr('data.account.p')}</p>
+        <div class="nudge-a"><button class="btn btn-primary btn-sm" data-act="acc-open" data-m="new">Créer mon compte</button><button class="btn btn-ghost btn-sm" data-act="backup-later">Plus tard</button></div></div>
+    </section>`;
+  }
   const items = s.tasks.filter((t) => !t.demo).length + s.pages.filter((p) => !p.demo).length + s.boards.length + s.prospects.filter((p) => !p.demo).length;
   const since = (x) => Date.now() - (x || 0);
   if (items < 5 || since(s.createdAt) < 7 * 864e5) return '';

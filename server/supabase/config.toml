@@ -1,0 +1,7 @@
+# Réglages minimaux de l'outil Supabase pour MindView (voir BRANCHER.md).
+# Les valeurs secrètes ne vont JAMAIS ici : `supabase secrets set …`.
+project_id = "mindview"
+
+# Appelé par Stripe (pas par l'application) : la signature de chaque événement est vérifiée dans la fonction.
+[functions.stripe-webhook]
+verify_jwt = false

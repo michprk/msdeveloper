@@ -91,7 +91,7 @@ export function plans() {
         ${isTest() && st === 'trialing' ? `<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a><button class="btn btn-ghost" data-act="sub-cancel">Annuler l'essai</button>` : ''}
         ${isTest() && st === 'trial_canceling' ? `<button class="btn btn-primary" data-act="sub-resume">Reprendre l'abonnement</button>` : ''}
         ${['trial', 'trial_ended', 'ended'].includes(st) ? '<a class="btn btn-primary" href="#plans" data-act="to-plans">Choisir une formule</a>' : ''}
-        ${!isTest() && ['active', 'canceling', 'past_due', 'trialing', 'trial_canceling'].includes(st) ? `<button class="btn btn-primary" data-act="cloud-portal">${ic('card')}<span>Gérer mon abonnement</span></button>` : ''}
+        ${!isTest() && ['active', 'canceling', 'past_due', 'trialing', 'trial_canceling'].includes(st) ? `<button class="btn btn-primary" data-act="cloud-portal">${ic('card')}<span>${st === 'trialing' && b.card === 0 ? `Ajouter un moyen de paiement pour garder ${planName(b.plan)}` : 'Gérer mon abonnement'}</span></button>` : ''}
         ${isTest() && st === 'active' ? `<a class="btn btn-ghost" href="#plans" data-act="to-plans">Changer de formule</a>${b.interval !== 'year' && !b.pendingInterval ? '<button class="btn btn-ghost" data-act="sub-interval" data-iv="year">Passer à l\'année</button>' : ''}<button class="btn btn-ghost" data-act="sub-cancel">Résilier</button>` : ''}
         ${isTest() && st === 'active' && (b.pending || b.pendingInterval) ? '<button class="btn btn-ghost" data-act="sub-keep">Annuler le changement prévu</button>' : ''}
         ${isTest() && st === 'canceling' ? `<button class="btn btn-primary" data-act="sub-resume">Reprendre l'abonnement</button>` : ''}
@@ -149,10 +149,10 @@ export function checkoutSheet(planId, trial = false, interval = iv()) {
   const sum = trial ? `${ivSeg}<dl class="co-sum">
         <div><dt>Formule ${p.name}</dt><dd>${price(amount)} € ${per(interval)}</dd></div>
         <div><dt>Essai gratuit</dt><dd>${TRIAL_DAYS} jours, jusqu'au ${dl(trialEndAt)}</dd></div>
-        ${preview() ? '' : `<div><dt>Premier prélèvement</dt><dd>${price(amount)} € le ${dl(trialEndAt)}</dd></div>`}
+
         <div class="co-tot"><dt>À payer aujourd'hui</dt><dd>0 €</dd></div>
       </dl>
-      ${preview() ? `<p class="sheet-p">${tr('co.preview')}</p>` : `<ol class="co-steps"><li><b>Aujourd'hui</b><span>Toutes les fonctions ${p.name} s'ouvrent.</span></li><li><b>Jour ${TRIAL_DAYS - 2}</b><span>${tr('co.remind')}</span></li><li><b>Jour ${TRIAL_DAYS}</b><span>${tr('co.charge', { price: price(amount) })}</span></li></ol>`}`
+      ${preview() ? `<p class="sheet-p">${tr('co.preview')}</p>` : `<ol class="co-steps"><li><b>Aujourd'hui</b><span>Toutes les fonctions ${p.name} s'ouvrent, sans carte.</span></li><li><b>Jour ${TRIAL_DAYS - 2}</b><span>${tr('co.remind')}</span></li><li><b>Jour ${TRIAL_DAYS}</b><span>${tr('co.liveEnd', { price: price(amount), per: per(interval) })}</span></li></ol>`}`
     : `${upgrade ? '' : ivSeg}<dl class="co-sum">
         <div><dt>Formule ${p.name}</dt><dd>${price(amount)} € ${per(interval)}</dd></div>
         ${upgrade ? `<div><dt>Déjà payé pour ${planName(s.plan)}</dt><dd>déduit au prorata</dd></div>` : ''}
@@ -166,7 +166,7 @@ export function checkoutSheet(planId, trial = false, interval = iv()) {
       <div class="sheet-body co" data-plan="${planId}">
         ${sum}
         <p class="co-err" role="alert" hidden></p>
-        <button class="btn btn-primary btn-block btn-lg" data-act="co-stripe" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-iv="${interval}">${ic('lock')}<span>${trial ? 'Ajouter mon moyen de paiement' : 'Continuer vers le paiement sécurisé'}</span></button>
+        <button class="btn btn-primary btn-block btn-lg" data-act="co-stripe" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-iv="${interval}">${ic('lock')}<span>${trial ? 'Commencer l\'essai gratuit' : 'Continuer vers le paiement sécurisé'}</span></button>
         ${trial ? stay : ''}
         <p class="sheet-note">${cloudUser() ? `Compte : ${esc(cloudUser().email || '')}. ` : tr('co.accountFirst')}${tr('co.stripe', { provider: PAYMENTS.provider })}</p>
       </div>`, { cls: 'sheet-sm' });
@@ -223,7 +223,10 @@ register({
   'co-stripe': async (b) => {
     const plan = b.dataset.plan;
     if (!cloudUser()) { closeSheet(null, true); accountSheet({ then: plan }); return; }
-    try { await busy(b, 'Ouverture du paiement…', () => checkout(plan, { trial: b.dataset.trial === '1', interval: b.dataset.iv || 'month' })); }
+    try {
+      const r = await busy(b, b.dataset.trial === '1' ? 'Démarrage de l\'essai…' : 'Ouverture du paiement…', () => checkout(plan, { trial: b.dataset.trial === '1', interval: b.dataset.iv || 'month' }));
+      if (r === 'trial') { closeSheet(); toast(tr('co.trialNoCard', { date: dl(S().sub.periodEnd) }), { title: `Essai ${planName(plan)} commencé`, ms: 4500 }); }
+    }
     catch (e) { const err = b.closest('.co').querySelector('.co-err'); err.textContent = cloudMessage(e); err.hidden = false; }
   },
   'cloud-portal': async (b) => {

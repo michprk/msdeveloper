@@ -1,5 +1,7 @@
 # Connecteur Notion — ce qu'il reste à brancher côté serveur
 
+> **Depuis la 1.15, le serveur est écrit** : `server/supabase/functions/notion/index.ts`, avec les tables `notion_links` et `notion_oauth_states` (migration `20261021000000_sync_notion.sql`). Il reste à créer l'intégration (§1), à déployer et à définir les secrets : voir [BRANCHER.md](BRANCHER.md), §4. Le contrat ci-dessous reste la référence.
+
 MindView parle à Notion uniquement à travers une interface, `notionProxy` (`assets/js/notion/proxy.js`).
 
 Le serveur fait trois choses :

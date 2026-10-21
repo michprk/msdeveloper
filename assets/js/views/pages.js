@@ -12,6 +12,8 @@ import { startOnboarding, notifSheet } from './onboarding.js';
 import { catSwitches, unreadCount } from './notifications.js';
 import { accountCard, authButton } from './account.js';
 import { authMode, hasAccount } from '../auth.js';
+import { syncActive, forgetSync } from '../sync.js';
+import { syncLine } from './account.js';
 import { cloudUser, deleteCloudAccount, cloudMessage } from '../cloud.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
 import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow, lockAfter, sessionStart } from '../lock.js';
@@ -32,7 +34,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.14.0';
+const VERSION = '1.15.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -116,15 +118,18 @@ function dataSection(s) {
   const items = s.tasks.length + s.pages.length + s.prospects.length + s.boards.length;
   const old = !lastB || Date.now() - lastB > 14 * 864e5;
   const warn = authMode() === 'local' && items > 0 && old;
+  const synced = syncActive();
   return `<h2 class="sec-title" id="donnees">Données</h2>
     <section class="card data-card rise">
-      <header class="card-h"><div><h2>${tr('data.t')}</h2><p>${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''} · ${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · ${s.boards.length} tableau${s.boards.length > 1 ? 'x' : ''}${s.prospects.length ? ` · ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''}` : ''}</p></div><span class="chip">${ic('monitor')}Sur cet appareil</span></header>
-      <div class="backup-st ${warn ? 'is-warn' : ''}">${ic(warn ? 'bell' : 'checkCircle')}<p>${lastB ? tr('data.last', { when: esc(ago(lastB)) }) : tr('data.never')}${warn ? ` ${tr('data.remind')}` : ''}</p></div>
+      <header class="card-h"><div><h2>${tr('data.t')}</h2><p>${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''} · ${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · ${s.boards.length} tableau${s.boards.length > 1 ? 'x' : ''}${s.prospects.length ? ` · ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''}` : ''}</p></div>${synced ? `<span class="chip t-olive">${ic('refresh')}Synchronisé</span>` : `<span class="chip">${ic('monitor')}Sur cet appareil</span>`}</header>
+      ${synced ? `<div class="sync-row"><p class="sync-st" id="sync-st" role="status" aria-live="polite">${syncLine()}</p><button class="btn btn-ghost btn-sm" data-act="sync-now">${ic('refresh')}<span>Synchroniser maintenant</span></button></div>` : ''}
+      ${authMode() === 'online' && !synced && !s.account?.pending ? `<div class="backup-st is-warn">${ic('user')}<p><b>${tr('data.account.t')}</b> ${tr('data.account.p')}</p></div><div class="act-row data-acc"><button class="btn btn-primary" data-act="acc-open" data-m="new">${ic('user')}<span>Créer mon compte</span></button><button class="btn btn-ghost" data-act="acc-open" data-m="in">Me connecter</button></div>` : ''}
+      <div class="backup-st ${warn ? 'is-warn' : ''}" ${synced ? 'hidden' : ''}>${ic(warn ? 'bell' : 'checkCircle')}<p>${lastB ? tr('data.last', { when: esc(ago(lastB)) }) : tr('data.never')}${warn ? ` ${tr('data.remind')}` : ''}</p></div>
       <div class="data-main">
         <button class="btn btn-primary" data-act="backup">${ic('download')}<span>${tr('data.export')}</span></button>
         <label class="btn btn-ghost">${ic('refresh')}<span>${tr('data.restore')}</span><input type="file" accept="application/json,.json" hidden data-act-change="restore"></label>
       </div>
-      <p class="field-h">${tr('data.help')}</p>
+      <p class="field-h">${tr(synced ? 'data.help.online' : 'data.help')}</p>
       <div class="btn-list data-more">
         <label class="btn btn-ghost">${ic('upload')}<span>Importer un fichier (ajoute sans rien effacer)</span><input type="file" accept="application/json,.json" hidden data-act-change="import-merge"></label>
         <button class="btn btn-ghost" data-act="cx-ics">${ic('calendar')}<span>Exporter les tâches datées vers un agenda (.ics)</span></button>
@@ -154,7 +159,7 @@ export function settings(params, q = {}) {
     <section class="card account rise">
       <div class="acc-top">${avatar(p.prenom || 'M S', 'xl')}<div><h2>${esc(p.prenom || tr('set.profile'))}</h2><p>${esc([p.societe, p.email].filter(Boolean).join(' · ') || 'Société non renseignée')}</p>${planBadge()}</div></div>
       <a class="row" href="#/abonnement"><span class="menu-ic">${ic('diamond')}</span><span class="row-b"><b>Abonnement</b><span>${esc(accessLabel())}</span></span>${ic('chevR', 'chev')}</a>
-      <div class="acc-note">${ic('shield')}<p>${authMode() === 'online' ? tr('acc.online', { email: esc(S().account?.email || '') }) : tr(hasAccount() ? 'acc.localPw' : 'acc.local')}</p></div>
+      <div class="acc-note">${ic('shield')}<p>${authMode() === 'online' ? tr(syncActive() ? 'acc.online' : s.account?.pending ? 'acc.pendingNote' : 'acc.onlineOff', { email: esc(s.account?.email || '') }) : tr(hasAccount() ? 'acc.localPw' : 'acc.local')}</p></div>
     </section>
     <nav class="acc-nav" aria-label="Sections du compte">${ACC_SECTIONS.filter(([id]) => id).map(([id, l]) => `<button class="chip-btn" data-act="acc-go" data-id="${id}">${l}</button>`).join('')}</nav>
     ${dataSection(s)}
@@ -476,14 +481,15 @@ register({
   wipe: async (d, f) => {
     if ((d.confirm || '').trim().toUpperCase() !== 'SUPPRIMER') return;
     // Compte en ligne : d'abord sur le serveur (abonnement Stripe arrêté, compte et données effacés)
-    if (cloudUser()) {
+    const wasOnline = !!cloudUser();
+    if (wasOnline) {
       try { await busy(f.querySelector('[type=submit]'), 'Suppression du compte en ligne…', () => deleteCloudAccount()); }
       catch (e) { toast(`${cloudMessage(e)} Rien n'a été effacé : réessayez.`, { title: 'Suppression impossible', ms: 5000 }); return; }
     }
     closeSheet();
-    resetState(); try { sessionStorage.clear(); } catch (e) { /* rien */ }
+    forgetSync(); resetState(); try { sessionStorage.clear(); } catch (e) { /* rien */ }
     startOnboarding(); location.hash = '#/bienvenue';
-    toast('Votre compte et toutes vos données ont été effacés de cet appareil.', { title: 'Compte supprimé' });
+    toast(wasOnline ? 'Ton compte et toutes tes données ont été effacés, de cet appareil et du serveur.' : 'Votre compte et toutes vos données ont été effacés de cet appareil.', { title: 'Compte supprimé' });
   },
 });
 

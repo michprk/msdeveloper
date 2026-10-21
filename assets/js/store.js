@@ -201,8 +201,12 @@ export function persist() {
   clearTimeout(timer);
   timer = setTimeout(() => {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { console.warn('Enregistrement impossible', e); }
+    // Pour la synchronisation avec le compte en ligne (sync.js)
+    window.dispatchEvent(new Event('ms:saved'));
   }, 80);
 }
+// Un état venu d'ailleurs (compte en ligne, autre appareil) remis au format actuel, sans toucher à l'état en cours
+export const normalize = (raw) => sanitize(merge(defaults(), migrate(JSON.parse(JSON.stringify(raw || {})))));
 export function update(fn, { silent = false } = {}) {
   fn(state);
   setCustomSectors(state.mySectors);

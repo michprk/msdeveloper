@@ -15,7 +15,7 @@ import { PITCH } from './common.js';
 import { applyPreset } from './crm.js';
 import { cloudMessage } from '../cloud.js';
 import { hasAccount, loggedIn, createAccount, login, validEmail, passwordIssue, authMode } from '../auth.js';
-import { pwField } from './account.js';
+import { pwField, providerButtons } from './account.js';
 import { t as tr } from '../strings.js';
 
 const STEPS = ['welcome', 'name', 'profile'];
@@ -64,6 +64,8 @@ function data() {
 export function startOnboarding(replay = false) { ob.i = 0; ob.dir = 1; ob.anim = true; ob.replay = replay; ob.d = null; }
 // Après une connexion sur un appareil où l'accueil n'a pas été fait : on reprend au profil
 export function resumeOnboarding() { startOnboarding(); ob.i = STEPS.indexOf('profile'); }
+// Après « Continuer avec Google » ou un lien de confirmation, sur un appareil où l'accueil n'a pas été fait
+export function resumeAfterAuth() { startOnboarding(); ob.i = STEPS.indexOf(data().prenom ? 'profile' : 'name'); }
 export const isReplay = () => ob.replay;
 
 // Écran de verrouillage iPhone avec des notifications au format iOS (réutilisé pour activer les rappels).
@@ -129,11 +131,12 @@ export function onboarding() {
         <span class="ob-acc-ic">${ic('user')}</span>
         <h1 class="ob-h">${tr('ob.name.t')}</h1>
         <p class="ob-p">${tr(withAcc ? 'ob.name.online' : 'ob.name.local')}</p>
+        ${withAcc ? providerButtons('ob-oauth') : ''}
         <div class="ob-fields">
           ${field('Prénom', input('prenom', d.prenom, 'autocomplete="given-name" required maxlength="40" placeholder="Léa"'))}
           ${withAcc ? `${field('Adresse e-mail', input('email', d.email, 'type="email" inputmode="email" autocomplete="email" required placeholder="prenom@exemple.be"'))}
           ${pwField('Mot de passe', 'password', 'autocomplete="new-password" required placeholder="8 caractères minimum"')}
-          <p class="field-h ob-pw-h">Au moins 8 caractères, avec un chiffre ou un signe.</p>` : ''}
+          <p class="field-h ob-pw-h">Au moins 8 caractères, avec un chiffre ou un signe. ${tr('acc.age')}</p>` : ''}
         </div>
         <p class="co-err ob-err" role="alert" hidden></p>
       </form>
@@ -193,6 +196,7 @@ export function loginView() {
         </div>
         <form class="login" data-form="login" novalidate>
           <h2>Se connecter</h2>
+          ${local ? '' : providerButtons('login-oauth')}
           ${field('Adresse e-mail', input('email', acc?.email || '', 'type="email" inputmode="email" autocomplete="username" required placeholder="prenom@exemple.be"'))}
           ${pwField('Mot de passe', 'password', 'autocomplete="current-password" required')}
           <p class="co-err" role="alert" hidden></p>
@@ -200,7 +204,7 @@ export function loginView() {
           <button type="button" class="link login-forgot" data-act="login-forgot">Mot de passe oublié ?</button>
           ${hasAccount() ? '' : `<p class="login-or"><span>Pas encore de compte ?</span></p><a class="btn login-new" href="#/bienvenue" data-act="login-new">Créer mon compte</a>`}
           ${local ? `<p class="login-n">${ic('lock')}<span>${tr(hasAccount() ? 'login.local' : 'login.newDevice')}</span></p>
-          <label class="link login-restore">${ic('upload')}<span>Restaurer une sauvegarde</span><input type="file" accept="application/json,.json" hidden data-act-change="restore"></label>` : ''}
+          <label class="link login-restore">${ic('upload')}<span>Restaurer une sauvegarde</span><input type="file" accept="application/json,.json" hidden data-act-change="restore"></label>` : `<p class="login-n">${ic('refresh')}<span>${tr('login.online')}</span></p>`}
         </form>
         ${devices('is-login')}
       </div>
@@ -312,9 +316,10 @@ register({
     if (passwordIssue(f.password)) { err(`Mot de passe : ${passwordIssue(f.password).toLowerCase()}`); form.elements.password.focus(); return; }
     const btn = document.querySelector('.ob-foot [type=submit]');
     try {
-      await busy(btn, 'Création du compte…', () => createAccount({ email, password: f.password, prenom: d.prenom }));
+      const r = await busy(btn, 'Création du compte…', () => createAccount({ email, password: f.password, prenom: d.prenom }));
       d.acc = 'done';
       go(1);
+      if (r?.pending) toast(tr('acc.confirm', { email: esc(email) }), { title: 'Presque fini', ms: 6000 });
     } catch (e) { err(cloudMessage(e)); }
   },
   'ob-profile': (f, form) => {

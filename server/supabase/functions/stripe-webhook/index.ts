@@ -23,7 +23,7 @@ async function userIdFor(sub: Stripe.Subscription): Promise<string | null> {
 // On relit toujours l'abonnement chez Stripe : l'ordre d'arrivée des événements n'a plus d'importance,
 // et un événement rejoué (Stripe réessaie en cas d'erreur) donne le même résultat.
 async function syncSubscription(subscriptionId: string) {
-  const sub = await stripe.subscriptions.retrieve(subscriptionId);
+  const sub = await stripe.subscriptions.retrieve(subscriptionId, { expand: ['customer'] });
   const userId = await userIdFor(sub);
   if (!userId) { console.warn('Abonnement sans compte MindView', subscriptionId); return; }
   const item = sub.items.data[0];
@@ -31,6 +31,10 @@ async function syncSubscription(subscriptionId: string) {
   // deno-lint-ignore no-explicit-any
   const end: number | null = (sub as any).current_period_end ?? (item as any)?.current_period_end ?? null;
   const live = LIVE.includes(sub.status);
+  // Moyen de paiement enregistré ? (un essai sans carte s'arrête tout seul à la fin s'il n'y en a pas)
+  // deno-lint-ignore no-explicit-any
+  const cust = sub.customer as any;
+  const hasPayment = !!(sub.default_payment_method || (cust && !cust.deleted && cust.invoice_settings?.default_payment_method));
 
   // Un ancien abonnement terminé ne doit pas écraser un abonnement en cours
   const { data: cur } = await admin.from('subscriptions').select('stripe_subscription_id, status').eq('user_id', userId).maybeSingle();
@@ -41,6 +45,8 @@ async function syncSubscription(subscriptionId: string) {
     stripe_customer_id: idOf(sub.customer),
     stripe_subscription_id: sub.id,
     plan: live ? planOfPrice(item?.price?.id) ?? 'free' : 'free',
+    billing_interval: item?.price?.recurring?.interval === 'year' ? 'year' : 'month',
+    has_payment_method: hasPayment,
     status: sub.status,
     current_period_end: end ? new Date(end * 1000).toISOString() : null,
     cancel_at_period_end: sub.cancel_at_period_end,
@@ -86,6 +92,13 @@ Deno.serve(async (req) => {
               .eq('stripe_subscription_id', subId).is('first_paid_at', null);
           }
         }
+        break;
+      }
+      // Moyen de paiement ajouté depuis l'espace de gestion (pendant un essai sans carte, par exemple)
+      case 'customer.updated': {
+        const c = event.data.object as Stripe.Customer;
+        const { data: rows } = await admin.from('subscriptions').select('stripe_subscription_id').eq('stripe_customer_id', c.id);
+        for (const r of rows ?? []) if (r.stripe_subscription_id) await syncSubscription(r.stripe_subscription_id);
         break;
       }
       case 'invoice.payment_failed': {

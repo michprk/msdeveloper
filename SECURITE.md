@@ -40,6 +40,27 @@ Ce qui est en place :
 | Connecteur Notion (1.12) | L'application ne parle à Notion qu'à travers `notionProxy`. Le secret OAuth et les jetons d'accès restent sur le serveur (contrat et liste blanche des chemins dans NOTION.md). Le `state` OAuth est aléatoire, gardé pour la session et vérifié au retour. Les textes importés passent par le même nettoyage par liste blanche que les notes ; les liens ne gardent que `http(s)` et s'ouvrent avec `rel="noopener noreferrer"`. Le Notion factice n'est actif qu'avec `NOTION.mock` ou `?notion=mock`, et il est signalé à l'écran. |
 | RGPD (1.4) | Page Confidentialité (`#/confidentialite`) : données, stockage, droits, contacts du CRM, tiers. À faire relire, et coordonnées du responsable du traitement à compléter avant le lancement. |
 
+## 1.15 : comptes en ligne, synchronisation, paiement et Notion (prêts, éteints)
+
+Le code est prêt. Il s'allume quand `config.js` est rempli, en suivant [BRANCHER.md](BRANCHER.md). Ce qui protège :
+
+| Point | Où |
+|---|---|
+| Chacun ne lit et n'écrit que **sa** ligne de données (`user_data`) | Règles de la base (RLS), `20261021000000_sync_notion.sql` |
+| Personne ne peut écraser sans le savoir ce qu'un autre appareil vient d'envoyer, ni choisir sa version, ni déplacer sa ligne vers un autre compte | Déclencheur `user_data_rev` (version tenue par la base) |
+| Taille limitée à 5 Mo par compte | Contrainte `user_data_taille` |
+| L'abonnement n'est jamais modifiable depuis l'application | Table `subscriptions` sans politique d'écriture ; seul le webhook Stripe (signature vérifiée) l'écrit |
+| L'essai gratuit : une seule fois par compte, sans carte | Fonction `create-checkout-session` |
+| Jetons Notion et « state » OAuth illisibles depuis l'application | Tables sans politique (`notion_links`, `notion_oauth_states`), fonction `notion` |
+| Proxy Notion : liste blanche des chemins de l'API, corps limité à 1 Mo, contenu jamais enregistré | Fonction `notion` |
+| Connexion Google avec PKCE ; jetons retirés de l'adresse dès le retour | `cloud.js` (`signInWithProvider`, `takeAuthReturn`) |
+| Mot de passe jamais stocké par l'application ; e-mail confirmé avant la première connexion | Supabase Auth |
+| Déconnexion : dernier envoi, puis les données quittent l'appareil (ordinateur partagé à l'école) | `auth.js` (`logout`), `sync.js` (`wipeDevice`) |
+| « Supprimer mon compte » : abonnement arrêté, compte et données effacés du serveur (cascade) | Fonction `delete-account` |
+| Secrets uniquement côté serveur (`supabase secrets set`) | Voir le tableau à la fin de BRANCHER.md |
+
+Les règles de la base sont aussi imitées par le serveur factice (`?cloud=mock`). Le test automatique `cloud1` vérifie qu'on ne peut ni lire ni écrire la ligne d'un autre compte, et qu'une ancienne version est refusée.
+
 ## Avant la commercialisation (comptes en ligne et paiement)
 
 Dès qu'il y aura des comptes, une base de données et des abonnements payants, ces points deviennent bloquants :

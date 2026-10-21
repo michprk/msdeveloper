@@ -4,6 +4,8 @@ import { paywall } from './common.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, busy, select, ago } from '../ui.js';
 import { t as tr } from '../strings.js';
 import { notionAvailable, mockOn } from '../notion/proxy.js';
+import { cloudUser } from '../cloud.js';
+import { accountSheet } from './account.js';
 import * as N from '../notion/client.js';
 import { titleOf, iconOf } from '../notion/map.js';
 import { connect, finishConnect, disconnect, isConnected, importPage, importDatabase, exportPage, exportProject, databaseSchema, setupSync, stopSync, syncNow, syncing, resolveConflict, dismissConflict } from '../notion/sync.js';
@@ -135,6 +137,8 @@ const rr = () => window.dispatchEvent(new Event('ms:rerender'));
 register({
   'nx-connect': async (b) => {
     if (!can('notionSync')) { sheet(`${sheetHead('Notion')}<div class="sheet-body">${paywall('notionSync', { compact: true })}</div>`, { cls: 'sheet-sm' }); return; }
+    // Le vrai serveur Notion lie l'accès à un compte MindView (sinon il ne saurait pas à qui le rendre)
+    if (!mockOn() && !cloudUser()) { accountSheet(); toast(tr('nx.needAccount'), { title: 'Notion', ms: 5000 }); return; }
     try { await busy(b, 'Ouverture de Notion…', () => connect()); }
     catch (e) { toast(N.notionMessage(e), { title: 'Notion', ms: 6000 }); }
   },

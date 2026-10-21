@@ -23,13 +23,14 @@ import { overview } from './views/overview.js';
 import { hub, messages, audit, importView } from './views/tools.js';
 import { training, stats, myScripts, myScriptEdit, sectorEdit } from './views/tools2.js';
 import { academy, guide, settings, more } from './views/pages.js';
-import { onboarding, startOnboarding, isReplay, loginView } from './views/onboarding.js';
-import { needsLogin, loggedIn } from './auth.js';
+import { onboarding, startOnboarding, isReplay, loginView, resumeAfterAuth } from './views/onboarding.js';
+import { needsLogin, loggedIn, afterAuthReturn } from './auth.js';
+import { startSync } from './sync.js';
 import { startReminders } from './notify.js';
 import { bootLock } from './lock.js';
 import { accessLabel } from './views/common.js';
-import { cloudUser, refreshSubscription, checkActivation, track } from './cloud.js';
-import { authButton } from './views/account.js';
+import { cloudUser, refreshSubscription, checkActivation, track, takeAuthReturn, finishAuthReturn, cloudMessage, cloudMock } from './cloud.js';
+import { authButton, newPasswordSheet } from './views/account.js';
 import { t as tr } from './strings.js';
 import { handleNotionReturn } from './views/notion.js';
 import { maybeAutoSync } from './notion/sync.js';
@@ -356,6 +357,10 @@ document.addEventListener('visibilitychange', () => {
   if (!billed && dayKey() !== lastDay && !editing()) render({ keepScroll: true });
 });
 
+// ---------- Retour d'un lien e-mail ou de Google (1.15) ----------
+// Lu avant le premier affichage : l'adresse est nettoyée tout de suite (jetons retirés).
+const authBack = takeAuthReturn();
+
 // ---------- Écran d'ouverture ----------
 // Accueil rejoué : demandé par ?accueil, ou réglage « Rejouer l'accueil à chaque ouverture ».
 let seen = false;
@@ -382,6 +387,17 @@ if (back) {
 if (cloudUser()) track('active_day');
 onChange(() => checkActivation());
 render();
+if (authBack) {
+  finishAuthReturn(authBack).then(async (r) => {
+    await afterAuthReturn(r);
+    if (r.type === 'recovery') { render(); newPasswordSheet(true); return; }
+    if (!S().onboarded) { resumeAfterAuth(); location.hash = '#/bienvenue'; render(); return; }
+    render();
+    toast(r.type === 'signup' ? tr('acc.confirmed') : `Connecté avec ${esc(r.user.email)}.`, { title: r.type === 'signup' ? 'Adresse confirmée' : 'Bon retour' });
+  }).catch((e) => toast(cloudMessage(e), { title: 'Lien de connexion', ms: 6000 }));
+} else if (cloudUser()) startSync();
+// Serveur factice : bien visible, pour ne jamais le confondre avec le vrai
+if (cloudMock()) document.body.classList.add('is-cloud-mock');
 handleNotionReturn();
 maybeAutoSync();
 startReminders();

@@ -2,6 +2,78 @@
 
 Les versions avant la 1.10 sont décrites dans le [README](README.md) (sections « Nouveautés »).
 
+## 1.15.0 — 21/10/2026 · Brancher les vrais services : comptes, stockage, paiement, Notion
+
+Tout est prêt et s'allume quand `config.js` est rempli. Le guide pas à pas est [BRANCHER.md](BRANCHER.md).
+
+**Stockage synchronisé** (`assets/js/sync.js`)
+- Avec un compte en ligne, les données sont enregistrées sur l'appareil (hors ligne d'abord), puis dans le compte, quelques secondes après chaque changement.
+- On les retrouve sur l'ordinateur comme sur le téléphone. Cette promesse ne s'affiche que quand la synchronisation est vraiment active.
+- Fusion à trois voies, élément par élément :
+  - ce qui a changé d'un seul côté est repris ;
+  - une suppression est respectée ;
+  - modifié des deux côtés : la version la plus récente gagne ;
+  - modifié d'un côté et supprimé de l'autre : la modification est gardée.
+- Version tenue par la base : deux appareils ne s'écrasent jamais sans le savoir.
+- Pas de changement appliqué pendant une saisie.
+- Restent sur l'appareil : le code de verrouillage, l'abonnement (le serveur en est la source), le connecteur Notion et les réglages d'affichage (thème, taille du texte).
+- Déconnexion : dernier envoi, puis les données quittent l'appareil (ordinateur partagé à l'école). Elles reviennent à la connexion. Si des changements n'ont pas pu partir, l'application prévient avant.
+- Compte → Données : état de la synchronisation et bouton « Synchroniser maintenant ».
+
+**Comptes**
+- E-mail et mot de passe vérifiés par le serveur, avec confirmation de l'adresse :
+  - on continue sur l'appareil en attendant le lien ;
+  - un bandeau propose de renvoyer l'e-mail ;
+  - les données partent dans le compte dès la confirmation.
+- « Continuer avec Google » (et Apple, prêt), avec PKCE.
+- « Mot de passe oublié » : lien par e-mail, puis choix d'un nouveau mot de passe dans l'application. « Changer mon mot de passe » dans Compte.
+- Les jetons reçus dans l'adresse (liens e-mail, Google) en sont retirés aussitôt.
+- En mode en ligne sans compte : un bandeau « Crée ton compte pour ne rien perdre ».
+- Mention de l'âge à l'inscription : avant 13 ans, avec un parent.
+- La connexion directe à Notion demande un compte en ligne : le jeton Notion est rangé sous ce compte, sur le serveur.
+
+**Paiement**
+- Essai Pro de 7 jours **sans carte**, démarré directement par le serveur, sans page de paiement. Une seule fois par compte.
+- Sans moyen de paiement ajouté avant la fin, Stripe arrête l'essai : retour au gratuit, rien n'est prélevé. Pour garder Pro : « Ajouter un moyen de paiement » (espace de gestion Stripe).
+- La période (mois ou an) et la présence d'un moyen de paiement sont enregistrées par le webhook (`billing_interval`, `has_payment_method`, événement `customer.updated`).
+- Tableau des abonnés actifs aux nouveaux prix.
+
+**Serveur** (`server/supabase/`)
+- Migration `20261021000000_sync_notion.sql` :
+  - table `user_data` (règles d'accès, version tenue par la base, 5 Mo au plus) ;
+  - colonnes d'abonnement ;
+  - tables Notion réservées au serveur.
+- Nouvelle fonction `notion` : le proxy Notion complet (OAuth avec « state » lié au compte, liste blanche des chemins, renouvellement du jeton, déconnexion).
+- `create-checkout-session` : essai sans carte. `stripe-webhook` : période et moyen de paiement.
+- `config.toml` : le webhook est déployé sans vérification de jeton Supabase (il vérifie la signature Stripe).
+
+**Serveur factice** (`?cloud=mock`)
+- Imite Supabase (comptes, règles de la base) et Stripe, entièrement dans le navigateur.
+- Sert à tout essayer avant de créer les comptes : inscription, confirmation, Google, mot de passe oublié (les e-mails arrivent en notification), synchronisation, essai, abonnement, suppression du compte.
+- Une pastille « Serveur factice » le rappelle à l'écran.
+
+**Confidentialité**
+- La page explique la synchronisation quand elle est active : ce qui est enregistré, où (Union européenne), qui peut le lire, et ce que font la déconnexion et la suppression.
+
+**Tests**
+- Banc local `cloud1`, 27 vérifications :
+  - fusion ;
+  - inscription et envoi ;
+  - autre appareil ;
+  - changements simultanés et conflit ;
+  - règles d'accès (ni lecture ni écriture chez un autre compte) ;
+  - version périmée refusée ;
+  - déconnexion et reconnexion ;
+  - changement de mot de passe ;
+  - lien de récupération ;
+  - confirmation d'adresse ;
+  - essai sans carte ;
+  - suppression.
+- Playwright `comptes-en-ligne` :
+  - accueil en ligne, synchronisation, déconnexion et reconnexion ;
+  - Google ;
+  - essai sans carte.
+
 ## 1.14.0 — 21/10/2026 · Phase 5 : compte et données cohérents
 
 **Mode des comptes**
