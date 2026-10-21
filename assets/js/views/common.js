@@ -3,6 +3,7 @@ import { S, can, need, PLANS, access, billing, trialActive, trialLeft, TRIAL_DAY
 import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
 import { checkoutSheet } from './billing.js';
 import { t as tr, has } from '../strings.js';
+import { authMode } from '../auth.js';
 
 // Positionnement : une phrase, un public, trois bénéfices, un exemple. Repris partout.
 export const PROMISE = 'Les tâches, les projets, les notes et les révisions, au même endroit.';
@@ -88,6 +89,9 @@ export function trialStrip() {
   if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>${tr('strip.trialEnd', { plan: PLANS[s.sub.plan].name, date: dateLong(s.sub.periodEnd).toLowerCase(), price: (s.sub.interval === 'year' ? PLANS[s.sub.plan].yearly : PLANS[s.sub.plan].price).toFixed(2).replace('.', ',') })}</span><span class="strip-a">Gérer</span></a>`;
   if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>${tr('strip.pastDue', { date: dateLong(s.sub.graceEnd).toLowerCase() })}</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
   if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>${tr('strip.trialOver')}</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
+  // La sauvegarde passe avant l'offre d'essai (1.14) : un seul bandeau à la fois
+  const bk = backupStrip();
+  if (bk) return bk;
   // Essai proposé en contexte (1.11) : un bandeau discret après trois jours d'utilisation, une seule fois,
   // pour qui n'a jamais essayé. Deux vrais boutons : essayer, ou rester en gratuit.
   if (st === 'free' && !s.sub.trialStart && !s.sub.history?.length && !s.prefs.nudgeHidden && Date.now() - (s.createdAt || Date.now()) > 3 * 864e5) {
@@ -100,7 +104,25 @@ export function trialStrip() {
   return '';
 }
 
+// Rappel de sauvegarde (1.14) : quand tout n'est que sur cet appareil, qu'il y a du contenu
+// et qu'aucune sauvegarde n'a été faite depuis 14 jours. « Plus tard » le cache 14 jours.
+export function backupStrip() {
+  const s = S();
+  if (authMode() !== 'local' || s.sub.demo) return '';
+  const items = s.tasks.filter((t) => !t.demo).length + s.pages.filter((p) => !p.demo).length + s.boards.length + s.prospects.filter((p) => !p.demo).length;
+  const since = (x) => Date.now() - (x || 0);
+  if (items < 5 || since(s.createdAt) < 7 * 864e5) return '';
+  if (s.prefs.lastBackup && since(s.prefs.lastBackup) < 14 * 864e5) return '';
+  if (s.prefs.backupLater && since(s.prefs.backupLater) < 14 * 864e5) return '';
+  return `<section class="nudge nudge-bk" aria-label="Sauvegarde">
+    <span class="nudge-ic">${ic('download')}</span>
+    <div class="nudge-b"><b>${tr(s.prefs.lastBackup ? 'backup.old' : 'backup.never')}</b><p>${tr('backup.strip')}</p>
+      <div class="nudge-a"><button class="btn btn-primary btn-sm" data-act="backup">Télécharger une sauvegarde</button><button class="btn btn-ghost btn-sm" data-act="backup-later">Plus tard</button></div></div>
+  </section>`;
+}
+
 register({
+  'backup-later': () => update((s) => { s.prefs.backupLater = Date.now(); }),
   // Essai gratuit : 7 jours de la formule qui débloque la fonction, avec un moyen de paiement (rien avant la fin)
   'start-trial': (b) => { closeSheet(null, true); checkoutSheet(b?.dataset?.plan || 'pro', true); },
   // « Continuer gratuitement » : un vrai bouton ; ferme la feuille, ou revient à l'écran précédent

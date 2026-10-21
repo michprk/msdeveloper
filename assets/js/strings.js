@@ -317,6 +317,28 @@ const STR = {
   'feat.exports': ['Exporte tes tâches, tes cartes et tes données dans un fichier.', 'Exportez vos tâches, vos cartes et vos données dans un fichier.'],
   'feat.projectsUnlimited.t': ['Trois projets dans la version gratuite', 'Trois projets dans la version gratuite'],
   'feat.projectsUnlimited': ['La version gratuite suit trois projets en cours. Avec Pro, suis autant de projets que tu veux, chacun avec ses tâches et sa progression.', 'La version gratuite suit trois projets en cours. Avec Pro, suivez autant de projets que vous voulez, chacun avec ses tâches et sa progression.'],
+  // ---------- Compte et données (1.14) ----------
+  'acc.local': ['<b>Ton compte, c\'est cet appareil.</b> Pas de mot de passe : tout est enregistré ici, sur cet appareil, et nulle part ailleurs. Pour changer d\'appareil, télécharge tes données puis restaure-les sur le nouveau.', '<b>Votre compte, c\'est cet appareil.</b> Pas de mot de passe : tout est enregistré ici, sur cet appareil, et nulle part ailleurs. Pour changer d\'appareil, téléchargez vos données puis restaurez-les sur le nouveau.'],
+  'acc.localPw': ['<b>Ton compte, c\'est cet appareil.</b> Un mot de passe (créé avec une version précédente) protège l\'accès à l\'écran ; tes données restent enregistrées ici, sur cet appareil.', '<b>Votre compte, c\'est cet appareil.</b> Un mot de passe (créé avec une version précédente) protège l\'accès à l\'écran ; vos données restent enregistrées ici, sur cet appareil.'],
+  'acc.online': ['<b>Connecté avec {email}.</b> Ton compte en ligne sert à te connecter et à gérer l\'abonnement. Tes notes et tâches restent enregistrées sur cet appareil.', '<b>Connecté avec {email}.</b> Votre compte en ligne sert à vous connecter et à gérer l\'abonnement. Vos notes et tâches restent enregistrées sur cet appareil.'],
+  'acc.sessions.local': ['Tout se passe sur cet appareil : il n\'y a pas de session à distance.', 'Tout se passe sur cet appareil : il n\'y a pas de session à distance.'],
+  'acc.sessions.online': ['Ta session en ligne se ferme avec « Se déconnecter ».', 'Votre session en ligne se ferme avec « Se déconnecter ».'],
+  'data.t': ['Tes données', 'Vos données'],
+  'data.last': ['Dernière sauvegarde : <b>{when}</b>.', 'Dernière sauvegarde : <b>{when}</b>.'],
+  'data.never': ['<b>Aucune sauvegarde pour l\'instant.</b>', '<b>Aucune sauvegarde pour l\'instant.</b>'],
+  'data.remind': ['Tes données ne sont que sur cet appareil : s\'il est perdu ou effacé, elles le sont aussi. Télécharge une sauvegarde.', 'Vos données ne sont que sur cet appareil : s\'il est perdu ou effacé, elles le sont aussi. Téléchargez une sauvegarde.'],
+  'data.export': ['Télécharger toutes mes données (.json)', 'Télécharger toutes mes données (.json)'],
+  'data.restore': ['Restaurer une sauvegarde', 'Restaurer une sauvegarde'],
+  'data.help': ['Le fichier contient tout : notes, tâches, projets, tableaux, études, réglages. Garde-le en lieu sûr (clé USB, iCloud, Google Drive). Restaurer remplace ce qui est sur cet appareil.', 'Le fichier contient tout : notes, tâches, projets, tableaux, études, réglages. Gardez-le en lieu sûr (clé USB, iCloud, Google Drive). Restaurer remplace ce qui est sur cet appareil.'],
+  'data.saved': ['Le fichier est dans tes téléchargements. Garde-le en lieu sûr (clé USB, iCloud, Google Drive…).', 'Le fichier est dans vos téléchargements. Gardez-le en lieu sûr (clé USB, iCloud, Google Drive…).'],
+  'backup.never': ['Pense à ta première sauvegarde', 'Pensez à votre première sauvegarde'],
+  'backup.old': ['Ta dernière sauvegarde date un peu', 'Votre dernière sauvegarde date un peu'],
+  'acc.pw.t': ['Mot de passe de cet appareil', 'Mot de passe de cet appareil'],
+  'acc.pw.p': ['Créé avec une version précédente, il protège l\'accès à MindView sur cet appareil. Il ne te sert pas à te connecter ailleurs. Tu peux le garder ou le retirer.', 'Créé avec une version précédente, il protège l\'accès à MindView sur cet appareil. Il ne vous sert pas à vous connecter ailleurs. Vous pouvez le garder ou le retirer.'],
+  'acc.pw.removeP': ['Tes données restent sur cet appareil. MindView s\'ouvrira sans mot de passe. Pour protéger l\'écran, tu peux activer un code de verrouillage dans Sécurité.', 'Vos données restent sur cet appareil. MindView s\'ouvrira sans mot de passe. Pour protéger l\'écran, vous pouvez activer un code de verrouillage dans Sécurité.'],
+  'acc.pw.removed': ['MindView s\'ouvre maintenant sans mot de passe sur cet appareil.', 'MindView s\'ouvre maintenant sans mot de passe sur cet appareil.'],
+  'acc.out': ['Tes données restent sur cet appareil. Pour revenir, il faudra ton e-mail et ton mot de passe.', 'Vos données restent sur cet appareil. Pour revenir, il faudra votre e-mail et votre mot de passe.'],
+  'backup.strip': ['Tes données ne sont que sur cet appareil. Pense à télécharger une sauvegarde.', 'Vos données ne sont que sur cet appareil. Pensez à télécharger une sauvegarde.'],
   // @@suite@@
 };
 

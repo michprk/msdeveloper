@@ -2,6 +2,35 @@
 
 Les versions avant la 1.10 sont décrites dans le [README](README.md) (sections « Nouveautés »).
 
+## 1.14.0 — 21/10/2026 · Phase 5 : compte et données cohérents
+
+**Mode des comptes**
+- En mode local (`AUTH_MODE = 'local'`, par défaut), plus aucun mot de passe n'est proposé : ni à l'accueil, ni dans Compte, ni dans le menu.
+- La page Compte le dit clairement : « Ton compte, c'est cet appareil. Pas de mot de passe : tout est enregistré ici… ».
+- La phrase contradictoire « aucun mot de passe n'est stocké » (alors que l'inscription en demandait un) est supprimée.
+- En mode en ligne, la note affiche l'e-mail connecté et précise ce qui reste sur l'appareil.
+- Un mot de passe créé avec la 1.9 continue de protéger l'accès. Une carte « Mot de passe de cet appareil » propose « Me déconnecter » et « Retirer le mot de passe » (après vérification).
+- En mode local, le bouton du menu devient « Sauvegarder mes données » (ou « Verrouiller la session » si un code est activé).
+
+**Compte → Données**
+- La section passe en premier dans la page Compte.
+- Deux gros boutons : « Télécharger toutes mes données (.json) » et « Restaurer une sauvegarde ».
+- Dessous : importer sans rien effacer, exporter vers un agenda (.ics), et l'export CSV des fiches (seulement avec le module Entrepreneur).
+- Rappel quand les données ne sont que sur l'appareil et qu'aucune sauvegarde n'a été faite depuis 14 jours.
+- Sur l'accueil, un bandeau de sauvegarde (avec « Plus tard », 14 jours) passe avant l'offre d'essai. Il apparaît après une semaine d'utilisation, à partir de 5 éléments créés.
+
+**Promesses retirées**
+- Aucune phrase ne promet l'ordinateur et le téléphone en même temps tant que la synchronisation n'existe pas.
+
+**Tests**
+- Tests Playwright de la page Compte :
+  - mode local sans mot de passe ;
+  - Données en premier ;
+  - téléchargement de la sauvegarde ;
+  - rappel sur l'accueil ;
+  - ancien mot de passe ;
+  - bouton du menu.
+
 ## 1.13.0 — 21/10/2026 · Phase 4 : prix et formules dans un seul fichier
 
 **Un seul fichier de configuration**

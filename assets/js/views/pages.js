@@ -11,6 +11,7 @@ import { QUIZZES } from '../data/quizzes.js';
 import { startOnboarding, notifSheet } from './onboarding.js';
 import { catSwitches, unreadCount } from './notifications.js';
 import { accountCard, authButton } from './account.js';
+import { authMode, hasAccount } from '../auth.js';
 import { cloudUser, deleteCloudAccount, cloudMessage } from '../cloud.js';
 import { askNotifications, notifSupport, testNotification } from '../notify.js';
 import { hasLock, lockSupported, setLock, checkCode, clearLock, lockNow, lockAfter, sessionStart } from '../lock.js';
@@ -31,7 +32,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.13.0';
+const VERSION = '1.14.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -108,7 +109,29 @@ export function guide([id]) {
 // ---------- Compte et réglages ----------
 // Sections nettes : informations personnelles, activité, application, notifications,
 // sécurité et session, données, zone sensible. Chaque changement confirme ou explique l'erreur.
-const ACC_SECTIONS = [['profil', 'Profil'], ['application', 'Application'], ['notifications', 'Notifications'], ['securite', 'Sécurité'], ['donnees', 'Données'], ['sensible', 'Suppression']];
+const ACC_SECTIONS = [['donnees', 'Données'], ['profil', 'Profil'], ['application', 'Application'], ['notifications', 'Notifications'], ['securite', 'Sécurité'], ['sensible', 'Suppression']];
+// Données (1.14) : bien visibles en haut du compte, avec un rappel de sauvegarde quand tout est seulement sur l'appareil
+function dataSection(s) {
+  const lastB = s.prefs.lastBackup;
+  const items = s.tasks.length + s.pages.length + s.prospects.length + s.boards.length;
+  const old = !lastB || Date.now() - lastB > 14 * 864e5;
+  const warn = authMode() === 'local' && items > 0 && old;
+  return `<h2 class="sec-title" id="donnees">Données</h2>
+    <section class="card data-card rise">
+      <header class="card-h"><div><h2>${tr('data.t')}</h2><p>${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''} · ${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · ${s.boards.length} tableau${s.boards.length > 1 ? 'x' : ''}${s.prospects.length ? ` · ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''}` : ''}</p></div><span class="chip">${ic('monitor')}Sur cet appareil</span></header>
+      <div class="backup-st ${warn ? 'is-warn' : ''}">${ic(warn ? 'bell' : 'checkCircle')}<p>${lastB ? tr('data.last', { when: esc(ago(lastB)) }) : tr('data.never')}${warn ? ` ${tr('data.remind')}` : ''}</p></div>
+      <div class="data-main">
+        <button class="btn btn-primary" data-act="backup">${ic('download')}<span>${tr('data.export')}</span></button>
+        <label class="btn btn-ghost">${ic('refresh')}<span>${tr('data.restore')}</span><input type="file" accept="application/json,.json" hidden data-act-change="restore"></label>
+      </div>
+      <p class="field-h">${tr('data.help')}</p>
+      <div class="btn-list data-more">
+        <label class="btn btn-ghost">${ic('upload')}<span>Importer un fichier (ajoute sans rien effacer)</span><input type="file" accept="application/json,.json" hidden data-act-change="import-merge"></label>
+        <button class="btn btn-ghost" data-act="cx-ics">${ic('calendar')}<span>Exporter les tâches datées vers un agenda (.ics)</span></button>
+        ${on('entrepreneur') ? `<button class="btn btn-ghost" data-act="export-csv" ${s.prospects.length ? '' : 'disabled'}>${ic('list')}<span>Exporter les fiches (CSV)</span>${can('export') ? '' : '<span class="badge b-premium">Premium</span>'}</button>` : ''}
+      </div>
+    </section>`;
+}
 const LOCK_AFTER = [[0, 'Dès que je quitte l\'application'], [1, 'Après 1 minute'], [5, 'Après 5 minutes'], [15, 'Après 15 minutes'], [-1, 'Jamais (seulement à l\'ouverture)']];
 const deviceName = () => {
   const ua = navigator.userAgent;
@@ -131,9 +154,10 @@ export function settings(params, q = {}) {
     <section class="card account rise">
       <div class="acc-top">${avatar(p.prenom || 'M S', 'xl')}<div><h2>${esc(p.prenom || tr('set.profile'))}</h2><p>${esc([p.societe, p.email].filter(Boolean).join(' · ') || 'Société non renseignée')}</p>${planBadge()}</div></div>
       <a class="row" href="#/abonnement"><span class="menu-ic">${ic('diamond')}</span><span class="row-b"><b>Abonnement</b><span>${esc(accessLabel())}</span></span>${ic('chevR', 'chev')}</a>
-      <div class="acc-note">${ic('shield')}<p><b>Votre compte, c'est cet appareil.</b> Il n'y a pas encore de compte en ligne : aucun mot de passe n'est stocké, rien n'est envoyé à un serveur. La connexion et la synchronisation entre appareils arriveront avec le paiement en ligne.</p></div>
+      <div class="acc-note">${ic('shield')}<p>${authMode() === 'online' ? tr('acc.online', { email: esc(S().account?.email || '') }) : tr(hasAccount() ? 'acc.localPw' : 'acc.local')}</p></div>
     </section>
     <nav class="acc-nav" aria-label="Sections du compte">${ACC_SECTIONS.filter(([id]) => id).map(([id, l]) => `<button class="chip-btn" data-act="acc-go" data-id="${id}">${l}</button>`).join('')}</nav>
+    ${dataSection(s)}
 
     <h2 class="sec-title" id="profil">Informations personnelles</h2>
     <form class="card form rise" data-form="profile" data-autosave data-validate novalidate>
@@ -221,22 +245,10 @@ export function settings(params, q = {}) {
         <div><dt>Données</dt><dd>Sur cet appareil uniquement</dd></div>
         <div><dt>Sessions à distance</dt><dd>Aucune</dd></div>
       </dl>
-      <p class="field-h">Avec les comptes en ligne, vous verrez ici chaque appareil connecté et pourrez le déconnecter à distance. ${hasLock() ? 'Pour fermer la session maintenant, verrouillez l\'application.' : 'Activez un code pour pouvoir fermer la session.'}</p>
+      <p class="field-h">${authMode() === 'online' ? tr('acc.sessions.online') : tr('acc.sessions.local')} ${hasLock() ? 'Pour fermer la session maintenant, verrouillez l\'application.' : 'Activez un code pour pouvoir fermer la session.'}</p>
       <div class="act-row">${authButton('btn btn-ghost')}</div>
     </section>
 
-    <h2 class="sec-title" id="donnees">Vos données</h2>
-    <section class="card rise">
-      <header class="card-h"><div><h2>Sauvegarde et import</h2><p>${s.tasks.length} tâche${s.tasks.length > 1 ? 's' : ''} · ${s.pages.length} page${s.pages.length > 1 ? 's' : ''} · ${s.prospects.length} fiche${s.prospects.length > 1 ? 's' : ''} sur cet appareil</p></div></header>
-      <div class="backup-st ${!lastB && items ? 'is-warn' : lastB && Date.now() - lastB > 30 * 864e5 ? 'is-warn' : ''}">${ic(lastB ? 'checkCircle' : 'download')}<p>${lastB ? `Dernière sauvegarde : <b>${esc(ago(lastB))}</b>${Date.now() - lastB > 30 * 864e5 ? ' — pensez à en refaire une.' : '.'}` : items ? '<b>Aucune sauvegarde pour l\'instant.</b> Si ce téléphone est perdu, vos données le sont aussi.' : 'Aucune sauvegarde pour l\'instant.'}</p></div>
-      <div class="btn-list">
-        <button class="btn ${!lastB && items ? 'btn-primary' : 'btn-ghost'}" data-act="backup">${ic('download')}<span>Télécharger une sauvegarde</span></button>
-        <label class="btn btn-ghost">${ic('upload')}<span>Importer un fichier (ajoute sans rien effacer)</span><input type="file" accept="application/json,.json" hidden data-act-change="import-merge"></label>
-        <label class="btn btn-ghost">${ic('refresh')}<span>Restaurer une sauvegarde (remplace tout)</span><input type="file" accept="application/json,.json" hidden data-act-change="restore"></label>
-        <button class="btn btn-ghost" data-act="export-csv" ${s.prospects.length ? '' : 'disabled'}>${ic('list')}<span>Exporter les fiches (CSV)</span>${can('export') ? '' : '<span class="badge b-premium">Premium</span>'}</button>
-        <button class="btn btn-ghost" data-act="cx-ics">${ic('calendar')}<span>Exporter les tâches datées vers un agenda (.ics)</span></button>
-      </div>
-    </section>
     <a class="card row priv-link rise" href="#/confidentialite"><span class="menu-ic">${ic('shield')}</span><span class="row-b"><b>Confidentialité et RGPD</b><span>Ce qui est enregistré, où, et vos droits : accès, rectification, effacement, portabilité</span></span>${ic('chevR', 'chev')}</a>
 
     <h2 class="sec-title" id="sensible">Suppression</h2>
@@ -377,7 +389,7 @@ register({
   backup: () => {
     download(`msdeveloper-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ ...S(), lock: null }, null, 1));
     update((s) => { s.prefs.lastBackup = Date.now(); });
-    toast('Le fichier est dans vos téléchargements. Gardez-le en lieu sûr (iCloud, Google Drive…).', { title: 'Sauvegarde téléchargée', ms: 4000 });
+    toast(tr('data.saved'), { title: 'Sauvegarde téléchargée', ms: 4000 });
   },
   'import-merge': async (el) => {
     const f = el.files?.[0]; if (!f) return;

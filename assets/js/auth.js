@@ -79,6 +79,14 @@ export async function forgot(email) {
   if (cloudReady()) { await recoverPassword(String(email).trim().toLowerCase()); return 'mail'; }
   return 'local';
 }
+// Mode local (1.14) : retirer le mot de passe d'une ancienne version, après vérification. Les données restent.
+export async function removePassword(pw) {
+  const acc = S().account;
+  if (!acc?.kdf || !await checkPassword(pw, acc.kdf)) return false;
+  update((s) => { s.account = null; });
+  write('');
+  return true;
+}
 export async function changePassword(oldPw, newPw) {
   const acc = S().account;
   if (!acc?.kdf || !await checkPassword(oldPw, acc.kdf)) return false;

@@ -5,7 +5,8 @@ import { S, update } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, busy } from '../ui.js';
 import { hasLock, lockNow } from '../lock.js';
 import { cloudReady, cloudUser, refreshSubscription, checkout, cloudMessage } from '../cloud.js';
-import { hasAccount, loggedIn, createAccount, login, logout, forgot, validEmail, passwordIssue } from '../auth.js';
+import { hasAccount, loggedIn, createAccount, login, logout, forgot, validEmail, passwordIssue, authMode, removePassword } from '../auth.js';
+import { t as tr } from '../strings.js';
 
 // Champ mot de passe avec « Afficher »
 export const pwField = (label, name = 'password', attrs = '') => field(label, `<span class="pw">${input(name, '', `type="password" ${attrs}`)}<button type="button" class="pw-eye" data-act="pw-eye" aria-label="Afficher le mot de passe">${ic('eye')}</button></span>`);
@@ -30,9 +31,19 @@ export function accountSheet({ then = '', mode = '' } = {}) {
 const showErr = (f, m) => { const box = f.querySelector('.co-err'); box.textContent = m; box.hidden = false; };
 
 // Carte « Compte » de la page Compte et réglages
+// Mode local (1.14) : pas de compte à créer. Seul un mot de passe créé avec une ancienne version (1.9) est montré,
+// avec « Se déconnecter » et « Retirer le mot de passe ».
 export function accountCard() {
   const acc = S().account;
   const on = hasAccount() && loggedIn();
+  if (authMode() === 'local') {
+    if (!acc?.kdf) return '';
+    return `<section class="card rise" id="compte-en-ligne">
+      <header class="card-h"><div><h2>${tr('acc.pw.t')}</h2><p>${esc(acc.email)}</p></div><span class="chip t-olive">${ic('lock')}Protégé</span></header>
+      <p class="field-h">${tr('acc.pw.p')}</p>
+      <div class="act-row"><button class="btn btn-ghost" data-act="auth-out">${ic('logout')}<span>Me déconnecter</span></button><button class="btn btn-ghost" data-act="acc-pw-remove">${ic('x')}<span>Retirer le mot de passe</span></button></div>
+    </section>`;
+  }
   return `<section class="card rise" id="compte-en-ligne">
     <header class="card-h"><div><h2>Mon compte</h2><p>${on ? `Connecté : ${esc(acc.email)}` : acc?.email ? `${esc(acc.email)} · ajoutez un mot de passe pour pouvoir vous connecter` : 'E-mail et mot de passe, pour vous connecter'}</p></div><span class="chip ${on ? 't-olive' : ''}">${ic(on ? 'check' : 'user')}${on ? 'Connecté' : 'Pas de mot de passe'}</span></header>
     ${on ? `<div class="act-row">${cloudUser() ? `<button class="btn btn-ghost" data-act="acc-refresh">${ic('refresh')}<span>Mettre à jour mon abonnement</span></button>` : ''}<button class="btn btn-ghost" data-act="auth-out">${ic('logout')}<span>Me déconnecter</span></button></div>`
@@ -55,8 +66,24 @@ register({
     try { await busy(b, 'Mise à jour…', () => refreshSubscription()); toast('Votre abonnement est à jour.'); }
     catch (e) { toast(cloudMessage(e), { title: 'Mise à jour impossible' }); }
   },
+  'acc-pw-remove': () => {
+    sheet(`${sheetHead('Retirer le mot de passe')}
+      <form class="sheet-body form" data-form="acc-pw-remove" novalidate>
+        <p class="sheet-p">${tr('acc.pw.removeP')}</p>
+        ${pwField('Mot de passe actuel', 'password', 'autocomplete="current-password" required')}
+        <p class="co-err" role="alert" hidden></p>
+        <button class="btn btn-primary btn-block" type="submit">Retirer le mot de passe</button>
+      </form>`, { cls: 'sheet-sm' });
+  },
   'acc-share': (el) => { update((s) => { s.prefs.share = el.checked; }); toast(el.checked ? 'Merci : ces deux mesures nous aident à améliorer MindView.' : 'Aucune mesure ne sera envoyée.', { ms: 2200 }); },
 }, {
+  'acc-pw-remove': async (d, f) => {
+    if (!d.password) { showErr(f, tr('login.err.pw')); return; }
+    const ok = await busy(f.querySelector('[type=submit]'), 'Vérification…', () => removePassword(d.password));
+    if (!ok) { showErr(f, 'Ce n\'est pas le bon mot de passe.'); return; }
+    closeSheet();
+    toast(tr('acc.pw.removed'), { title: 'Mot de passe retiré' });
+  },
   'acc-pw': async (d, f) => {
     const email = (d.email || '').trim().toLowerCase();
     if (flow.mode === 'new' && f.elements.prenom && !d.prenom?.trim()) { showErr(f, 'Indiquez votre prénom.'); return; }
@@ -78,7 +105,9 @@ register({
 export function authButton(cls = '') {
   if ((hasAccount() && loggedIn()) || cloudUser()) return `<button class="${cls}" data-act="auth-out">${ic('logout')}<span>Se déconnecter</span></button>`;
   if (hasLock()) return `<button class="${cls}" data-act="auth-lock">${ic('lock')}<span>Verrouiller la session</span></button>`;
-  return `<button class="${cls}" data-act="auth-in">${ic('user')}<span>${S().account?.email ? 'Ajouter un mot de passe' : 'Créer mon compte'}</span></button>`;
+  // Mode local : pas de compte à créer ; le geste utile est la sauvegarde
+  if (authMode() === 'local') return `<button class="${cls}" data-act="backup">${ic('download')}<span>Sauvegarder mes données</span></button>`;
+  return `<button class="${cls}" data-act="auth-in">${ic('user')}<span>${S().account?.email ? 'Me connecter' : 'Créer mon compte'}</span></button>`;
 }
 // Mot de passe oublié : par e-mail pour un compte en ligne ; sur l'appareil, il ne peut pas être retrouvé.
 export async function forgotFlow(email, btn) {
@@ -95,7 +124,7 @@ register({
   'auth-in': () => accountSheet(),
   'auth-lock': () => lockNow(),
   'auth-out': async () => {
-    if (!await confirmSheet({ title: 'Se déconnecter ?', text: 'Vos données restent sur cet appareil. Pour revenir, il faudra votre e-mail et votre mot de passe.', ok: 'Se déconnecter' })) return;
+    if (!await confirmSheet({ title: 'Se déconnecter ?', text: tr('acc.out'), ok: 'Se déconnecter' })) return;
     await logout();
     location.hash = '#/connexion';
     toast('À bientôt.', { title: 'Déconnecté' });

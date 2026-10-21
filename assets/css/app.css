@@ -3545,3 +3545,11 @@ body[data-mode="hero"] { background: #0b1630; }
 .paywall-free { margin-top: 8px; }
 .plan-p { flex-wrap: wrap; }
 .plan-p .plan-save { flex-basis: 100%; }
+
+/* ---------- Compte → Données (1.14) ---------- */
+.data-card .card-h p { font-variant-numeric: tabular-nums; }
+.data-main { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0 8px; }
+.data-main .btn { flex: 1 1 240px; justify-content: center; }
+.data-more { margin-top: 12px; }
+.nudge-bk { background: color-mix(in srgb, var(--olive, #6b7a3a) 8%, var(--card)); border-color: color-mix(in srgb, var(--olive, #6b7a3a) 26%, transparent); }
+.nudge-bk .nudge-ic { background: var(--olive, #6b7a3a); }
