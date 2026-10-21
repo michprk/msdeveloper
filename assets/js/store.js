@@ -124,6 +124,15 @@ function merge(base, saved) {
   return out;
 }
 
+// Prénom propre partout : espaces retirés, majuscule au début de chaque partie (« adam » → « Adam »,
+// « jean-pierre » → « Jean-Pierre »). Tout en minuscules ou tout en majuscules : remis en forme ; mixte (McKenzie) : gardé.
+export const normName = (v) => String(v || '').trim().replace(/\s+/g, ' ').slice(0, 40).split(/([ \-'’])/).map((part) => {
+  if (!part || /^[ \-'’]$/.test(part)) return part;
+  const low = part.toLowerCase(), up = part.toUpperCase();
+  const base = part === low || part === up ? low : part;
+  return base.charAt(0).toUpperCase() + base.slice(1);
+}).join('');
+
 // Dates toujours en millisecondes (protège contre un fichier importé mal formé)
 function sanitize(s) {
   const n = (v) => (typeof v === 'string' ? Date.parse(v) || null : v);
@@ -131,6 +140,7 @@ function sanitize(s) {
   s.activities.forEach((a) => { a.at = n(a.at) || Date.now(); });
   s.prospects.forEach((p) => { p.createdAt = n(p.createdAt) || Date.now(); p.updatedAt = n(p.updatedAt) || p.createdAt; if (p.next) p.next.due = n(p.next.due); });
   s.pages.forEach((p) => { p.blocks = Array.isArray(p.blocks) ? p.blocks : []; p.updatedAt = n(p.updatedAt) || Date.now(); p.createdAt = n(p.createdAt) || p.updatedAt; });
+  s.profile.prenom = normName(s.profile.prenom);
   if (!Array.isArray(s.profile.usages) || !s.profile.usages.length) s.profile.usages = [...DEFAULT_USAGES];
   s.profile.usages = ['organiser', ...MODULE_IDS.filter((m) => m !== 'organiser' && s.profile.usages.includes(m))];
   if (!Array.isArray(s.sub.history)) s.sub.history = [];
@@ -264,7 +274,6 @@ export function mergeImport(data) {
 export const resetState = () => replaceState(defaults());
 
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-
 // ---------- Modules ----------
 // Anciens noms (avant 1.10) encore utilisés dans les écrans : clients et prospecter = Entrepreneur ;
 // apprendre (quiz) = Études ou Entrepreneur.

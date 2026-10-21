@@ -3439,3 +3439,30 @@ body[data-mode="hero"] { background: #0b1630; }
 .ob-more > summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 8px; }
 /* Mes études : la grille des outils sert de navigation sur téléphone ; sur ordinateur, le menu suffit */
 @media (min-width: 960px) { .st-tools-h, .st-tools { display: none; } }
+
+/* ========== 1.11 : accueil court ========== */
+/* Le bouton collant « Continuer » ne cache plus le dernier champ */
+.ob .ob-page { padding-bottom: calc(var(--safe-b) + 112px); }
+.ob input, .ob select, .ob textarea { scroll-margin-bottom: 140px; }
+.ob-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ob-chip { position: relative; display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 999px; background: var(--card); border: 1.5px solid var(--line-2); font: 500 14px/1.2 var(--apple); color: var(--ink-2); cursor: pointer; transition: background .2s, border-color .2s, color .2s; }
+.ob-chip[hidden] { display: none; }
+.ob-chip input { position: absolute; opacity: 0; pointer-events: none; }
+.ob-chip .ic { width: 16px; height: 16px; color: var(--muted); }
+.ob-chip:has(input:checked) { background: color-mix(in srgb, #3d63f5 10%, var(--card)); border-color: #3d63f5; color: var(--ink); }
+.ob-chip:has(input:checked) .ic { color: #3d63f5; }
+.ob-chip:has(input:focus-visible) { outline: 2px solid var(--blue); outline-offset: 2px; }
+.ob-prof .ob-mods { margin-top: 18px; }
+.ob-prof .ob-seg { margin-bottom: 0; }
+.ob-prof .ob-team { margin-top: 10px; }
+.wl-restore { cursor: pointer; }
+/* Essai proposé en contexte */
+.nudge { display: flex; gap: 14px; align-items: flex-start; margin: 0 0 14px; padding: 16px; border-radius: 20px; background: color-mix(in srgb, #3d63f5 7%, var(--card)); border: 1px solid color-mix(in srgb, #3d63f5 22%, transparent); }
+.nudge-ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: #3d63f5; color: #fff; flex: none; }
+.nudge-ic .ic { width: 20px; height: 20px; }
+.nudge-b b { display: block; font-size: 15.5px; }
+.nudge-b p { margin: 3px 0 10px; font-size: 14px; line-height: 1.45; color: var(--ink-2); }
+.nudge-a { display: flex; flex-wrap: wrap; gap: 8px; }
+.co-free { margin-top: 6px; }
+.ob-main-sit .pick-c { grid-column: 1 / -1; }
+.ob-soc { margin-top: 16px; }

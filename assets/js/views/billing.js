@@ -9,6 +9,7 @@ import { isTest, PAYMENTS } from '../payments.js';
 import { runBillingChecks, CHECK_COUNT } from '../billing-check.js';
 import { cloudUser, checkout, openPortal, cloudMessage } from '../cloud.js';
 import { accountSheet } from './account.js';
+import { t as tr } from '../strings.js';
 
 const price = (n) => n.toFixed(2).replace('.', ',');
 const dl = (t) => dateLong(t).toLowerCase();
@@ -176,6 +177,7 @@ export function checkoutSheet(planId, trial = false) {
         ${sum}
         <p class="co-err" role="alert" hidden></p>
         <button class="btn btn-primary btn-block btn-lg" data-act="co-stripe" data-plan="${planId}" data-trial="${trial ? 1 : 0}">${ic('lock')}<span>${trial ? 'Ajouter mon moyen de paiement' : 'Continuer vers le paiement sécurisé'}</span></button>
+        ${trial ? `<button class="btn btn-ghost btn-block" data-act="close-sheet">${tr('co.stayFree')}</button>` : ''}
         <p class="sheet-note">${cloudUser() ? `Compte : ${esc(cloudUser().email || '')}. ` : 'Vous créerez d\'abord votre compte. '}La carte est saisie sur la page sécurisée de ${PAYMENTS.provider} : aucune donnée bancaire ne passe par l'application.</p>
       </div>`, { cls: 'sheet-sm' });
     return;
@@ -187,6 +189,7 @@ export function checkoutSheet(planId, trial = false) {
       <p class="co-err" role="alert" hidden></p>
       <button class="btn btn-primary btn-block btn-lg" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-r="ok">${ic('lock')}<span>${trial ? 'Simuler l\'ajout de la carte et commencer' : `Simuler le paiement de ${price(due)} €`}</span></button>
       <div class="sheet-actions"><button class="btn btn-ghost" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-r="fail">${trial ? 'Simuler une carte refusée' : 'Simuler un refus'}</button><button class="btn btn-ghost" data-act="co-pay" data-plan="${planId}" data-trial="${trial ? 1 : 0}" data-r="net">Simuler une coupure</button></div>
+      ${trial ? `<button class="btn btn-ghost btn-block co-free" data-act="close-sheet">${tr('co.stayFree')}</button>` : ''}
       <p class="sheet-note">Au lancement, le paiement se fera par carte via ${PAYMENTS.provider}, prestataire sécurisé : aucune donnée bancaire ne passera par l'application. Résiliable à tout moment depuis Abonnement.</p>
     </div>`, { cls: 'sheet-sm' });
 }

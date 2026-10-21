@@ -2,6 +2,23 @@
 
 Les versions avant la 1.10 sont décrites dans le [README](README.md) (sections « Nouveautés »).
 
+## 1.11.0 — 21/10/2026 · Phase 2 : un accueil plus court
+
+- Accueil en trois écrans, sans paiement :
+  1. l'accroche (le Mac et l'iPhone, un seul écran, avec « Passer ») ;
+  2. le prénom ;
+  3. le profil et les besoins sur un seul écran.
+- Supprimés : le carrousel de cinq diapositives, l'étape « formule » et l'essai avec carte de l'accueil.
+- Nouveau réglage `AUTH_MODE` dans `config.js` (`'local'` par défaut). En mode local, aucun mot de passe n'est demandé. En mode en ligne (avec `CLOUD` rempli), l'écran du prénom demande aussi l'e-mail et un mot de passe, vérifiés par le serveur.
+- L'essai Pro est proposé plus tard, en contexte :
+  - le bouton « Essayer Pro » apparaît quand on touche une fonction Pro ;
+  - un bandeau discret s'affiche après trois jours d'utilisation, une seule fois, pour qui n'a jamais essayé, avec deux vrais boutons : « Essayer Pro » et « Rester en gratuit » ;
+  - la feuille d'essai a aussi un vrai bouton « Rester en version gratuite ».
+- Corrigé : le bouton collant « Continuer » cachait en partie le champ « Société ou école ». Il y a maintenant une marge en bas (safe-area), et le champ s'appelle « École ou société (facultatif) ».
+- Prénom remis en forme partout (`normName` : espaces retirés, majuscule à chaque partie, « jean-pierre » → « Jean-Pierre »), à l'accueil, dans Compte et au chargement des anciennes données. « Bonjour adam » devient « Bonjour Adam ».
+- Ton : l'accueil et l'écran de connexion passent par `strings.js`.
+- Tests Playwright : l'accueil complet (sans mot de passe ni paiement, champ visible, prénom remis en forme), un ancien prénom en minuscules, et le bandeau d'essai avec « Rester en gratuit ».
+
 ## 1.10.0 — 21/10/2026 · Phase 1 : recentrer sur les élèves
 
 **Modules**

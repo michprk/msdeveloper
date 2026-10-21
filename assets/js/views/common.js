@@ -87,12 +87,22 @@ export function trialStrip() {
   if (st === 'trialing' && s.sub.periodEnd - Date.now() < 2.2 * 864e5) return `<a class="strip" href="#/abonnement">${ic('hourglass')}<span>${tr('strip.trialEnd', { plan: PLANS[s.sub.plan].name, date: dateLong(s.sub.periodEnd).toLowerCase(), price: PLANS[s.sub.plan].price.toFixed(2).replace('.', ',') })}</span><span class="strip-a">Gérer</span></a>`;
   if (st === 'past_due') return `<a class="strip is-end" href="#/abonnement">${ic('bell')}<span>${tr('strip.pastDue', { date: dateLong(s.sub.graceEnd).toLowerCase() })}</span><span class="strip-a">Régler ${ic('chevR')}</span></a>`;
   if (st === 'trial_ended' && !s.prefs.hideTrialEnd) return `<a class="strip is-end" href="#/abonnement">${ic('lock')}<span>${tr('strip.trialOver')}</span><span class="strip-a">S'abonner ${ic('chevR')}</span></a>`;
+  // Essai proposé en contexte (1.11) : un bandeau discret après trois jours d'utilisation, une seule fois,
+  // pour qui n'a jamais essayé. Deux vrais boutons : essayer, ou rester en gratuit.
+  if (st === 'free' && !s.sub.trialStart && !s.sub.history?.length && !s.prefs.nudgeHidden && Date.now() - (s.createdAt || Date.now()) > 3 * 864e5) {
+    return `<section class="nudge" aria-label="Essai de Pro">
+      <span class="nudge-ic">${ic('diamond')}</span>
+      <div class="nudge-b"><b>${tr('nudge.t')}</b><p>${tr('nudge.p')}</p>
+        <div class="nudge-a"><button class="btn btn-primary btn-sm" data-act="start-trial" data-plan="pro">Essayer Pro</button><button class="btn btn-ghost btn-sm" data-act="nudge-hide">${tr('nudge.free')}</button></div></div>
+    </section>`;
+  }
   return '';
 }
 
 register({
   // Essai gratuit : 7 jours de la formule qui débloque la fonction, avec un moyen de paiement (rien avant la fin)
   'start-trial': (b) => { closeSheet(null, true); checkoutSheet(b?.dataset?.plan || 'pro', true); },
+  'nudge-hide': () => { update((s) => { s.prefs.nudgeHidden = Date.now(); }); toast(tr('nudge.kept'), { ms: 2200 }); },
   'close-sheet': () => closeSheet(),
 });
 

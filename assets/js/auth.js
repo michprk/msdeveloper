@@ -3,8 +3,11 @@
 // - Sinon : le compte vit sur cet appareil. Le mot de passe n'est jamais enregistré, seulement une empreinte
 //   (PBKDF2-SHA-256, 210 000 tours, sel aléatoire). Il protège l'accès à l'application ; les données de l'appareil
 //   ne sont pas chiffrées pour autant (c'est écrit dans Sécurité).
-import { S, update } from './store.js';
+import { S, update, normName } from './store.js';
 import { cloudReady, cloudUser, signUpPassword, signInPassword, signOut, recoverPassword } from './cloud.js';
+import { AUTH_MODE } from './config.js';
+// Mode réellement actif : en ligne seulement si demandé ET si les comptes en ligne sont configurés
+export const authMode = () => (AUTH_MODE === 'online' && cloudReady() ? 'online' : 'local');
 
 const ITER = 210000;
 const KEY = 'msdev:session';
@@ -42,10 +45,10 @@ export async function createAccount({ email, password, prenom }) {
   email = String(email).trim().toLowerCase();
   if (cloudReady()) {
     await signUpPassword(email, password);
-    update((s) => { s.account = { email, at: Date.now(), cloud: true }; s.profile.email = email; if (prenom) s.profile.prenom = s.profile.prenom || prenom; });
+    update((s) => { s.account = { email, at: Date.now(), cloud: true }; s.profile.email = email; if (prenom) s.profile.prenom = s.profile.prenom || normName(prenom); });
   } else {
     const kdf = await hashPassword(password);
-    update((s) => { s.account = { email, at: Date.now(), cloud: false, kdf }; s.profile.email = email; if (prenom) s.profile.prenom = s.profile.prenom || prenom; });
+    update((s) => { s.account = { email, at: Date.now(), cloud: false, kdf }; s.profile.email = email; if (prenom) s.profile.prenom = s.profile.prenom || normName(prenom); });
   }
   write(email);
 }

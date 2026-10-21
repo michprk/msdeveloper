@@ -1,5 +1,5 @@
 // Académie, abonnement, compte et réglages, menu « Plus ».
-import { S, update, can, on, schoolOnly, PLANS, FEATURES, MODULES, MODULE_IDS, replaceState, resetState, mergeImport, uid } from '../store.js';
+import { S, update, can, on, schoolOnly, PLANS, FEATURES, MODULES, MODULE_IDS, replaceState, resetState, mergeImport, uid, normName } from '../store.js';
 import { ic, esc, eur, register, toast, confirmSheet, download, field, input, select, sheet, sheetHead, closeSheet, planBadge, avatar, busy, pause, dateLong } from '../ui.js';
 import { GUIDES } from '../data/guides.js';
 import { SECTORS } from '../data/sectors.js';
@@ -31,7 +31,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.10.0';
+const VERSION = '1.11.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -436,7 +436,7 @@ register({
 }, {
   profile: (d, f) => saveForm(f, 'profile', 'Profil enregistré', () => {
     const keep = ['prenom', 'societe', 'email', 'tel', 'ville', 'adresse'];
-    update((s) => { keep.forEach((k) => { s.profile[k] = (d[k] || '').trim(); }); }, { silent: true });
+    update((s) => { keep.forEach((k) => { s.profile[k] = (d[k] || '').trim(); }); s.profile.prenom = normName(s.profile.prenom); }, { silent: true });
   }),
   'profile-billing': (d, f) => saveForm(f, 'billing', 'Facturation enregistrée', () => {
     update((s) => { s.profile.tva = (d.tva || '').trim(); s.profile.iban = (d.iban || '').replace(/\s+/g, ' ').trim().toUpperCase(); }, { silent: true });
