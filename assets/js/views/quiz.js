@@ -2,7 +2,7 @@
 // tirées des notes (blocs Question / réponse et Définition), et les anciens quiz personnels.
 // Les quiz de commerce n'apparaissent qu'avec le module Entrepreneur.
 import { S, update, can, on, uid, getPage, saveQuizResult, quizStreak, startOfDay, DAY } from '../store.js';
-import { ic, esc, register, toast, confirmSheet, ring, bar, field, input, num } from '../ui.js';
+import { ic, esc, register, toast, confirmSheet, ring, bar, field, input, num, shareLink, appLink } from '../ui.js';
 import { typo } from '../data/scripts.js';
 import { pageHead, paywall } from './common.js';
 import { QUIZZES, getQuiz } from '../data/quizzes.js';
@@ -86,9 +86,12 @@ export function quizPlay([id], q) {
   if (id === 'nouveau') return quizEdit(['nouveau']);
   const src = source(id);
   if (!src) return null;
-  if (!run || run.id !== id || q.restart) {
+  if (!run || run.id !== id || q.restart || q.defi) {
     start(src, q.errors && result(id)?.wrong?.length ? result(id).wrong.filter((k) => k < src.items.length) : null);
-    if (q.restart) history.replaceState(null, '', `#/quiz/${id}`);
+    // Défi reçu d'un ami (1.16) : son score est à battre
+    const d = parseInt(q.defi, 10);
+    if (d >= 0 && d <= 100) run.defi = d;
+    if (q.restart || q.defi) history.replaceState(null, '', `#/quiz/${id}`);
   }
   const n = run.order.length;
   if (run.finished) return resultView(src);
@@ -100,6 +103,7 @@ export function quizPlay([id], q) {
   const good = answered && perm[pick] === item.ok;
   const html = `
     ${pageHead(T(src.title), { kicker: `Question ${run.i + 1} sur ${n}`, back: '#/quiz' })}
+    ${run.defi !== undefined ? `<p class="qz-defi">${ic('target')}<span>${tr('qz.defi', { pct: run.defi })}</span></p>` : ''}
     <div class="qz-prog" aria-hidden="true">${run.order.map((_, j) => `<i class="${j < run.i || (j === run.i && answered) ? (src.items[run.order[j]].ok === run.perms[run.order[j]][run.picks[j]] ? 'ok' : 'ko') : j === run.i ? 'cur' : ''}"></i>`).join('')}</div>
     <section class="card qz-card rise">
       <p class="qz-q">${T(item.q)}</p>
@@ -135,8 +139,10 @@ function resultView(src) {
     : pct >= 50 ? ['Pas mal', tr('qz.r.mid')]
       : ['À revoir', tr('qz.r.low')];
   const best = result(src.id)?.best || pct;
+  const defi = run.defi !== undefined && !run.partial ? (pct > run.defi ? tr('qz.defi.won', { pct: run.defi }) : pct === run.defi ? tr('qz.defi.tie') : tr('qz.defi.lost', { pct: run.defi })) : '';
   const html = `
     ${pageHead(T(src.title), { kicker: 'Résultat', back: '#/quiz' })}
+    ${defi ? `<p class="qz-defi is-end">${ic('target')}<span>${defi}</span></p>` : ''}
     <section class="card qz-res rise">
       <div class="hero-ring">${ring(score, n, { size: 140, stroke: 11 })}<div class="hero-ring-v"><b>${score}<small>/${n}</small></b><span>${pct} %</span></div></div>
       <div><h2>${head}</h2><p>${text}</p><p class="muted-s">${run.partial ? `${tr('qz.errors')} · meilleur score sur le quiz complet : ${result(src.id)?.best ?? 0} %` : `Meilleur score : ${best} %`}</p></div>
@@ -144,12 +150,22 @@ function resultView(src) {
     <div class="act-row rise">
       ${wrong.length ? `<a class="btn btn-primary" href="#/quiz/${src.id}?restart=1&errors=1">${ic('repeat')}<span>Refaire mes ${wrong.length} erreur${wrong.length > 1 ? 's' : ''}</span></a>` : ''}
       <a class="btn ${wrong.length ? 'btn-ghost' : 'btn-primary'}" href="#/quiz/${src.id}?restart=1">${ic('repeat')}<span>Recommencer</span></a>
+      ${!src.mine && !run.partial ? `<button class="btn btn-ghost" data-act="quiz-challenge" data-id="${src.id}" data-pct="${pct}">${ic('share')}<span>Défier un ami</span></button>` : ''}
       <a class="btn btn-ghost" href="#/quiz">Autres quiz</a>
       ${src.mine ? `<a class="btn btn-ghost" href="#/quiz/edit/${src.id}">${ic('edit')}<span>Modifier</span></a>` : ''}
     </div>
     ${wrong.length ? `<h2 class="sec-title">À retenir</h2>${wrong.map((k) => { const it = src.items[k]; return `<section class="card qz-rev rise"><p class="qz-q sm">${T(it.q)}</p><p class="qz-good">${ic('check')}${T(it.opts[it.ok])}</p>${it.why ? `<p class="muted">${T(it.why)}</p>` : ''}</section>`; }).join('')}` : ''}`;
   return { title: src.title, tab: 'quiz', html };
 }
+
+// Défi (1.16) : le lien ouvre le même quiz chez l'ami, avec le score à battre
+register({
+  'quiz-challenge': async (b) => {
+    const src = source(b.dataset.id);
+    if (!src) return;
+    await shareLink('MindView', tr('share.quiz', { pct: b.dataset.pct, title: T(src.title) }), `${appLink()}#/quiz/${src.id}?defi=${b.dataset.pct}`, tr('share.copied'));
+  },
+});
 
 // ---------- Cartes de révision (depuis une page) ----------
 let deck = null;

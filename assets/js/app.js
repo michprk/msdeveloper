@@ -222,7 +222,11 @@ function render({ keepScroll = false } = {}) {
   // Un compte existe sur cet appareil et personne n'est connecté : écran de connexion d'abord
   if (needsLogin() && path !== 'connexion') { location.replace('#/connexion'); return; }
   if (path === 'connexion' && !needsLogin() && S().onboarded && loggedIn()) { location.replace('#/'); return; }
-  if (!S().onboarded && !['bienvenue', 'connexion'].includes(path)) { location.replace('#/bienvenue'); return; }
+  if (!S().onboarded && !['bienvenue', 'connexion'].includes(path)) {
+    // Lien partagé (défi de quiz…) ouvert par quelqu'un de nouveau : on y revient après l'accueil
+    if (path) { try { sessionStorage.setItem('msdev:after-onb', location.hash); } catch (e) { /* rien */ } }
+    location.replace('#/bienvenue'); return;
+  }
   if (S().onboarded && path === 'bienvenue' && !isReplay()) { location.replace('#/'); return; }
   if (path === 'appel' && lastPath !== 'appel') resetCall();
   let v = null;

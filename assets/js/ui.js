@@ -143,6 +143,14 @@ export async function shareText(title, text) {
   if (navigator.share) { try { await navigator.share({ title, text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
   copyText(text);
 }
+// Partage d'un lien (feuille de partage du téléphone, sinon copie du texte et du lien)
+export async function shareLink(title, text, url, msg = 'Lien copié.') {
+  if (navigator.share) { try { await navigator.share({ title, text, url }); return 'shared'; } catch (e) { if (e.name === 'AbortError') return ''; } }
+  copyText(`${text} ${url}`, msg);
+  return 'copied';
+}
+// Adresse publique de l'application (sans paramètres) et de sa page de présentation
+export const appLink = () => location.origin + location.pathname;
 
 export function download(name, content, type = 'application/json') {
   const blob = new Blob([content], { type });

@@ -1,6 +1,6 @@
 // Éléments partagés entre les écrans.
 import { S, can, need, PLANS, access, billing, trialActive, trialLeft, TRIAL_DAYS, update } from '../store.js';
-import { ic, esc, register, toast, closeSheet, dateLong } from '../ui.js';
+import { ic, esc, register, toast, closeSheet, dateLong, shareLink, appLink } from '../ui.js';
 import { checkoutSheet } from './billing.js';
 import { t as tr, has } from '../strings.js';
 import { authMode } from '../auth.js';
@@ -142,6 +142,10 @@ export function backupStrip() {
 
 register({
   'backup-later': () => update((s) => { s.prefs.backupLater = Date.now(); }),
+  // Inviter un ami (1.16) : le lien de la page de présentation (aperçu soigné dans les messageries)
+  'share-app': async () => {
+    await shareLink('MindView', tr('share.app'), `${appLink()}presentation/`, tr('share.copied'));
+  },
   // Essai gratuit : 7 jours de la formule qui débloque la fonction, avec un moyen de paiement (rien avant la fin)
   'start-trial': (b) => { closeSheet(null, true); checkoutSheet(b?.dataset?.plan || 'pro', true); },
   // « Continuer gratuitement » : un vrai bouton ; ferme la feuille, ou revient à l'écran précédent

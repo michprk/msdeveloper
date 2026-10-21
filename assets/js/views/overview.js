@@ -143,7 +143,8 @@ function progressCard(mode) {
   const cur = bars[n - 1];
   const due = s.tasks.filter((t) => t.due && inR(t.due, [cur.a, cur.b])).length;
   const rate = due ? Math.round((s.tasks.filter((t) => t.done && t.due && inR(t.due, [cur.a, cur.b])).length / due) * 100) : null;
-  const chg = (i) => { if (!i) return ''; const p = bars[i - 1].v; const v = bars[i].v; if (!p) return v ? 'nouveau' : '—'; const d = Math.round(((v - p) / p) * 100); return `${d > 0 ? '+' : ''}${d} %`; };
+  // Évolution seulement entre deux périodes complètes : la période en cours n'est pas comparée (elle vient de commencer)
+  const chg = (i) => { if (!i) return ''; if (i === n - 1) return 'en cours'; const p = bars[i - 1].v; const v = bars[i].v; if (!p) return v ? 'nouveau' : '—'; const d = Math.round(((v - p) / p) * 100); return `${d > 0 ? '+' : ''}${d} %`; };
   return `<section class="card fx fx-prog rise">
     <header class="fx-h"><span class="fx-ic">${ic('chart')}</span><h2>Progression des tâches</h2>
       <nav class="fx-seg" aria-label="Période"><a class="${mode !== 'mois' ? 'on' : ''}" href="#/apercu">Semaines</a><a class="${mode === 'mois' ? 'on' : ''}" href="#/apercu?vue=mois">Mois</a></nav></header>
@@ -151,7 +152,7 @@ function progressCard(mode) {
       <div class="fx-line" aria-hidden="true"></div>
       <span class="fx-tip"><b>${cur.v} tâche${cur.v > 1 ? 's' : ''} terminée${cur.v > 1 ? 's' : ''}</b><span>${sdf.format(cur.a)} – ${sdf.format(cur.b - DAY)}</span>${rate !== null ? `<span><em>${rate} %</em>des tâches prévues</span>` : ''}</span>
       ${bars.map((x, i) => `<div class="fx-col ${i === n - 1 ? 'is-cur' : ''}">
-        <span class="fx-chg ${i === n - 1 ? 'is-cur' : ''}">${chg(i)}${i === n - 1 && bars[i - 1] && x.v > bars[i - 1].v ? ic('arrowR', 'up-ic') : ''}</span>
+        <span class="fx-chg ${i === n - 1 ? 'is-cur' : ''}">${chg(i)}</span>
         <span class="fx-bar" style="--h:${Math.max(8, Math.round((x.v / max) * 100))}%"><i></i></span>
         <span class="fx-lb">${esc(x.label)}</span>
 
@@ -205,6 +206,8 @@ function gaugeCard() {
 }
 function upgradeCard() {
   if (can('crm') && can('planner')) return `<a class="card fx fx-up is-done rise" href="#/tableaux"><h2>Tout est ouvert</h2><p>${tr('ov.allOpen')}</p><span class="fx-up-b">Ouvrir le tableau blanc</span></a>`;
+  // Élève avec Pro : rien à vendre de plus (Premium Entrepreneur ne concerne que les profils pro)
+  if (can('planner') && schoolOnly()) return `<a class="card fx fx-up is-done rise" href="#/etudes/revision"><h2>Pro est ouvert</h2><p>${tr('ov.proOpen')}</p><span class="fx-up-b">Ouvrir la révision</span></a>`;
   const target = can('planner') ? 'premium' : 'pro';
   return `<a class="card fx fx-up rise" href="#/abonnement"><h2>${target === 'pro' ? tr('ov.goPro') : tr('ov.goPremium')}</h2><p>${target === 'pro' ? 'Notes, tableaux blancs et outils de révision sans limite.' : tr('ov.goPremium.p')}</p><span class="fx-up-b">Voir les formules</span></a>`;
 }

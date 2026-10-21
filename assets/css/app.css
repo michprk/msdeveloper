@@ -3571,3 +3571,8 @@ body[data-mode="hero"] { background: #0b1630; }
 @keyframes mv-spin { to { transform: rotate(360deg); } }
 .data-acc { margin: -4px 0 12px; }
 body.is-cloud-mock::after { content: 'Serveur factice'; position: fixed; left: 50%; top: calc(6px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 9999; padding: 3px 10px; border-radius: 999px; background: #8f3d12; color: #fff; font: 600 12px/1.4 system-ui, sans-serif; pointer-events: none; }
+
+/* ---------- Défi de quiz (1.16) ---------- */
+.qz-defi { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: var(--r-md); background: var(--sky-3); color: var(--sky-ink); font-size: 14.5px; }
+.qz-defi .ic { width: 18px; height: 18px; flex: none; }
+.qz-defi.is-end { background: var(--olive-3); color: var(--olive-ink); }

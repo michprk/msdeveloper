@@ -34,7 +34,7 @@ function saveForm(f, id, okMsg, save) {
   toast(okMsg, { ms: 1400 });
 }
 
-const VERSION = '1.15.0';
+const VERSION = '1.16.0';
 const T = (s) => esc(typo(s));
 
 // ---------- Académie (avec suivi de progression) ----------
@@ -304,7 +304,8 @@ export function more() {
     ${groups.map(([gname, , items]) => `<h2 class="sec-title">${gname}</h2>${rows(items)}`).join('')}
     <h2 class="sec-title">Compte</h2>${rows(account)}
     <ul class="menu card rise"><li><a class="row" href="#/reglages?s=modules"><span class="menu-ic">${ic('grid')}</span><span class="row-b"><b>Modules</b><span>${hidden.length ? `Masqués : ${hidden.join(', ')}` : 'Tous les modules sont affichés'}</span></span>${ic('chevR', 'chev')}</a></li>
-      <li><button class="row" data-act="install"><span class="menu-ic">${ic('install')}</span><span class="row-b"><b>Installer l'application</b><span>Sur l'écran d'accueil</span></span>${ic('chevR', 'chev')}</button></li></ul>`;
+      <li><button class="row" data-act="install"><span class="menu-ic">${ic('install')}</span><span class="row-b"><b>Installer l'application</b><span>Sur l'écran d'accueil</span></span>${ic('chevR', 'chev')}</button></li>
+      <li><button class="row" data-act="share-app"><span class="menu-ic">${ic('share')}</span><span class="row-b"><b>${tv('Inviter un ami', 'Recommander MindView')}</b><span>${tv('Envoie-lui le lien de MindView', 'Envoyez le lien de MindView')}</span></span>${ic('chevR', 'chev')}</button></li></ul>`;
   return { title: 'Plus', tab: 'plus', html };
 }
 

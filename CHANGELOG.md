@@ -2,6 +2,44 @@
 
 Les versions avant la 1.10 sont décrites dans le [README](README.md) (sections « Nouveautés »).
 
+## 1.16.0 — 21/10/2026 · Faire connaître MindView
+
+**Page de présentation** (`presentation/`, https://michprk.github.io/msdeveloper/presentation/)
+- Une page publique, rapide, faite pour être trouvée sur Google et partagée. Elle contient :
+  - l'accroche ;
+  - six fonctions ;
+  - comment l'installer (iPhone, Android) ;
+  - les données ;
+  - les prix ;
+  - les questions fréquentes ;
+  - un appel final.
+- Au ton des élèves, avec les vraies captures de l'application. Vérifiée à 375 px, sans débordement.
+- Référencement : titre, description, adresse canonique, données structurées (`SoftwareApplication`) et `sitemap.xml`.
+
+**Aperçu de partage**
+- Image `presentation/og.png` (1200 × 630) et balises Open Graph, sur la page de présentation et sur l'application : un lien envoyé dans WhatsApp, Instagram ou Discord s'affiche avec une belle carte.
+- Description de l'application et du manifeste réécrite pour les élèves (catégorie « education » en premier).
+
+**Partage dans l'application**
+- « Défier un ami » à la fin d'un quiz : le lien ouvre le même quiz chez l'ami, avec « Défi : 70 % à battre ». À la fin : « Défi réussi », égalité, ou « Il fallait battre… ».
+- Quelqu'un de nouveau qui ouvre un lien partagé passe par l'accueil, puis arrive directement sur le quiz.
+- « Inviter un ami » dans le menu Plus (feuille de partage du téléphone, sinon lien copié).
+
+**Captures et vue d'ensemble**
+- Nouvelles captures « élève » pour l'accueil de l'application et la page de présentation. Les anciennes montraient les clients, les devis et les scripts d'appel.
+- Vue d'ensemble : la semaine (ou le mois) en cours n'est plus comparée à une période complète. Elle affiche « en cours » au lieu d'une baisse absurde.
+- Un élève en Pro ne se voit plus proposer Premium Entrepreneur : la carte affiche « Pro est ouvert ».
+
+**Hors application** (`_msdeveloper-src/marketing/kit/`)
+- Kit de lancement : message, carrousel Instagram de 5 images, story, huit idées de vidéos courtes, calendrier sur 4 semaines, canaux gratuits, règles à respecter et mesure.
+
+**Tests**
+- Playwright `promotion` :
+  - page de présentation (titre, aperçu, pas de débordement) ;
+  - défi de quiz ;
+  - retour au défi après l'accueil ;
+  - « Inviter un ami ».
+
 ## 1.15.0 — 21/10/2026 · Brancher les vrais services : comptes, stockage, paiement, Notion
 
 Tout est prêt et s'allume quand `config.js` est rempli. Le guide pas à pas est [BRANCHER.md](BRANCHER.md).

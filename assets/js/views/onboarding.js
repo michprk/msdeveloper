@@ -240,7 +240,9 @@ function finish() {
   if (metier && preset(metier) && (first || !S().crm.preset) && !S().prospects.length) applyPreset(metier);
   ob.replay = false; ob.d = null; ob.i = 0;
   try { sessionStorage.setItem('msdev:intro', '1'); } catch (e) { /* rien */ }
-  location.hash = '#/';
+  let next = '#/';
+  try { next = sessionStorage.getItem('msdev:after-onb') || '#/'; sessionStorage.removeItem('msdev:after-onb'); } catch (e) { /* rien */ }
+  location.hash = next;
   if (!wasReplay) setTimeout(() => toast(tr('ob.ready'), { title: prenom ? `Bienvenue, ${esc(prenom)}` : 'Bienvenue' }), 450);
 }
 
