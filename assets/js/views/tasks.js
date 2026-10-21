@@ -329,6 +329,7 @@ register({
         patch.done = patch.status === 'done';
         if (!patch.done) patch.doneAt = null;
         Object.assign(t, patch);
+        t.updatedAt = Date.now();
         s.prospects.forEach((p) => { if (p.next?.taskId === t.id) p.next = { ...p.next, label: t.title, due: t.due }; });
       });
     } else addTask({ ...patch, done: patch.status === 'done', doneAt: patch.status === 'done' ? Date.now() : null });

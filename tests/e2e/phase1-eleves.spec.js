@@ -57,7 +57,7 @@ test('tutoiement pour un élève, vouvoiement pour un profil pro', async ({ page
 test('migration : un ancien compte avec clients et prospection garde Entrepreneur', async ({ page }) => {
   const errors = await open(page, { v: 3, onboarded: true, profile: { prenom: 'Sam', usages: ['organiser', 'clients', 'prospecter', 'apprendre'] }, prospects: [], activities: [], tasks: [], projects: [], pages: [] }, '#/plus');
   await expect(page.locator('#view')).toContainText('Entrepreneur');
-  const usages = await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('msdev:v1')); return s.v === 4 ? s.profile.usages : null; });
+  const usages = await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('msdev:v1')); return s.v >= 4 ? s.profile.usages : null; });
   // L'état migré s'enregistre au premier changement ; à défaut, l'affichage ci-dessus fait foi
   if (usages) expect(usages).toContain('entrepreneur');
   noErrors(errors);

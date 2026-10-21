@@ -53,6 +53,8 @@ async function call(path, { method = 'GET', body, auth = true } = {}) {
 }
 const norm = (d) => ({ access_token: d.access_token, refresh_token: d.refresh_token, expires_at: d.expires_at || Math.floor(Date.now() / 1000) + (d.expires_in || 3600), user: { id: d.user?.id, email: d.user?.email } });
 let refreshing = null;
+// Jeton de session (pour les appels au proxy Notion du serveur) ; null sans compte en ligne
+export const sessionToken = () => (cloudReady() ? token() : Promise.resolve(null));
 async function token() {
   if (!ses) return null;
   if (ses.expires_at && Date.now() / 1000 < ses.expires_at - 60) return ses.access_token;

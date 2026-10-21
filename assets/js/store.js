@@ -76,7 +76,7 @@ export const SOURCES = ['Appel', 'Visite', 'Recommandation', 'Instagram', 'Site 
 export const PROJECT_STEPS = ['Acompte reçu', 'Contenus reçus', 'Maquette validée', 'Développement', 'Relecture client', 'Mise en ligne'];
 
 const defaults = () => ({
-  v: 4, onboarded: false, createdAt: Date.now(),
+  v: 5, onboarded: false, createdAt: Date.now(),
   profile: {
     prenom: '', societe: '', ville: 'Bruxelles', tel: '', email: '', adresse: '', tva: '', iban: '',
     usages: [...DEFAULT_USAGES], situation: '', metier: '',
@@ -98,6 +98,8 @@ const defaults = () => ({
   subjects: [], courses: [], exams: [], grades: [], srs: {}, focus: { sessions: [], work: 25, pause: 5, mode: 'pomo', timerMin: 10 }, studyGoal: 14,
   // Tableaux blancs (dessin, formes, textes, graphiques)
   boards: [], hwrWords: [],
+  // Connecteur Notion (1.12) : état de connexion et correspondances tâche ↔ ligne de base. Jamais de jeton ici.
+  notion: { connected: false, workspaceName: '', workspaceIcon: '', mock: false, links: {}, sync: null, conflicts: [], lastResult: null, lastError: null },
   prospects: [], activities: [], tasks: [], projects: [],
   favorites: [], recent: [], myScripts: [], mySectors: [], training: {},
   catalogue: [
@@ -187,6 +189,11 @@ function migrate(saved) {
     if (pro) next.push('entrepreneur');
     p.usages = next;
     saved.v = 4;
+  }
+  // Version 4 → 5 (1.12) : chaque tâche a une date de modification (synchronisation avec Notion)
+  if (saved && typeof saved === 'object' && saved.v < 5) {
+    (saved.tasks || []).forEach((t) => { if (!t.updatedAt) t.updatedAt = t.doneAt || t.createdAt || Date.now(); });
+    saved.v = 5;
   }
   return saved;
 }
@@ -524,7 +531,7 @@ export function recordCall(prospectId, outcome, note = '') {
 
 // ---------- Tâches ----------
 export function addTask(t) {
-  const task = { id: uid(), title: '', due: null, prospectId: null, projectId: null, kind: 'tache', done: false, list: null, prio: 0, notes: '', sub: [], status: 'todo', createdAt: Date.now(), ...t };
+  const task = { id: uid(), title: '', due: null, prospectId: null, projectId: null, kind: 'tache', done: false, list: null, prio: 0, notes: '', sub: [], status: 'todo', createdAt: Date.now(), updatedAt: Date.now(), ...t };
   update((s) => {
     s.tasks.push(task);
     if (task.prospectId && task.due) {
@@ -538,7 +545,7 @@ export function toggleTask(id) {
   update((s) => {
     const t = s.tasks.find((x) => x.id === id);
     if (!t) return;
-    t.done = !t.done; t.doneAt = t.done ? Date.now() : null;
+    t.done = !t.done; t.doneAt = t.done ? Date.now() : null; t.updatedAt = Date.now();
     t.status = t.done ? 'done' : 'todo';
     if (t.prospectId) refreshNext(s, t.prospectId);
   });

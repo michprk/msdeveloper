@@ -31,6 +31,8 @@ import { accessLabel } from './views/common.js';
 import { cloudUser, refreshSubscription, checkActivation, track } from './cloud.js';
 import { authButton } from './views/account.js';
 import { t as tr } from './strings.js';
+import { handleNotionReturn } from './views/notion.js';
+import { maybeAutoSync } from './notion/sync.js';
 
 const ROUTES = [
   [/^(accueil)?$/, home],
@@ -349,6 +351,7 @@ let lastCloud = Date.now();
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible' || !S().onboarded) return;
   if (cloudUser()) { track('active_day'); if (Date.now() - lastCloud > 10 * 60e3) { lastCloud = Date.now(); refreshSubscription().catch(() => null); } }
+  maybeAutoSync();
   const billed = syncBilling();
   if (!billed && dayKey() !== lastDay && !editing()) render({ keepScroll: true });
 });
@@ -379,6 +382,8 @@ if (back) {
 if (cloudUser()) track('active_day');
 onChange(() => checkActivation());
 render();
+handleNotionReturn();
+maybeAutoSync();
 startReminders();
 bootLock();
 

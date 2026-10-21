@@ -6,6 +6,9 @@ import { pageHead, paywall } from './common.js';
 import { taskRow, quickAdd } from './tasks.js';
 import { linksBlock } from './connect.js';
 import { t as tr } from '../strings.js';
+import { notionAvailable } from '../notion/proxy.js';
+import { isConnected } from '../notion/sync.js';
+import { sendToNotion } from './notion.js';
 
 const STATUS = { actif: ['En cours', 't-blue'], pause: ['En pause', 't-sand'], termine: ['Terminé', 't-olive'] };
 const ICONS = ['folder', 'briefcase', 'book', 'monitor', 'calendar', 'target', 'euro', 'camera', 'house', 'flag', 'star', 'users'];
@@ -98,6 +101,7 @@ export function projectView([id]) {
         </section>` : ''}
         ${cli ? `<section class="card rise"><header class="card-h"><div><h2>Client</h2></div></header>
           <a class="row" href="#/fiche/${cli.id}"><span class="menu-ic">${ic('user')}</span><span class="row-b"><b>${esc(cli.entreprise)}</b><span>${quotes.length ? `${quotes.length} devis` : 'Fiche client'}</span></span>${ic('chevR', 'chev')}</a></section>` : ''}
+        ${notionAvailable() || isConnected() ? `<button class="btn btn-ghost btn-block" data-act="project-notion" data-id="${id}">${ic('upload')}<span>Envoyer vers Notion</span></button>` : ''}
         <button class="btn btn-danger-ghost btn-block" data-act="project-del" data-id="${id}">${ic('trash')}<span>Supprimer le projet</span></button>
       </div>
     </div>`;
@@ -130,6 +134,7 @@ register({
     projectSheet(null, { name, icon, tone, tasks, tpl: id });
   },
   'project-edit': (b) => projectSheet(getProject(b.dataset.id)),
+  'project-notion': (b) => sendToNotion('project', b.dataset.id),
   'project-del': async (b) => {
     const pr = getProject(b.dataset.id);
     const n = S().tasks.filter((t) => t.projectId === pr.id).length;

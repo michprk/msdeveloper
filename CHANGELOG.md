@@ -2,6 +2,55 @@
 
 Les versions avant la 1.10 sont décrites dans le [README](README.md) (sections « Nouveautés »).
 
+## 1.12.0 — 21/10/2026 · Phase 3 : un vrai connecteur Notion
+
+**Connexion**
+- Connexion par l'API officielle de Notion (intégration publique, OAuth), via l'interface `notionProxy` (`assets/js/notion/proxy.js`).
+- Le secret OAuth et les jetons d'accès restent sur le serveur, jamais dans l'application.
+- Le paramètre `state` d'OAuth est vérifié au retour, et l'adresse est nettoyée.
+- Un Notion factice (`assets/js/notion/mock.js`) sert à développer et à tester. Il s'active avec `NOTION.mock` ou `?notion=mock`.
+- Contrat à implémenter côté serveur : [NOTION.md](NOTION.md).
+
+**Import**
+- Les pages Notion deviennent des notes. Une base avec un statut ou une date devient des tâches ; une autre base devient des notes.
+- Blocs repris : titres, paragraphes, listes, cases à cocher, citations, encadrés (avec leur ton), code, bascules, tableaux, images (en lien), mentions de pages et liens, séparateurs. Les colonnes et les blocs synchronisés sont mis à plat.
+- Un bloc non pris en charge est gardé en texte, avec une mention discrète « Notion · … ».
+
+**Export**
+- Une note ou un projet s'envoie comme sous-page d'une page Notion choisie (menu ••• → « Envoyer vers Notion »).
+- Les envois sont découpés en paquets de 100 blocs et les textes en morceaux de 2 000 caractères.
+
+**Synchronisation des tâches avec une base Notion**
+- Correspondance détectée puis modifiable : titre, statut (statut, sélection ou case), date, matière.
+- Choix de la liste de tâches concernée.
+- Synchro incrémentale (`last_edited_time`, pagination), bouton « Synchroniser maintenant », date de dernière synchro, erreurs lisibles. Synchro discrète au retour dans l'application, au plus toutes les 10 minutes.
+- Conflit (modifié des deux côtés) : la version la plus récente gagne. Une notification « modifiée des deux côtés » permet de reprendre l'autre version.
+- Une tâche supprimée dans MindView part à la corbeille de Notion.
+
+**Limites de l'API**
+- File d'attente centrale à environ 3 requêtes par seconde.
+- Sur un 429, toute la file attend la durée de `Retry-After`. Ensuite, nouvel essai avec un délai qui double (plus un peu de hasard), 5 essais au plus, puis une erreur claire.
+
+**Déconnexion**
+- Le jeton est oublié par le serveur et le lien est oublié ici. Un texte explique ce qui reste de chaque côté.
+- La page Confidentialité dit quelles pages sont lues et où vont les données.
+
+**Notes**
+- Nouveaux blocs « Bascule » et « Code ».
+- Liens autorisés dans le texte (`http(s)` seulement, nettoyés, ouverts dans un nouvel onglet avec Ctrl + clic).
+
+**Connecteurs**
+- Notion en premier.
+- Puis « Fichiers, sans connexion » : l'export .zip de Notion, les agendas, le tableur, Trello, Todoist, les cartes, Anki.
+- Puis « Liens et aperçus » (Google, Figma, Canva, Miro, YouTube, GitHub), avec un vocabulaire honnête : ce sont des liens, pas des synchronisations.
+- La carte « Synchronisation automatique » est retirée.
+
+**Données**
+- Schéma v5 : chaque tâche a une date de modification (`updatedAt`), ajoutée aux anciennes tâches.
+
+**Tests**
+- Test du parcours Notion complet avec le Notion factice (Playwright et banc local) : OAuth, import de tous les blocs, import d'une base paginée, export avec découpage, synchro (envoi, réception, conflit dans les deux sens, création, corbeille), sept 429 absorbés par la file, erreur lisible, déconnexion.
+
 ## 1.11.0 — 21/10/2026 · Phase 2 : un accueil plus court
 
 - Accueil en trois écrans, sans paiement :

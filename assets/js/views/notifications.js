@@ -14,6 +14,7 @@ export const NOTIF_CATS = [
   ['echeances', 'Échéances proches', 'Tâches des 48 prochaines heures, projets de la semaine', 'calendar', 'sand'],
   ['devis', 'Devis à relancer', `Envoyés depuis plus de ${FOLLOW_DAYS} jours, sans réponse`, 'invoice', 'sky'],
   ['relances', 'Clients sans nouvelles', 'Fiches en cours sans contact depuis 14 jours ni action prévue', 'users', 'olive'],
+  ['notion', 'Notion', 'Tâches modifiées des deux côtés entre deux synchronisations', 'refresh', 'navy'],
 ];
 const catOn = (k) => S().prefs.notifCats?.[k] !== false;
 const timedOf = (t) => { const d = new Date(t.due); return d.getHours() || d.getMinutes(); };
@@ -38,6 +39,8 @@ export function collect({ all = false } = {}) {
   if (can('crm') && (on('clients') || on('prospecter'))) s.prospects.filter((p) => !['signe', 'perdu'].includes(p.stage) && !p.demo && !p.next && (p.lastContact || p.updatedAt || 0) < now - 14 * DAY).forEach((p) => {
     add('relances', { id: `cli:${p.id}:${p.lastContact || p.updatedAt}`, at: p.lastContact || p.updatedAt, title: p.entreprise, text: `Sans nouvelles depuis ${ago(p.lastContact || p.updatedAt).replace(/^il y a /, '')} · prévoyez une relance`, h: `#/fiche/${p.id}` });
   });
+  // Synchronisation Notion : une tâche modifiée des deux côtés (le choix se fait dans Connecteurs)
+  (s.notion?.conflicts || []).forEach((c) => add('notion', { id: `nx:${c.id}`, at: c.at, title: `${c.title} : modifiée des deux côtés`, text: c.winner === 'notion' ? 'La version de Notion a été gardée · choisir' : 'La version de MindView a été gardée · choisir', h: '#/connecteurs?c=notion' }));
   return out.sort((a, b) => NOTIF_CATS.findIndex((c) => c[0] === a.cat) - NOTIF_CATS.findIndex((c) => c[0] === b.cat) || a.at - b.at);
 }
 export const unreadCount = () => { const seen = S().notifSeen || {}; return collect().filter((n) => !seen[n.id]).length; };

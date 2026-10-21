@@ -3,7 +3,7 @@
 // Le HTML enregistré est toujours repassé ici à l'affichage : un fichier importé ne peut rien injecter.
 import { esc } from './ui.js';
 
-const TAGS = { B: 'b', STRONG: 'b', I: 'i', EM: 'i', U: 'u', S: 's', STRIKE: 's', DEL: 's', BR: 'br', SPAN: 'span', FONT: 'span', MARK: 'mark', SUB: 'sub', SUP: 'sup' };
+const TAGS = { B: 'b', STRONG: 'b', I: 'i', EM: 'i', U: 'u', S: 's', STRIKE: 's', DEL: 's', BR: 'br', SPAN: 'span', FONT: 'span', MARK: 'mark', SUB: 'sub', SUP: 'sup', A: 'a' };
 const COLOR = /^(#[0-9a-f]{3,8}|rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\)|transparent)$/i;
 const STYLE = {
   color: COLOR,
@@ -32,6 +32,11 @@ export function clean(html) {
     const inner = walk(n);
     if (!tag) return inner;
     if (tag === 'br') return '<br>';
+    // Liens (1.12, imports Notion) : seulement http(s), ouverts dans un nouvel onglet, sans attribut de plus
+    if (tag === 'a') {
+      const href = (n.getAttribute('href') || '').trim();
+      return /^https?:\/\/[^\s"'<>]+$/i.test(href) ? `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>` : inner;
+    }
     const parts = [];
     if (n.tagName === 'FONT') {
       const c = n.getAttribute('color'); if (c && COLOR.test(c)) parts.push(['color', c]);
@@ -50,7 +55,7 @@ export function clean(html) {
 }
 // Texte brut (recherche, export, cartes de révision)
 export const plain = (el) => (el.innerText || '').replace(/ /g, ' ').replace(/\n$/, '');
-export const hasFormat = (html) => /<(b|i|u|s|span|mark|sub|sup)\b/.test(html || '');
+export const hasFormat = (html) => /<(b|i|u|s|span|mark|sub|sup|a)\b/.test(html || '');
 
 // Curseur : position en nombre de caractères dans un élément modifiable
 export function caretOffset(el) {

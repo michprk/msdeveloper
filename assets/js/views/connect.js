@@ -9,6 +9,8 @@
 import { S, update, uid, can, canAddPage, addPage, bid, getProject, addTask, newProject, canAddProject, startOfDay, DAY } from '../store.js';
 import { ic, esc, register, toast, sheet, sheetHead, closeSheet, confirmSheet, field, input, select, download, ago } from '../ui.js';
 import { pageHead, paywall } from './common.js';
+import { t as tr } from '../strings.js';
+import { notionCard } from './notion.js';
 
 export const SERVICES = {
   notion: { name: 'Notion', tone: 'grey', l: 'N', hint: 'Pages et bases de données' },
@@ -301,54 +303,59 @@ async function importNotionFiles(files) {
 }
 
 // ---------- L'écran Connecteurs ----------
+// 1.12 : Notion en premier (vraie connexion), puis les fichiers (hors ligne), puis les liens et aperçus.
+// Vocabulaire honnête : en dehors de Notion, ce sont des imports, des exports, des liens et des aperçus, pas des synchronisations.
 const CX = {
-  notion: { name: 'Notion', tone: 'grey', l: 'N', cat: 'docs' },
-  gdocs: { name: 'Google Docs, Sheets, Slides', tone: 'blue', l: 'G', cat: 'docs' },
-  figma: { name: 'Figma', tone: 'navy', l: 'F', cat: 'design' },
-  canva: { name: 'Canva', tone: 'sky', l: 'C', cat: 'design' },
-  miro: { name: 'Miro', tone: 'sand', l: 'M', cat: 'design' },
-  agenda: { name: 'Google Agenda, Apple Calendrier, Outlook', tone: 'blue', l: '31', cat: 'agenda' },
-  trello: { name: 'Trello', tone: 'blue', l: 'T', cat: 'tasks' },
-  todoist: { name: 'Todoist', tone: 'rose', l: 'Td', cat: 'tasks' },
-  excel: { name: 'Excel, Google Sheets, CSV', tone: 'olive', l: 'X', cat: 'tasks' },
-  quizlet: { name: 'Quizlet', tone: 'navy', l: 'Q', cat: 'study' },
-  anki: { name: 'Anki', tone: 'sky', l: 'A', cat: 'study' },
-  youtube: { name: 'YouTube, Loom', tone: 'rose', l: '▶', cat: 'video' },
-  github: { name: 'GitHub', tone: 'navy', l: 'GH', cat: 'code' },
+  notionzip: { name: 'Notion — fichier .zip', tone: 'grey', l: 'N', cat: 'files' },
+  agenda: { name: 'Agendas (Google, Apple, Outlook)', tone: 'blue', l: '31', cat: 'files' },
+  excel: { name: 'Tableur (Excel, Google Sheets, CSV)', tone: 'olive', l: 'X', cat: 'files' },
+  trello: { name: 'Trello', tone: 'blue', l: 'T', cat: 'files' },
+  todoist: { name: 'Todoist', tone: 'rose', l: 'Td', cat: 'files' },
+  quizlet: { name: 'Cartes Quizlet', tone: 'navy', l: 'Q', cat: 'files' },
+  anki: { name: 'Anki', tone: 'sky', l: 'A', cat: 'files' },
+  gdocs: { name: 'Google Docs, Sheets, Slides', tone: 'blue', l: 'G', cat: 'links' },
+  figma: { name: 'Figma', tone: 'navy', l: 'F', cat: 'links' },
+  canva: { name: 'Canva', tone: 'sky', l: 'C', cat: 'links' },
+  miro: { name: 'Miro', tone: 'sand', l: 'M', cat: 'links' },
+  youtube: { name: 'YouTube, Loom', tone: 'rose', l: '▶', cat: 'links' },
+  github: { name: 'GitHub', tone: 'navy', l: 'GH', cat: 'links' },
 };
-const CATS = [['docs', 'Notes et documents'], ['design', 'Design et schémas'], ['agenda', 'Agendas'], ['tasks', 'Tâches'], ['study', 'Révisions'], ['video', 'Vidéos'], ['code', 'Code']];
 export function connectorsView(params, q = {}) {
   const s = S();
   const pro = can('connectors');
-  const used = (k) => s.cx?.[k];
+  const used = (k) => s.cx?.[k === 'notionzip' ? 'notion' : k];
   const links = (kinds) => [...s.projects, ...s.prospects].reduce((n, x) => n + (x.links || []).filter((l) => kinds.includes(l.kind)).length, 0);
   const lock = pro ? '' : '<span class="badge b-pro">Pro</span>';
   const fileBtn = (act, label, accept, icon = 'upload', primary = true) => `<label class="btn ${primary ? 'btn-primary' : 'btn-ghost'} btn-sm ${pro ? '' : 'is-locked'}">${ic(icon)}<span>${label}</span>${lock}<input type="file" accept="${accept}" ${act === 'cx-notion' ? 'multiple' : ''} hidden data-act-change="${pro ? act : 'cx-locked'}" ${pro ? '' : 'disabled'}></label>`;
   const btn = (act, label, icon, primary = false, attrs = '') => `<button class="btn ${primary ? 'btn-primary' : 'btn-ghost'} btn-sm" data-act="${act}" ${attrs}>${ic(icon)}<span>${label}</span></button>`;
   const proBtn = (act, label, icon, primary = false, attrs = '') => `<button class="btn ${primary ? 'btn-primary' : 'btn-ghost'} btn-sm" data-act="${pro ? act : 'cx-locked'}" ${attrs}>${ic(icon)}<span>${label}</span>${lock}</button>`;
   const card = (k, text, acts, status = '') => `<section class="card cx rise ${q.c === k || (q.c === 'google' && k === 'gdocs') ? 'is-focus' : ''}" id="cx-${k}">
-    <header class="cx-h">${svcBadge(k, 'svc-lg')}<div><h2>${CX[k].name}</h2><p>${status || (used(k) ? `Dernière utilisation ${ago(used(k).at)}` : 'Prêt à utiliser')}</p></div>${used(k) || status.includes('lien') ? `<span class="chip t-olive">${ic('check')}Utilisé</span>` : ''}</header>
+    <header class="cx-h">${svcBadge(k === 'notionzip' ? 'notion' : k, 'svc-lg')}<div><h2>${CX[k].name}</h2><p>${status || (used(k) ? `Dernière utilisation ${ago(used(k).at)}` : CX[k].cat === 'links' ? 'Lien et aperçu' : 'Import et export de fichiers')}</p></div>${used(k) || status.includes('lien') ? `<span class="chip t-olive">${ic('check')}Utilisé</span>` : ''}</header>
     <p class="cx-p">${text}</p><div class="cx-a">${acts}</div></section>`;
   const C = {
-    notion: card('notion', 'Venez de Notion avec toutes vos pages : dans Notion, Paramètres → Exporter tout l\'espace en « Markdown & CSV », puis importez le fichier .zip tel quel. Et dans l\'autre sens, exportez toutes vos pages MindView pour Notion.', `${fileBtn('cx-notion', 'Importer l\'export Notion (.zip ou .md)', '.zip,.md,.markdown,.txt,application/zip,text/markdown')}${proBtn('cx-notion-out', 'Exporter mes pages pour Notion', 'download')}${btn('cx-pick', 'Relier une page Notion', 'link', false, 'data-svc="notion"')}`),
-    gdocs: card('gdocs', 'Un document, une feuille de calcul ou une présentation Google, rangé dans le projet qui le concerne, avec un aperçu lisible sans quitter MindView.', `${btn('cx-pick', 'Relier un document', 'link', true, 'data-svc="gdocs"')}${fileBtn('cx-csv', 'Importer des tâches (.csv)', '.csv,.tsv,.txt,text/csv', 'upload', false)}`, links(['gdocs', 'gsheets', 'gslides', 'drive']) ? `${links(['gdocs', 'gsheets', 'gslides', 'drive'])} lien(s)` : ''),
-    figma: card('figma', 'Collez le lien d\'une maquette, d\'un prototype ou d\'un FigJam : il s\'ouvre dans Figma pour le modifier, avec un aperçu intégré si vous le demandez.', btn('cx-pick', 'Relier à un projet', 'link', true, 'data-svc="figma"'), links(['figma']) ? `${links(['figma'])} lien(s)` : ''),
-    canva: card('canva', 'Visuels, présentations, publications : chaque design partagé s\'ouvre dans Canva, avec un aperçu dans le projet.', btn('cx-pick', 'Relier à un projet', 'link', true, 'data-svc="canva"'), links(['canva']) ? `${links(['canva'])} lien(s)` : ''),
-    miro: card('miro', 'Vos tableaux Miro dans vos projets, avec un aperçu en direct. Pour dessiner seul, le tableau blanc de MindView est là.', `${btn('cx-pick', 'Relier un tableau', 'link', true, 'data-svc="miro"')}<a class="btn btn-ghost btn-sm" href="#/tableaux">${ic('compose')}<span>Tableau blanc</span></a>`, links(['miro']) ? `${links(['miro'])} lien(s)` : ''),
-    agenda: card('agenda', 'Envoyez vos tâches datées et vos examens dans votre agenda, ou récupérez les événements de votre agenda comme tâches. Le fichier .ics s\'ouvre avec n\'importe quel agenda.', `${btn('cx-ics', 'Exporter vers mon agenda (.ics)', 'download', true)}${fileBtn('cx-ics-in', 'Importer un agenda (.ics)', '.ics,text/calendar', 'upload', false)}`),
-    trello: card('trello', 'Dans Trello : Menu → Imprimer, exporter et partager → Exporter en JSON. Le tableau devient un projet, chaque carte une tâche, avec ses dates.', fileBtn('cx-trello', 'Importer un tableau (.json)', '.json,application/json')),
-    todoist: card('todoist', 'Dans Todoist : les trois points d\'un projet → Exporter en modèle (CSV). Les tâches arrivent avec leurs dates et priorités.', fileBtn('cx-csv', 'Importer des tâches (.csv)', '.csv,text/csv')),
-    excel: card('excel', 'Une liste de tâches dans un tableur : une colonne « Titre » (ou « Tâche »), et si vous voulez « Date », « Priorité », « Statut », « Notes ». Fonctionne aussi avec une base de données Notion exportée en CSV.', `${fileBtn('cx-csv', 'Importer (.csv)', '.csv,.tsv,.txt,text/csv')}${proBtn('cx-csv-out', 'Exporter mes tâches (.csv)', 'download')}`),
-    quizlet: card('quizlet', 'Dans Quizlet : … → Exporter, puis copiez le texte. Chaque terme et sa définition deviennent une carte de révision, avec la révision espacée.', proBtn('cx-quizlet', 'Coller des cartes Quizlet', 'cards', true)),
-    anki: card('anki', 'Envoyez les questions / réponses de vos pages vers Anki : Fichier → Importer, séparateur tabulation.', proBtn('cx-anki', 'Exporter mes cartes pour Anki', 'download')),
-    youtube: card('youtube', 'Un cours en vidéo ou une explication enregistrée : collez le lien dans un projet, la vidéo se lit dans l\'aperçu.', btn('cx-pick', 'Relier une vidéo', 'link', true, 'data-svc="youtube"'), links(['youtube', 'loom']) ? `${links(['youtube', 'loom'])} lien(s)` : ''),
-    github: card('github', 'Le dépôt de votre projet de code, à côté de ses tâches et de ses notes.', btn('cx-pick', 'Relier un dépôt', 'link', true, 'data-svc="github"'), links(['github']) ? `${links(['github'])} lien(s)` : ''),
+    notionzip: card('notionzip', tr('cx.notionzip'), `${fileBtn('cx-notion', 'Importer l\'export Notion (.zip ou .md)', '.zip,.md,.markdown,.txt,application/zip,text/markdown')}${proBtn('cx-notion-out', 'Exporter mes pages pour Notion', 'download')}`),
+    agenda: card('agenda', tr('cx.agenda'), `${btn('cx-ics', 'Exporter vers mon agenda (.ics)', 'download', true)}${fileBtn('cx-ics-in', 'Importer un agenda (.ics)', '.ics,text/calendar', 'upload', false)}`),
+    excel: card('excel', tr('cx.excel'), `${fileBtn('cx-csv', 'Importer (.csv)', '.csv,.tsv,.txt,text/csv')}${proBtn('cx-csv-out', 'Exporter mes tâches (.csv)', 'download')}`),
+    trello: card('trello', tr('cx.trello'), fileBtn('cx-trello', 'Importer un tableau (.json)', '.json,application/json')),
+    todoist: card('todoist', tr('cx.todoist'), fileBtn('cx-csv', 'Importer des tâches (.csv)', '.csv,text/csv')),
+    quizlet: card('quizlet', tr('cx.quizlet'), proBtn('cx-quizlet', 'Coller des cartes', 'cards', true)),
+    anki: card('anki', tr('cx.anki'), proBtn('cx-anki', 'Exporter mes cartes pour Anki', 'download')),
+    gdocs: card('gdocs', tr('cx.gdocs'), `${btn('cx-pick', 'Relier un document', 'link', true, 'data-svc="gdocs"')}`, links(['gdocs', 'gsheets', 'gslides', 'drive']) ? `${links(['gdocs', 'gsheets', 'gslides', 'drive'])} lien(s)` : ''),
+    figma: card('figma', tr('cx.figma'), btn('cx-pick', 'Relier à un projet', 'link', true, 'data-svc="figma"'), links(['figma']) ? `${links(['figma'])} lien(s)` : ''),
+    canva: card('canva', tr('cx.canva'), btn('cx-pick', 'Relier à un projet', 'link', true, 'data-svc="canva"'), links(['canva']) ? `${links(['canva'])} lien(s)` : ''),
+    miro: card('miro', tr('cx.miro'), `${btn('cx-pick', 'Relier un tableau', 'link', true, 'data-svc="miro"')}<a class="btn btn-ghost btn-sm" href="#/tableaux">${ic('compose')}<span>Tableau blanc</span></a>`, links(['miro']) ? `${links(['miro'])} lien(s)` : ''),
+    youtube: card('youtube', tr('cx.youtube'), btn('cx-pick', 'Relier une vidéo', 'link', true, 'data-svc="youtube"'), links(['youtube', 'loom']) ? `${links(['youtube', 'loom'])} lien(s)` : ''),
+    github: card('github', tr('cx.github'), btn('cx-pick', 'Relier un dépôt', 'link', true, 'data-svc="github"'), links(['github']) ? `${links(['github'])} lien(s)` : ''),
   };
-  const html = `${pageHead('Connecteurs', { kicker: 'Vos outils, reliés à MindView' })}
-    <p class="lead">Importez ce que vous avez déjà ailleurs, rangez vos fichiers au bon endroit, et renvoyez vos tâches vers votre agenda. Tout se fait ici, en un geste.</p>
-    <nav class="chips-row cx-nav" aria-label="Catégories">${CATS.map(([k, l]) => `<a class="chip-btn" href="#/connecteurs?c=${Object.keys(CX).find((x) => CX[x].cat === k)}">${l}</a>`).join('')}</nav>
-    ${CATS.map(([k, l]) => `<h2 class="sec-title">${l}</h2><div class="cx-grid">${Object.keys(CX).filter((x) => CX[x].cat === k).map((x) => C[x]).join('')}</div>`).join('')}
-    <section class="card cx-soon rise">${ic('refresh')}<div><b>Synchronisation automatique</b><p>Pour qu'un changement fait dans Notion, Google ou Canva apparaisse tout seul ici (et inversement), il faut un compte MindView en ligne et l'autorisation officielle de chaque service, que vous donnerez vous-même. C'est prévu avec les comptes en ligne. D'ici là, les imports et exports ci-dessus font le lien, et rien ne quitte votre appareil sans votre geste.</p></div></section>`;
+  const group = (cat) => Object.keys(CX).filter((x) => CX[x].cat === cat).map((x) => C[x]).join('');
+  const html = `${pageHead('Connecteurs', { kicker: tr('cx.kicker') })}
+    ${notionCard()}
+    <h2 class="sec-title">Fichiers, sans connexion</h2>
+    <p class="sec-lead">${tr('cx.files.lead')}</p>
+    <div class="cx-grid">${group('files')}</div>
+    <h2 class="sec-title">Liens et aperçus</h2>
+    <p class="sec-lead">${tr('cx.links.lead')}</p>
+    <div class="cx-grid">${group('links')}</div>`;
   return {
     title: 'Connecteurs', tab: 'plus', html,
     after(root) { if (q.c) root.querySelector(`#cx-${q.c === 'google' ? 'gdocs' : q.c}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); },

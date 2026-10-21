@@ -10,6 +10,9 @@ import { mountCanvas, FONTS, FONT_GROUPS } from '../draw.js';
 import { dataSheet } from './boards.js';
 import { TEMPLATES, template } from '../data/templates.js';
 import { t as tr, pick } from '../strings.js';
+import { notionAvailable } from '../notion/proxy.js';
+import { isConnected } from '../notion/sync.js';
+import { sendToNotion } from './notion.js';
 // Modèles proposés : à l'école d'abord ceux qui servent aux cours ; jamais de compte rendu client sans CRM
 const SCHOOL_ORDER = ['vierge', 'cours', 'revision', 'planning', 'vocab', 'semaine', 'journal', 'checklist', 'idees', 'objectifs', 'budget', 'code', 'projet', 'reunion'];
 const tplList = () => (schoolOnly() ? SCHOOL_ORDER.map((id) => TEMPLATES.find((t) => t.id === id)).filter(Boolean) : TEMPLATES.filter((t) => t.id !== 'rdv' || on('clients')));
@@ -26,6 +29,8 @@ export const BLOCKS = [
   ['qa', 'Question / réponse', 'cards', '?? + espace — pour réviser en quiz'],
   ['def', 'Définition', 'book', 'Un terme et sa définition : devient une carte'],
   ['table', 'Tableau', 'grid', 'Lignes et colonnes : planning, vocabulaire'],
+  ['toggle', 'Bascule', 'chevD', 'Un titre qui ouvre un contenu caché'],
+  ['code', 'Code', 'text', 'Du code ou une formule, en police fixe'],
   ['prog', 'Avancement', 'chart', 'La barre des cases cochées de la page'],
   ['divider', 'Séparateur', 'divider', '---'],
 ];
@@ -40,7 +45,7 @@ function setType(b, t) {
   if (t !== 'table') delete b.rows;
   b.t = t;
   if (t === 'todo') b.c = !!b.c;
-  if (isQA(b)) b.a = b.a || '';
+  if (twoField(b)) b.a = b.a || '';
   if (t !== 'callout') delete b.v;
   if (t === 'divider' || t === 'prog') { b.x = ''; delete b.h; }
 }
@@ -64,6 +69,8 @@ const MD = [[/^#\s/, 'h1'], [/^##\s/, 'h2'], [/^[-*]\s/, 'ul'], [/^1[.)]\s/, 'ol
 
 export const pageText = (p) => [p.title, ...p.blocks.map((b) => [b.x, b.a].filter(Boolean).join(' '))].join(' ');
 export const isQA = (b) => b?.t === 'qa' || b?.t === 'def';
+// Blocs à deux champs (question / réponse, définition, bascule) : Entrée passe au second champ
+export const twoField = (b) => isQA(b) || b?.t === 'toggle';
 export const qaCards = (p) => p.blocks.filter((b) => isQA(b) && (b.x || '').trim() && (b.a || '').trim());
 const words = (p) => pageText(p).split(/\s+/).filter(Boolean).length - (p.title ? p.title.split(/\s+/).length : 0);
 const trail = (p) => { const out = []; let x = p; let g = 0; while (x?.parent && g++ < 6) { x = getPage(x.parent); if (x) out.unshift(x); } return out; };
@@ -94,7 +101,7 @@ function mkBlock(e) {
   if (o.ha && !o.a) o.a = untag(o.ha);
   if (o.st) o.st = { ...o.st };
   if (o.rows) o.rows = o.rows.map((r) => [...r]);
-  return { id: bid(), x: '', ...o, ...(o.t === 'todo' ? { c: !!o.c } : {}), ...(isQA(o) ? { a: o.a || '' } : {}) };
+  return { id: bid(), x: '', ...o, ...(o.t === 'todo' ? { c: !!o.c } : {}), ...(twoField(o) ? { a: o.a || '' } : {}) };
 }
 function limitSheet() {
   sheet(`${sheetHead('Cinq pages dans la version gratuite')}<div class="sheet-body">${paywall('notesUnlimited', { compact: true })}<p class="sheet-note">${tr('nt.limit', { n: S().pages.length })}</p></div>`, { cls: 'sheet-sm' });
@@ -174,12 +181,17 @@ function blockHtml(b, n, p) {
   const body = b.t === 'divider' ? '<hr class="blk-hr">'
     : b.t === 'qa' ? `<div class="qa-w"><span class="qa-k">Question</span>${ce('qa-q', 'x', 'La question')}<span class="qa-k">Réponse</span>${ce('qa-a', 'a', 'La réponse')}</div>`
       : b.t === 'def' ? `<div class="qa-w def-w">${ce('qa-q def-t', 'x', 'Le terme')}${ce('qa-a def-d', 'a', 'Sa définition')}</div>`
+        : b.t === 'toggle' ? `<div class="tg-w ${b.open === false ? '' : 'is-open'}"><button class="tg-b" data-act="tg-toggle" aria-expanded="${b.open !== false}" aria-label="${b.open === false ? 'Ouvrir' : 'Fermer'} la bascule">${ic('chevD')}</button><div class="tg-in">${ce('tg-s', 'x', 'Titre de la bascule')}${ce('tg-a', 'a', 'Contenu')}</div></div>`
+          : b.t === 'code' ? ce('code-in', 'x', 'Du code ou une formule')
         : b.t === 'table' ? tableHtml(b)
           : b.t === 'prog' ? `<div class="prog-w">${progInner(p)}</div>`
             : ce('', 'x', PH()[b.t] || '');
   const st = b.st || {};
-  return `<div class="blk blk-${b.t} ${b.ph || b.pha ? 'has-ph' : ''} ${b.c ? 'is-done' : ''} ${b.v ? `tone-${b.v}` : ''} ${st.fr ? `fr fr-${st.fr}` : ''} ${st.al ? `al-${st.al}` : ''}" data-bid="${b.id}"><button class="blk-h" data-act="blk-menu" aria-label="Options du bloc" tabindex="-1">${ic('drag')}</button>${lead}${body}</div>`;
+  // Bloc venu d'un import (Notion) et gardé en texte : une mention discrète
+  const src = b.src ? `<span class="blk-src" title="Bloc Notion « ${esc(b.src)} » gardé tel quel">Notion · ${esc(SRC_LABEL[b.src] || b.src)}</span>` : '';
+  return `<div class="blk blk-${b.t} ${b.ph || b.pha ? 'has-ph' : ''} ${b.c ? 'is-done' : ''} ${b.v ? `tone-${b.v}` : ''} ${st.fr ? `fr fr-${st.fr}` : ''} ${st.al ? `al-${st.al}` : ''}" data-bid="${b.id}"><button class="blk-h" data-act="blk-menu" aria-label="Options du bloc" tabindex="-1">${ic('drag')}</button>${lead}${body}${src}</div>`;
 }
+const SRC_LABEL = { image: 'image en lien', bookmark: 'lien', link_preview: 'lien', embed: 'contenu intégré, en lien', video: 'vidéo en lien', pdf: 'PDF en lien', file: 'fichier en lien', audio: 'audio en lien', equation: 'équation en texte' };
 function blocksHtml(p) {
   let n = 0;
   return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return blockHtml(b, n, p); }).join('');
@@ -324,7 +336,7 @@ function editor(root, pid) {
       for (const [re, t] of MD) {
         if (re.test(v) && b.t === 'p') { const rest = v.replace(re, ''); const caret = Math.max(0, caretOffset(el) - (v.length - rest.length)); mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); x.x = rest; delete x.h; }); applyType(id, t); focusBlock(id, caret); return; }
       }
-      if (v.startsWith('/') && !/\s/.test(v.slice(1, 12)) && !isQA(b)) openSlash(id, v.slice(1)); else if (slashFor) closeSlash();
+      if (v.startsWith('/') && !/\s/.test(v.slice(1, 12)) && !twoField(b)) openSlash(id, v.slice(1)); else if (slashFor) closeSlash();
     }
     save(el);
   });
@@ -356,14 +368,16 @@ function editor(root, pid) {
       if (e.key === 'Escape') { e.preventDefault(); closeSlash(); return; }
     }
     const mod = e.ctrlKey || e.metaKey;
+    // Bloc de code : Entrée va à la ligne ; Ctrl + Entrée sort du bloc
+    if (b.t === 'code' && e.key === 'Enter' && !mod) return;
     if (mod && ['b', 'i', 'u'].includes(e.key.toLowerCase())) { e.preventDefault(); fmt(e.key.toLowerCase()); return; }
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
-      if (isQA(b) && k === 'x') { focusBlock(id, 'end', 'a'); return; }
+      if (twoField(b) && k === 'x') { focusBlock(id, 'end', 'a'); return; }
       const listy = ['ul', 'ol', 'todo', 'qa', 'def'].includes(b.t);
-      if (listy && !plain(el).trim() && (!isQA(b) || !(b.x || '').trim())) { mutate(pid, (pp) => { const x = pp.blocks[i]; x.t = 'p'; x.x = ''; delete x.h; delete x.a; delete x.ha; }); paint(id, 'start'); return; }
-      const afterHtml = isQA(b) ? '' : splitAtCaret(el);
-      if (!isQA(b)) save(el);
+      if (listy && !plain(el).trim() && (!twoField(b) || !(b.x || '').trim())) { mutate(pid, (pp) => { const x = pp.blocks[i]; x.t = 'p'; x.x = ''; delete x.h; delete x.a; delete x.ha; }); paint(id, 'start'); return; }
+      const afterHtml = twoField(b) ? '' : splitAtCaret(el);
+      if (!twoField(b)) save(el);
       const nb = { id: bid(), t: listy ? b.t : 'p', x: htmlText(afterHtml), ...(hasFormat(afterHtml) ? { h: afterHtml } : {}), ...(b.t === 'todo' ? { c: false } : {}), ...(isQA(b) ? { a: '' } : {}) };
       mutate(pid, (pp) => { pp.blocks.splice(i + 1, 0, nb); });
       paint(nb.id, 'start'); flash();
@@ -372,12 +386,12 @@ function editor(root, pid) {
     const sel = getSelection();
     if (e.key === 'Backspace' && sel.isCollapsed && caretOffset(el) === 0) {
       if (k === 'a') { e.preventDefault(); focusBlock(id, 'end', 'x'); return; }
-      if (b.t !== 'p') { e.preventDefault(); mutate(pid, (pp) => { const x = pp.blocks[i]; if (isQA(x)) { x.x = [x.x, x.a].filter(Boolean).join(' '); delete x.ha; } x.t = 'p'; delete x.a; }); paint(id, 'start'); flash(); return; }
+      if (b.t !== 'p') { e.preventDefault(); mutate(pid, (pp) => { const x = pp.blocks[i]; if (twoField(x)) { x.x = [x.x, x.a].filter(Boolean).join(' '); delete x.ha; } x.t = 'p'; delete x.a; }); paint(id, 'start'); flash(); return; }
       const prev = p.blocks[i - 1];
       if (!prev || prev.t === 'table' || prev.t === 'prog') return;
       e.preventDefault();
       if (prev.t === 'divider') { mutate(pid, (pp) => { pp.blocks.splice(i - 1, 1); }); paint(id, 'start'); flash(); return; }
-      const pk = isQA(prev) ? 'a' : 'x';
+      const pk = twoField(prev) ? 'a' : 'x';
       const join = (prev[pk] || '').length;
       const merged = blockInner(prev, pk) + clean(el.innerHTML);
       mutate(pid, (pp) => { const pv = pp.blocks[i - 1]; const hk = pk === 'a' ? 'ha' : 'h'; pv[pk] = htmlText(merged); if (hasFormat(merged)) pv[hk] = merged; else delete pv[hk]; pp.blocks.splice(i, 1); });
@@ -386,13 +400,19 @@ function editor(root, pid) {
     }
     if (e.key === 'ArrowUp' && sel.isCollapsed && caretOffset(el) === 0 && i > 0) {
       const prev = [...p.blocks.slice(0, i)].reverse().find((x) => x.t !== 'divider');
-      if (prev) { e.preventDefault(); focusBlock(prev.id, 'end', isQA(prev) ? 'a' : 'x'); }
+      if (prev) { e.preventDefault(); focusBlock(prev.id, 'end', twoField(prev) ? 'a' : 'x'); }
     }
     if (e.key === 'ArrowDown' && caretAtEnd(el)) {
       const next = p.blocks.slice(i + 1).find((x) => x.t !== 'divider');
       if (next) { e.preventDefault(); focusBlock(next.id, 'start'); }
     }
   });
+  // Liens (pages importées) : Ctrl / Cmd + clic les ouvre, un clic simple place le curseur pour écrire
+  wrap.addEventListener('click', (e) => {
+    const a = e.target.closest('.blk-in a[href]');
+    if (a && (e.ctrlKey || e.metaKey)) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); }
+  });
+  wrap.addEventListener('mouseover', (e) => { const a = e.target.closest('.blk-in a[href]'); if (a && !a.title) a.title = `${a.href} — Ctrl + clic pour ouvrir`; });
   wrap.addEventListener('focusin', (e) => { const el = e.target.closest('[contenteditable]'); if (el) lastEl = el; });
   wrap.addEventListener('focusout', () => setTimeout(() => { if (!wrap.contains(document.activeElement)) closeSlash(); }, 120));
   const onSel = () => { const s = getSelection(); if (s.rangeCount && lastEl && lastEl.contains(s.anchorNode)) savedRange = s.getRangeAt(0).cloneRange(); };
@@ -485,7 +505,7 @@ function blockMenu(pid, id) {
     </div></div>`, { cls: 'sheet-sm' });
 }
 const mdTable = (rows = []) => (rows.length ? [rows[0], rows[0].map(() => '---'), ...rows.slice(1)].map((r) => `| ${r.map((v) => String(v).replace(/\|/g, '/')).join(' | ')} |`).join('\n') : '');
-const toMarkdown = (p) => [`# ${p.title || 'Sans titre'}`, '', ...(() => { let n = 0; return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return { p: b.x, h1: `## ${b.x}`, h2: `### ${b.x}`, todo: `- [${b.c ? 'x' : ' '}] ${b.x}`, ul: `- ${b.x}`, ol: `${n}. ${b.x}`, quote: `> ${b.x}`, callout: `> **${b.x}**`, divider: '---', qa: `**Q :** ${b.x}\n**R :** ${b.a || ''}`, def: `**${b.x}** : ${b.a || ''}`, table: mdTable(b.rows), prog: `Avancement : ${progress(p).pct} %` }[b.t] ?? b.x; }); })()].join('\n');
+const toMarkdown = (p) => [`# ${p.title || 'Sans titre'}`, '', ...(() => { let n = 0; return p.blocks.map((b) => { n = b.t === 'ol' ? n + 1 : 0; return { p: b.x, h1: `## ${b.x}`, h2: `### ${b.x}`, todo: `- [${b.c ? 'x' : ' '}] ${b.x}`, ul: `- ${b.x}`, ol: `${n}. ${b.x}`, quote: `> ${b.x}`, callout: `> **${b.x}**`, divider: '---', qa: `**Q :** ${b.x}\n**R :** ${b.a || ''}`, toggle: `▸ ${b.x}\n${(b.a || '').split('\n').map((l) => `  ${l}`).join('\n')}`, code: `\`\`\`\n${b.x}\n\`\`\``, def: `**${b.x}** : ${b.a || ''}`, table: mdTable(b.rows), prog: `Avancement : ${progress(p).pct} %` }[b.t] ?? b.x; }); })()].join('\n');
 function pageMenu(id) {
   const p = getPage(id);
   const fam = pageFamily(id);
@@ -498,6 +518,7 @@ function pageMenu(id) {
     <div class="btn-list">
       <button class="btn btn-ghost" data-act="page-dup" data-id="${id}">${ic('copy')}<span>Dupliquer</span></button>
       <button class="btn btn-ghost" data-act="page-copy" data-id="${id}">${ic('note')}<span>Copier le texte (Markdown)</span></button>
+      ${notionAvailable() || isConnected() ? `<button class="btn btn-ghost" data-act="page-notion" data-id="${id}">${ic('upload')}<span>${p.notion ? 'Envoyer à nouveau vers Notion' : 'Envoyer vers Notion'}</span></button>` : ''}
       <button class="btn btn-ghost" data-act="page-export" data-id="${id}">${ic('download')}<span>Télécharger (.md)</span></button>
       <button class="btn btn-danger-ghost" data-act="page-del" data-id="${id}">${ic('trash')}<span>Supprimer${fam.length > 1 ? ` (et ${fam.length - 1} sous-page${fam.length > 2 ? 's' : ''})` : ''}</span></button>
     </div></div>`, { cls: 'sheet-sm' });
@@ -546,6 +567,13 @@ register({
     mutate(curPid(), (p) => { const x = p.blocks.find((y) => y.id === id); x.c = !x.c; val = x.c; });
     b.classList.toggle('is-done', val); b.setAttribute('aria-pressed', val); b.closest('.blk').classList.toggle('is-done', val);
     refreshProgress(getPage(curPid()));
+  },
+  'page-notion': (b) => { closeSheet(null, true); sendToNotion('page', b.dataset.id); },
+  'tg-toggle': (b) => {
+    const id = b.closest('.blk').dataset.bid;
+    let open = true;
+    mutate(curPid(), (p) => { const x = p.blocks.find((y) => y.id === id); x.open = x.open === false; open = x.open; });
+    b.closest('.tg-w').classList.toggle('is-open', open); b.setAttribute('aria-expanded', open);
   },
   'blk-tone': (b) => { const { pid, bid: id, v } = b.dataset; mutate(pid, (p) => { const x = p.blocks.find((y) => y.id === id); if (v) x.v = v; else delete x.v; }); closeSheet(); setTimeout(() => repaint(id), 230); },
   'page-cover': (b) => pageMenu(b.dataset.id),

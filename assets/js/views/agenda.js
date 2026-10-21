@@ -212,7 +212,7 @@ function calendarDnD(root, v) {
     const old = task.due;
     const due = t.day + (t.min !== undefined ? t.min * 60e3 : minOf(old) * 60e3);
     if (due === old) return;
-    update((s) => { const x = s.tasks.find((y) => y.id === d.id); x.due = due; s.prospects.forEach((p) => { if (p.next?.taskId === x.id) p.next = { ...p.next, due }; }); });
+    update((s) => { const x = s.tasks.find((y) => y.id === d.id); x.due = due; x.updatedAt = Date.now(); s.prospects.forEach((p) => { if (p.next?.taskId === x.id) p.next = { ...p.next, due }; }); });
     toast(`${esc(task.title)} · ${dateDay(due)}${minOf(due) ? ` à ${time(due)}` : ''}`, { title: 'Tâche déplacée', action: 'Annuler', onAction: () => update((s) => { const x = s.tasks.find((y) => y.id === d.id); if (x) x.due = old; }), ms: 3200 });
   };
   root.addEventListener('pointerdown', down);
